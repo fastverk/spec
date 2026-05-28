@@ -1,6 +1,7 @@
 package kg;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import org.apache.jena.query.ResultSet;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.shacl.ShaclValidator;
 import org.apache.jena.shacl.Shapes;
@@ -45,15 +47,24 @@ import org.apache.jena.shacl.ValidationReport;
  */
 public final class GateHarness {
 
-    /** Five "this query MUST return zero rows" gates from the existing
-     *  PR gate suite. Path is relative to kg/. */
-    private static final Map<String, String> ZERO_ROW_GATES = Map.of(
-        "contradictions",  "queries/claims/contradictions.rq",
-        "dangling",        "queries/consistency/dangling-references.rq",
-        "cycles",          "queries/consistency/circular-deps.rq",
-        "collisions",      "queries/consistency/diagnostic-collisions.rq",
-        "inverse_edges",   "queries/consistency/inverse-edges.rq"
+    /** The 4 generic RFC-corpus consistency gates — SPARQL bundled as
+     *  classpath resources with rules_spec (not under the consumer kg-root).
+     *  Resource path layout mirrors the source under rdf/queries/. */
+    private static final Map<String, String> CONSISTENCY_RESOURCES = Map.of(
+        "dangling",        "/queries/consistency/dangling-references.rq",
+        "cycles",          "/queries/consistency/circular-deps.rq",
+        "collisions",      "/queries/consistency/diagnostic-collisions.rq",
+        "inverse_edges",   "/queries/consistency/inverse-edges.rq"
     );
+
+    /** Domain zero-row gate(s) — SPARQL under the consumer's kg-root (the
+     *  claims layer is domain-specific, not part of the generic framework). */
+    private static final Map<String, String> DOMAIN_ZERO_ROW = Map.of(
+        "contradictions",  "queries/claims/contradictions.rq"
+    );
+
+    /** Classpath resource of the framework SHACL shapes (ships with rules_spec). */
+    private static final String SHAPES_RESOURCE = "/ontology/shapes.ttl";
 
     private GateHarness() {}
 
@@ -61,13 +72,26 @@ public final class GateHarness {
      *  {@link Result} per gate in stable order. */
     public static List<Result> runAll(Dataset ds, Path kgRoot) {
         List<Result> out = new ArrayList<>();
-        // Zero-row gates first, in declared order.
-        for (String name : List.of("contradictions", "dangling", "cycles", "collisions", "inverse_edges")) {
-            out.add(runZeroRow(ds, kgRoot, name, ZERO_ROW_GATES.get(name)));
+        // contradictions (domain, kg-root) then the 4 framework consistency
+        // gates (resources) — preserves the original declared order.
+        out.add(runZeroRow(ds, kgRoot, "contradictions", DOMAIN_ZERO_ROW.get("contradictions")));
+        for (String name : List.of("dangling", "cycles", "collisions", "inverse_edges")) {
+            out.add(runZeroRowResource(ds, name, CONSISTENCY_RESOURCES.get(name)));
         }
         out.add(runQuerySmoke(ds, kgRoot));
         out.add(runShacl(ds, kgRoot));
         return out;
+    }
+
+    /** Zero-row gate whose SPARQL is a classpath resource (framework gate). */
+    static Result runZeroRowResource(Dataset ds, String name, String resourcePath) {
+        try {
+            return runZeroRowSparql(ds, name, Gates.readSparqlResource(resourcePath));
+        } catch (Exception e) {
+            return new Result(name, false, -1,
+                "query failed to execute: " + e.getClass().getSimpleName() + ": " + e.getMessage(),
+                List.of());
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -75,33 +99,37 @@ public final class GateHarness {
     // -----------------------------------------------------------------------
 
     static Result runZeroRow(Dataset ds, Path kgRoot, String name, String relPath) {
-        Path queryFile = kgRoot.resolve(relPath);
         try {
-            String sparql = Gates.readSparql(queryFile);
-            List<Map<String, String>> rows = new ArrayList<>();
-            try (QueryExecution exec = QueryExecutionFactory.create(QueryFactory.create(sparql), ds)) {
-                ResultSet rs = exec.execSelect();
-                while (rs.hasNext() && rows.size() < 50) {
-                    QuerySolution s = rs.next();
-                    Map<String, String> row = new LinkedHashMap<>();
-                    for (var it = s.varNames(); it.hasNext(); ) {
-                        String v = it.next();
-                        RDFNode node = s.get(v);
-                        row.put(v, node == null ? "null" : node.toString());
-                    }
-                    rows.add(row);
-                }
-                int extra = 0;
-                while (rs.hasNext()) { rs.next(); extra++; }
-                int total = rows.size() + extra;
-                return new Result(name, total == 0, total,
-                    total == 0 ? "0 rows" : total + " row(s)" + (extra > 0 ? " (showing first " + rows.size() + ")" : ""),
-                    rows);
-            }
+            return runZeroRowSparql(ds, name, Gates.readSparql(kgRoot.resolve(relPath)));
         } catch (Exception e) {
             return new Result(name, false, -1,
                 "query failed to execute: " + e.getClass().getSimpleName() + ": " + e.getMessage(),
                 List.of());
+        }
+    }
+
+    /** Execute a zero-row gate query against the dataset (shared by the
+     *  file-based and resource-based variants). */
+    static Result runZeroRowSparql(Dataset ds, String name, String sparql) {
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (QueryExecution exec = QueryExecutionFactory.create(QueryFactory.create(sparql), ds)) {
+            ResultSet rs = exec.execSelect();
+            while (rs.hasNext() && rows.size() < 50) {
+                QuerySolution s = rs.next();
+                Map<String, String> row = new LinkedHashMap<>();
+                for (var it = s.varNames(); it.hasNext(); ) {
+                    String v = it.next();
+                    RDFNode node = s.get(v);
+                    row.put(v, node == null ? "null" : node.toString());
+                }
+                rows.add(row);
+            }
+            int extra = 0;
+            while (rs.hasNext()) { rs.next(); extra++; }
+            int total = rows.size() + extra;
+            return new Result(name, total == 0, total,
+                total == 0 ? "0 rows" : total + " row(s)" + (extra > 0 ? " (showing first " + rows.size() + ")" : ""),
+                rows);
         }
     }
 
@@ -137,17 +165,22 @@ public final class GateHarness {
     }
 
     static Result runShacl(Dataset ds, Path kgRoot) {
-        Path shapesPath = kgRoot.resolve("ontology/shapes.ttl");
-        if (!Files.isRegularFile(shapesPath)) {
-            return new Result("shacl", false, -1,
-                "shapes.ttl not found at " + shapesPath, List.of());
-        }
         Model unionModel = ModelFactory.createDefaultModel();
         unionModel.add(ds.getDefaultModel());
         ds.listNames().forEachRemaining(name -> unionModel.add(ds.getNamedModel(name)));
 
+        // SHACL shapes ship with rules_spec as a classpath resource.
         Model shapesModel = ModelFactory.createDefaultModel();
-        RDFDataMgr.read(shapesModel, shapesPath.toUri().toString());
+        try (InputStream in = GateHarness.class.getResourceAsStream(SHAPES_RESOURCE)) {
+            if (in == null) {
+                return new Result("shacl", false, -1,
+                    "shapes.ttl resource not on classpath: " + SHAPES_RESOURCE, List.of());
+            }
+            RDFDataMgr.read(shapesModel, in, Lang.TURTLE);
+        } catch (IOException e) {
+            return new Result("shacl", false, -1,
+                "failed to read shapes resource: " + e.getMessage(), List.of());
+        }
         Shapes shapes = Shapes.parse(shapesModel.getGraph());
         Graph data = unionModel.getGraph();
         ValidationReport report = ShaclValidator.get().validate(shapes, data);

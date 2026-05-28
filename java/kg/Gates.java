@@ -1,6 +1,8 @@
 package kg;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
@@ -39,7 +41,21 @@ public final class Gates {
 
     /** Read a .rq file and strip the optional YAML frontmatter block. */
     public static String readSparql(Path queryFile) throws IOException {
-        String text = Files.readString(queryFile);
+        return stripFrontmatter(Files.readString(queryFile));
+    }
+
+    /** Read a .rq query bundled as a classpath resource (the framework
+     *  consistency gates ship with rules_spec) and strip its frontmatter. */
+    public static String readSparqlResource(String resourcePath) throws IOException {
+        try (InputStream in = Gates.class.getResourceAsStream(resourcePath)) {
+            if (in == null) {
+                throw new IOException("sparql gate resource not on classpath: " + resourcePath);
+            }
+            return stripFrontmatter(new String(in.readAllBytes(), StandardCharsets.UTF_8));
+        }
+    }
+
+    private static String stripFrontmatter(String text) {
         Matcher m = FRONTMATTER.matcher(text);
         if (m.find() && m.start() == 0) {
             return text.substring(m.end());

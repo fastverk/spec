@@ -10,11 +10,14 @@ JENA_DEPS = [
     "@maven//:org_slf4j_slf4j_simple",
 ]
 
-# Shared corpus loader — load all TBox + ABox TTLs into one in-memory
-# Jena Dataset. Leaf utility depended on by every corpus-reading tool.
+# Shared corpus loader — loads the framework rfc: vocabulary (bundled as a
+# classpath resource, /ontology/aion-rfc.ttl) plus the consumer's domain
+# TBox + corpus (from a kg-root path) into one in-memory Jena Dataset.
 java_library(
     name = "loader",
     srcs = ["kg/Loader.java"],
+    resources = ["//rdf/ontology:aion-rfc.ttl"],
+    resource_strip_prefix = "rdf",
     deps = JENA_DEPS,
 )
 
@@ -33,14 +36,25 @@ java_library(
     deps = JENA_DEPS,
 )
 
-# The graph-content gate runner: loads a Dataset and runs the SHACL +
-# zero-row consistency gates. Consumers supply the queries/shapes.
+# The graph-content gate runner: runs the SHACL shapes + the 4 framework
+# consistency gates against a Dataset. The shapes + consistency queries
+# ship bundled as classpath resources (/ontology/shapes.ttl,
+# /queries/consistency/*.rq); domain gates (contradictions) + the
+# query-smoke walk come from the consumer's kg-root.
 java_library(
     name = "gate_harness",
     srcs = [
         "kg/GateHarness.java",
         "kg/Gates.java",
     ],
+    resources = [
+        "//rdf/ontology:shapes.ttl",
+        "//rdf/queries/consistency:dangling-references.rq",
+        "//rdf/queries/consistency:circular-deps.rq",
+        "//rdf/queries/consistency:diagnostic-collisions.rq",
+        "//rdf/queries/consistency:inverse-edges.rq",
+    ],
+    resource_strip_prefix = "rdf",
     deps = JENA_DEPS + ["@maven//:org_apache_jena_jena_shacl"],
 )
 

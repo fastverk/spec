@@ -1,6 +1,7 @@
 package kg;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,6 +12,7 @@ import org.apache.jena.query.Dataset;
 import org.apache.jena.query.DatasetFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 
 /**
@@ -25,15 +27,39 @@ public final class Loader {
 
     private Loader() {}
 
+    /** Classpath resource path of the framework rfc: vocabulary, bundled in
+     *  this rules_spec jar (see java/BUILD.bazel resources). */
+    private static final String RFC_VOCAB_RESOURCE = "/ontology/aion-rfc.ttl";
+
     /**
-     * Load the three TBox files plus every TTL under turtle/, turtle-domain/,
-     * turtle-claims/ into a single in-memory Dataset. Files are read in
-     * sorted order so blank-node IDs are deterministic across runs.
+     * Load the framework rfc: vocabulary (a classpath resource shipped with
+     * rules_spec) plus the consumer's domain TBox (aion-domain / aion-claims)
+     * and every TTL under turtle/, turtle-domain/, turtle-claims/ from kgRoot,
+     * into one in-memory Dataset. Files are read in sorted order so blank-node
+     * IDs are deterministic across runs.
      */
+    /**
+     * Read the framework rfc: vocabulary — a classpath resource shipped with
+     * rules_spec — into {@code model}. Tools that build their own corpus model
+     * (e.g. KgReasoner) call this instead of path-reading ontology/aion-rfc.ttl.
+     */
+    public static void loadFrameworkVocab(Model model) throws IOException {
+        try (InputStream in = Loader.class.getResourceAsStream(RFC_VOCAB_RESOURCE)) {
+            if (in == null) {
+                throw new IOException(
+                    "rfc: vocabulary resource not on classpath: " + RFC_VOCAB_RESOURCE +
+                    " (is the rules_spec loader jar a dep?)");
+            }
+            RDFDataMgr.read(model, in, Lang.TURTLE);
+        }
+    }
+
     public static Dataset loadDataset(Path kgRoot) throws IOException {
         Model model = ModelFactory.createDefaultModel();
+        // Framework vocabulary ships with rules_spec (classpath), not under
+        // the consumer's kg-root.
+        loadFrameworkVocab(model);
         for (Path p : List.of(
-                kgRoot.resolve("ontology/aion-rfc.ttl"),
                 kgRoot.resolve("ontology/aion-domain.ttl"),
                 kgRoot.resolve("ontology/aion-claims.ttl"))) {
             if (Files.isRegularFile(p)) RDFDataMgr.read(model, p.toUri().toString());
