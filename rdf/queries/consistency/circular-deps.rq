@@ -1,0 +1,21 @@
+# ---
+# title: "Circular dependencies"
+# description: "Cycles in the `dependsOn` DAG. Should always be empty."
+# section: consistency
+# format: table
+# columns: [aId, bId]
+# show_if_empty: true
+# order: 30
+# ---
+# Circular dependsOn — should always return 0 rows. If any rows
+# appear, the RFC dependency DAG has a cycle and needs to be fixed.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?aId ?bId
+WHERE {
+  ?a rfc:rfcId ?aId ; rfc:dependsOn+ ?b .
+  ?b rfc:rfcId ?bId ; rfc:dependsOn+ ?a .
+  FILTER (?a != ?b)
+}
+ORDER BY ?aId

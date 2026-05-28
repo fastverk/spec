@@ -1,0 +1,21 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load(":gates.bzl", "spec_corpus_gates")
+
+package(default_visibility = ["//visibility:public"])
+
+# The RFC vocabulary as a dataset. Consumers fold this into their corpus
+# via `deps = ["@rules_spec//rdf:vocab"]` so the gate queries resolve the
+# rfc: terms.
+rdf_dataset(
+    name = "vocab",
+    srcs = ["//rdf/ontology:aion-rfc.ttl"],
+    in_format = "turtle",
+)
+
+# Self-test: the vocab graph alone conforms (no instances → SHACL passes
+# vacuously, zero-row queries return nothing). Proves the shapes + queries
+# parse/execute and the macro wires up against the registered Jena toolchain.
+spec_corpus_gates(
+    name = "vocab_selftest",
+    dataset = ":vocab",
+)

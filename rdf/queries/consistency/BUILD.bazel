@@ -1,0 +1,6 @@
+package(default_visibility = ["//visibility:public"])
+
+# Generic graph-integrity SPARQL gates (zero-row idiom) over the rfc:
+# vocabulary: dangling references, dependency cycles, diagnostic-code
+# collisions, asymmetric inverse edges. Any RFC-shaped corpus wants these.
+exports_files(glob(["*.rq"]))

@@ -1,0 +1,25 @@
+# ---
+# title: "Asymmetric extends/extendedBy"
+# description: "Pairs where A says `extendedBy: B` but B has no `extends`/`dependsOn` back-reference."
+# section: consistency
+# format: table
+# columns: [aId, bId, missingDirection]
+# show_if_empty: true
+# order: 40
+# ---
+# Asymmetric extendedBy/extends — if A says "extendedBy: B" but B does NOT
+# say "extends: A" (or dependsOn: A), the relationship is asymmetric and
+# probably a documentation bug.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?aId ?bId ?missingDirection
+WHERE {
+  ?a rfc:rfcId ?aId ; rfc:extendedBy ?b .
+  ?b rfc:rfcId ?bId .
+  FILTER NOT EXISTS {
+    { ?b rfc:extends ?a } UNION { ?b rfc:dependsOn ?a }
+  }
+  BIND ("missing extends/dependsOn back-reference" AS ?missingDirection)
+}
+ORDER BY ?aId ?bId

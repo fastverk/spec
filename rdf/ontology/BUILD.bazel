@@ -1,0 +1,11 @@
+package(default_visibility = ["//visibility:public"])
+
+# The RFC-shaped spec ontology: the rfc: vocabulary (Document / Section /
+# NormativeStatement / Derivation / Diagnostic + dependsOn / extends / …)
+# and the SHACL shapes that constrain a conforming corpus. Generic — defines
+# what an RFC corpus *is*, independent of any domain. Exposed as source
+# labels for rdf_dataset srcs + the spec_corpus_gates macro.
+exports_files([
+    "aion-rfc.ttl",
+    "shapes.ttl",
+])

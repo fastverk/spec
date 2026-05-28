@@ -1,0 +1,22 @@
+# ---
+# title: "Diagnostic-code collisions"
+# description: "Diagnostic codes claimed by more than one RFC. Non-empty results are real defects requiring assignment to a single owner."
+# section: consistency
+# format: table
+# columns: [code, rfcs]
+# show_if_empty: true
+# order: 10
+# ---
+# Diagnostic-code collisions across RFCs — finds real defects where
+# two RFCs both claim the same diagnostic code (a defect detector).
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?code (GROUP_CONCAT(DISTINCT ?rfcId; separator=", ") AS ?rfcs)
+WHERE {
+  ?doc rfc:rfcId ?rfcId ; rfc:introducesDiagnostic ?d .
+  ?d rfc:code ?code .
+}
+GROUP BY ?code
+HAVING (COUNT(DISTINCT ?rfcId) > 1)
+ORDER BY ?code

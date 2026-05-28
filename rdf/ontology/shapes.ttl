@@ -1,0 +1,129 @@
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix :      <https://aion.savvi.io/ontology/rfc#> .
+
+# =============================================================================
+# SHACL Shapes — structural validation of the RFC knowledge graph
+# Run via Fuseki's /rfcs/shacl endpoint or `pyshacl` against the loaded data.
+# =============================================================================
+
+:DocumentShape a sh:NodeShape ;
+    sh:targetClass :Document ;
+    sh:property [
+        sh:path :rfcId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^RFC-[0-9]{4}$" ;
+        sh:message "Document MUST carry exactly one rfcId of the form RFC-NNNN."
+    ] ;
+    sh:property [
+        sh:path :title ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "Document MUST carry exactly one title."
+    ] ;
+    sh:property [
+        sh:path :status ;
+        sh:in ( "draft" "experimental" "stable" "deprecated" ) ;
+        sh:maxCount 1 ;
+        sh:message "Document status must be one of draft/experimental/stable/deprecated."
+    ] ;
+    sh:property [
+        sh:path :hasSection ;
+        sh:minCount 1 ;
+        sh:message "Document MUST contain at least one section."
+    ] .
+
+:SectionShape a sh:NodeShape ;
+    sh:targetClass :Section ;
+    sh:property [
+        sh:path :sectionNumber ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "Section MUST have exactly one sectionNumber."
+    ] ;
+    sh:property [
+        sh:path :title ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1
+    ] ;
+    sh:property [
+        sh:path :sectionKind ;
+        sh:class :SectionKind ;
+        sh:maxCount 1
+    ] .
+
+:DiagnosticShape a sh:NodeShape ;
+    sh:targetClass :Diagnostic ;
+    sh:property [
+        sh:path :code ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^[A-Z][0-9]+$" ;
+        sh:message "Diagnostic code MUST match a letter+digits pattern (e.g., M36010)."
+    ] ;
+    sh:property [
+        sh:path :severity ;
+        sh:class :Severity ;
+        sh:maxCount 1
+    ] ;
+    sh:property [
+        sh:path :description ;
+        sh:datatype xsd:string ;
+        sh:minCount 1
+    ] .
+
+:NormativeStatementShape a sh:NodeShape ;
+    sh:targetClass :NormativeStatement ;
+    sh:property [
+        sh:path :modality ;
+        sh:class :Modality ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:message "Every NormativeStatement MUST carry exactly one Modality."
+    ] ;
+    sh:property [
+        sh:path :predicate ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1
+    ] .
+
+:TermShape a sh:NodeShape ;
+    sh:targetClass :Term ;
+    sh:property [
+        sh:path :name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1
+    ] ;
+    sh:property [
+        sh:path :definition ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1
+    ] .
+
+:DeclarationShape a sh:NodeShape ;
+    sh:targetClass :Declaration ;
+    sh:property [
+        sh:path :name ;
+        sh:datatype xsd:string ;
+        sh:minCount 1
+    ] .
+
+:DecisionShape a sh:NodeShape ;
+    sh:targetClass :Decision ;
+    sh:property [
+        sh:path :decisionId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:pattern "^KP[0-9]+$"
+    ] .

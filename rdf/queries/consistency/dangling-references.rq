@@ -1,0 +1,23 @@
+# ---
+# title: "Dangling RFC references"
+# description: "Cross-references whose target RFC is not present in the loaded corpus. Catches typos and stale links."
+# section: consistency
+# format: table
+# columns: [fromId, relation, targetUri]
+# show_if_empty: true
+# order: 20
+# ---
+# Dangling cross-references — RFC links that point at non-existent RFCs.
+# Catches typos and stale references in Linked References sections.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?fromId ?relation ?targetUri
+WHERE {
+  ?from rfc:rfcId ?fromId .
+  VALUES ?relation { rfc:dependsOn rfc:extends rfc:supersedes rfc:refines rfc:references }
+  ?from ?relation ?target .
+  BIND(STR(?target) AS ?targetUri)
+  FILTER NOT EXISTS { ?target a rfc:Document }
+}
+ORDER BY ?fromId ?targetUri

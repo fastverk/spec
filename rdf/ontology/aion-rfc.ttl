@@ -1,0 +1,606 @@
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms:<http://purl.org/dc/terms/> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix :       <https://aion.savvi.io/ontology/rfc#> .
+@prefix rfc:    <https://aion.savvi.io/rfc/> .
+
+# =============================================================================
+# Aion RFC Ontology (TBox) — v1
+# Captures the structural content of an Aion RFC document so the entire RFC
+# corpus can be loaded into a triplestore and reasoned over.
+# =============================================================================
+
+<https://aion.savvi.io/ontology/rfc> a owl:Ontology ;
+    rdfs:label "Aion RFC Ontology" ;
+    dcterms:title "Aion RFC Ontology" ;
+    dcterms:description "An ontology for the structural content of Aion RFC documents." ;
+    owl:versionInfo "1.0.0" .
+
+# -----------------------------------------------------------------------------
+# Core classes
+# -----------------------------------------------------------------------------
+
+:Document a owl:Class ;
+    rdfs:label "RFC Document" ;
+    rdfs:comment "A single RFC, identified by its rfcId (e.g., RFC-0036)." .
+
+:Section a owl:Class ;
+    rdfs:label "RFC Section" ;
+    rdfs:comment "A numbered section within an RFC." .
+
+:Subsection a owl:Class ;
+    rdfs:subClassOf :Section ;
+    rdfs:label "RFC Subsection" .
+
+:NormativeStatement a owl:Class ;
+    rdfs:label "Normative Statement" ;
+    rdfs:comment "A MUST / MUST NOT / SHOULD / SHOULD NOT / MAY claim within an RFC. Materialized as a :Theorem by kg/rules/normative-is-theorem.rule so the grounding check can ask 'is every assertion derivable from axioms?' Stipulative rules can opt out by setting :isAxiom true." .
+
+:Term a owl:Class ;
+    rdfs:label "Defined Term" ;
+    rdfs:comment "A term defined within an RFC's Definitions section." .
+
+:Diagnostic a owl:Class ;
+    rdfs:label "Diagnostic Code" ;
+    rdfs:comment "A diagnostic code introduced by an RFC (e.g., M36010)." .
+
+:Declaration a owl:Class ;
+    rdfs:label "Aion Declaration Kind or Named Declaration" ;
+    rdfs:comment "Either a declaration kind (e.g., 'entity', 'projection') or a named declaration introduced (e.g., 'Resource', 'core.provenance')." .
+
+:DeclarationKind a owl:Class ;
+    rdfs:subClassOf :Declaration ;
+    rdfs:label "Declaration Kind" ;
+    rdfs:comment "A new top-level declaration kind introduced by an RFC (e.g., 'projection', 'mutation')." .
+
+:NamedDeclaration a owl:Class ;
+    rdfs:subClassOf :Declaration ;
+    rdfs:label "Named Declaration" ;
+    rdfs:comment "A named declaration of a known kind, introduced by an RFC (e.g., the 'Resource' entity intrinsic, the 'core.provenance' projection)." .
+
+:Grammar a owl:Class ;
+    rdfs:label "Grammar Block" ;
+    rdfs:comment "A BNF/EBNF block, JSON Schema, or other formal-syntax block within an RFC." .
+
+:OpenQuestion a owl:Class ;
+    rdfs:label "Open Question" ;
+    rdfs:comment "A question explicitly listed as unresolved within an RFC." .
+
+:CrossReference a owl:Class ;
+    rdfs:label "Cross-Reference" ;
+    rdfs:comment "A reference from an RFC to another RFC, an external standard, or to legacy source material." .
+
+:Decision a owl:Class ;
+    rdfs:label "Design Decision" ;
+    rdfs:comment "A locked design decision (e.g., KP19) referenced by the RFC." .
+
+# -----------------------------------------------------------------------------
+# Section kinds
+# -----------------------------------------------------------------------------
+
+:SectionKind a owl:Class ;
+    rdfs:label "Section Kind" .
+
+:Purpose             a :SectionKind ; rdfs:label "Purpose" .
+:Definitions         a :SectionKind ; rdfs:label "Definitions" .
+:Normative           a :SectionKind ; rdfs:label "Normative" .
+:Informational       a :SectionKind ; rdfs:label "Informational" .
+:Examples            a :SectionKind ; rdfs:label "Examples" .
+:DiagnosticTable     a :SectionKind ; rdfs:label "Diagnostic Codes Table" .
+:CompatibilitySection a :SectionKind ; rdfs:label "Compatibility / Migration" .
+:Invariants          a :SectionKind ; rdfs:label "Invariants" .
+:LinkedReferences    a :SectionKind ; rdfs:label "Linked References" .
+:GrammarSection      a :SectionKind ; rdfs:label "Grammar / Syntax" .
+
+# -----------------------------------------------------------------------------
+# Modality (for normative statements)
+# -----------------------------------------------------------------------------
+
+:Modality a owl:Class ;
+    rdfs:label "RFC 2119 Modality" .
+
+:MUST        a :Modality ; rdfs:label "MUST" .
+:MUST_NOT    a :Modality ; rdfs:label "MUST NOT" .
+:SHOULD      a :Modality ; rdfs:label "SHOULD" .
+:SHOULD_NOT  a :Modality ; rdfs:label "SHOULD NOT" .
+:MAY         a :Modality ; rdfs:label "MAY" .
+:REQUIRED    a :Modality ; rdfs:label "REQUIRED" ; owl:sameAs :MUST .
+:RECOMMENDED a :Modality ; rdfs:label "RECOMMENDED" ; owl:sameAs :SHOULD .
+
+# -----------------------------------------------------------------------------
+# Severities (for diagnostics)
+# -----------------------------------------------------------------------------
+
+:Severity a owl:Class ;
+    rdfs:label "Diagnostic Severity" .
+
+:Fatal   a :Severity ; rdfs:label "Fatal" .
+:Error   a :Severity ; rdfs:label "Error" .
+:Warning a :Severity ; rdfs:label "Warning" .
+:Info    a :Severity ; rdfs:label "Info" .
+:Defect  a :Severity ; rdfs:label "Defect" .
+
+# -----------------------------------------------------------------------------
+# Document properties
+# -----------------------------------------------------------------------------
+
+:rfcId a owl:DatatypeProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  xsd:string ;
+    rdfs:label "RFC identifier" ;
+    rdfs:comment "Stable identifier of the form RFC-NNNN." .
+
+:title a owl:DatatypeProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Title" .
+
+:status a owl:DatatypeProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Status" ;
+    rdfs:comment "One of: draft | experimental | stable | deprecated." .
+
+:owner a owl:DatatypeProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Owner" .
+
+:hasSection a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Section ;
+    rdfs:label "Has section" .
+
+:dependsOn a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Document ;
+    rdfs:label "Depends on" ;
+    rdfs:comment "Another RFC declared as a prerequisite via the 'Depends on:' header. Transitive: A dependsOn B and B dependsOn C implies A dependsOn C (materialized by kg_reasoner)." .
+
+:extendedBy a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Document ;
+    rdfs:label "Extended by" ;
+    owl:inverseOf :extends .
+
+:extends a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Document ;
+    rdfs:label "Extends" ;
+    rdfs:comment "Transitive: A extends B and B extends C implies A extends C." .
+
+:supersedes a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Document ;
+    rdfs:label "Supersedes" ;
+    rdfs:comment "Transitive: A supersedes B and B supersedes C implies A supersedes C." .
+
+:refines a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Document ;
+    rdfs:label "Refines" ;
+    rdfs:comment "Sharpens/normalizes an earlier RFC without superseding." .
+
+:closes a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:label "Closes" ;
+    rdfs:comment "Closes a previously deferred design decision (e.g., KP32)." .
+
+:references a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:label "References" ;
+    rdfs:comment "Mentions another RFC contextually (weaker than dependsOn)." .
+
+:definesTerm a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Term ;
+    rdfs:label "Defines term" .
+
+:introducesDiagnostic a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Diagnostic ;
+    rdfs:label "Introduces diagnostic" .
+
+:declares a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Declaration ;
+    rdfs:label "Declares" ;
+    rdfs:comment "Introduces a declaration kind or a named declaration." .
+
+:containsGrammar a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Grammar ;
+    rdfs:label "Contains grammar" .
+
+:hasOpenQuestion a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :OpenQuestion ;
+    rdfs:label "Has open question" .
+
+:invokesDecision a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Decision ;
+    rdfs:label "Invokes design decision" .
+
+:diagnosticRange a owl:DatatypeProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Diagnostic code range" ;
+    rdfs:comment "The MNNxxx range claimed by the RFC (e.g., 'M36000-M36099')." .
+
+# -----------------------------------------------------------------------------
+# Section properties
+# -----------------------------------------------------------------------------
+
+:sectionNumber a owl:DatatypeProperty ;
+    rdfs:domain :Section ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Section number" .
+
+:sectionKind a owl:ObjectProperty ;
+    rdfs:domain :Section ;
+    rdfs:range  :SectionKind ;
+    rdfs:label "Section kind" .
+
+:hasSubsection a owl:ObjectProperty ;
+    rdfs:domain :Section ;
+    rdfs:range  :Subsection ;
+    rdfs:label "Has subsection" .
+
+:containsRule a owl:ObjectProperty ;
+    rdfs:domain :Section ;
+    rdfs:range  :NormativeStatement ;
+    rdfs:label "Contains normative rule" .
+
+:appearsInSection a owl:ObjectProperty ;
+    rdfs:label "Appears in section" .
+
+# Optional ordering hint for any block-level child of a Section (rules,
+# diagnostics, terms, code blocks, examples). Populated by the Phase 1.4
+# re-extraction so the markdown generator (Phase 2) can render section
+# children in the author's intended order rather than alphabetical-by-URI.
+:narrativeOrder a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "Narrative order within parent section" .
+
+# Optional short illustrative example attached to a normative rule or
+# diagnostic. Populated when present in the source markdown; rendered
+# inline by the markdown generator beneath the rule/diagnostic it
+# illustrates. Free-form Markdown literal.
+:exampleSnippet a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "Illustrative example snippet" .
+
+# -----------------------------------------------------------------------------
+# Normative statement properties
+# -----------------------------------------------------------------------------
+
+:modality a owl:ObjectProperty ;
+    rdfs:domain :NormativeStatement ;
+    rdfs:range  :Modality ;
+    rdfs:label "Modality" .
+
+:predicate a owl:DatatypeProperty ;
+    rdfs:domain :NormativeStatement ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Statement predicate" ;
+    rdfs:comment "The actual claim, in the form 'X MUST/MAY/... do Y'." .
+
+:rationale a owl:DatatypeProperty ;
+    rdfs:domain :NormativeStatement ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Rationale" .
+
+:emits a owl:ObjectProperty ;
+    rdfs:domain :NormativeStatement ;
+    rdfs:range  :Diagnostic ;
+    rdfs:label "Emits diagnostic" ;
+    rdfs:comment "Connects a normative statement to the diagnostic the compiler/runtime emits when the rule is violated. A rule may emit zero or more diagnostics; a diagnostic is typically emitted by exactly one rule but may be shared across rules within an RFC. Populated by hand or by `kg_edit scaffold-rule --emits MNNxxx` from v1.1 onward; consumed by the orphan-diagnostic lint check." .
+
+:inferredBy a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Inferred by" ;
+    rdfs:comment "Provenance for triples produced by kg_reasoner. Value identifies the rule or feature that derived the triple (e.g., 'OWL-MICRO', 'kg/rules/emits-from-text.rule', 'llm:claim-equivalence'). Triples without :inferredBy are authored." .
+
+# -----------------------------------------------------------------------------
+# Non-normative content (extracted from rationale prose by kg_research extract)
+# -----------------------------------------------------------------------------
+# Five recurring shapes the rationale.md narrative carries that the
+# normative-only graph misses today. Each is a typed annotation on a
+# Document (or, eventually, a Section) and carries provenance via
+# :proposedBy when LLM-derived.
+
+:Motivation a owl:Class ;
+    rdfs:label "Motivation" ;
+    rdfs:comment "Why a design exists / what problem it solves. Captured from prose like \"because\", \"to support\", \"the reason is\"." .
+
+:Tradeoff a owl:Class ;
+    rdfs:label "Tradeoff" ;
+    rdfs:comment "An explicit choice between alternatives where one was preferred." .
+
+:Alternative a owl:Class ;
+    rdfs:label "Alternative" ;
+    rdfs:comment "A design option that was considered and rejected (\"we could have\", \"instead of\", \"an alternative\")." .
+
+:Example a owl:Class ;
+    rdfs:label "Example" ;
+    rdfs:comment "Illustrative scenario, walkthrough, or sample (\"for instance\", \"consider\", \"e.g.\")." .
+
+:AntiPattern a owl:Class ;
+    rdfs:label "Anti-pattern" ;
+    rdfs:comment "Explicit statement of what NOT to do, often phrased as \"do not\" or \"MUST NOT\" outside a numbered Invariants list." .
+
+:hasMotivation a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Motivation ;
+    rdfs:label "Has motivation" .
+
+:hasTradeoff a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Tradeoff ;
+    rdfs:label "Has tradeoff" .
+
+:hasAlternative a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Alternative ;
+    rdfs:label "Has alternative considered" .
+
+:hasExample a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :Example ;
+    rdfs:label "Has illustrative example" .
+
+:hasAntiPattern a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :AntiPattern ;
+    rdfs:label "Has anti-pattern" .
+
+:narrativeText a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Narrative text" ;
+    rdfs:comment "Short paraphrase of the extracted content, ≤ 200 chars." .
+
+:evidence a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Evidence quote" ;
+    rdfs:comment "Verbatim quote from the source rationale supporting the proposal." .
+
+:proposedBy a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Proposed by" ;
+    rdfs:comment "Provenance for triples derived by `kg_research extract`. Format: 'llm:<provider>:<model>' (e.g. 'llm:ollama:gemma3:4b'). Authored content carries no :proposedBy." .
+
+:fromSection a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "From section" ;
+    rdfs:comment "Heading text of the rationale.md section the proposal was extracted from." .
+
+# -----------------------------------------------------------------------------
+# Term properties
+# -----------------------------------------------------------------------------
+
+:name a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "Name" .
+
+:definition a owl:DatatypeProperty ;
+    rdfs:domain :Term ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Definition text" .
+
+# -----------------------------------------------------------------------------
+# Diagnostic properties
+# -----------------------------------------------------------------------------
+
+:code a owl:DatatypeProperty ;
+    rdfs:domain :Diagnostic ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Diagnostic code" ;
+    rdfs:comment "Code of the form MNNxxx." .
+
+:severity a owl:ObjectProperty ;
+    rdfs:domain :Diagnostic ;
+    rdfs:range  :Severity ;
+    rdfs:label "Severity" .
+
+:description a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "Description" .
+
+:phase a owl:DatatypeProperty ;
+    rdfs:domain :Diagnostic ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Phase" ;
+    rdfs:comment "When the diagnostic fires (parse-time | compile-time | runtime | install-time | etc.)" .
+
+# -----------------------------------------------------------------------------
+# Declaration properties
+# -----------------------------------------------------------------------------
+
+:declarationKindName a owl:DatatypeProperty ;
+    rdfs:domain :Declaration ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Kind name" ;
+    rdfs:comment "Discriminator string (e.g., 'projection', 'mutation', 'predicate-policy')." .
+
+:declarationClass a owl:DatatypeProperty ;
+    rdfs:domain :Declaration ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Declaration class" ;
+    rdfs:comment "One of: Surface | Operations | Migrations | Composition | Storage | Meta." .
+
+# -----------------------------------------------------------------------------
+# Grammar block properties
+# -----------------------------------------------------------------------------
+
+:grammarLanguage a owl:DatatypeProperty ;
+    rdfs:domain :Grammar ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Grammar language" ;
+    rdfs:comment "EBNF | BNF | JSONSchema | TypeScript | SQL | aion-syntax | etc." .
+
+:source a owl:DatatypeProperty ;
+    rdfs:domain :Grammar ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Source text" .
+
+# -----------------------------------------------------------------------------
+# Decision properties
+# -----------------------------------------------------------------------------
+
+:decisionId a owl:DatatypeProperty ;
+    rdfs:domain :Decision ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Decision identifier" ;
+    rdfs:comment "Identifier of the form KP1, KP15, KP32, etc." .
+
+# =============================================================================
+# Proof system — axioms, theorems, derivations, inference rules.
+# Lets us treat the spec as a derivation graph and ask "does every theorem
+# trace back to an axiom?" symbolically. See kg/turtle/axioms.ttl for the
+# centralized axiom file and kg/turtle/inference-rules.ttl for the rule
+# catalog. The grounding check (kg/lint/semantic/grounding.rq) walks
+# :derivedVia upstream from each Theorem looking for a path to an Axiom.
+# =============================================================================
+
+:Axiom a owl:Class ;
+    rdfs:label "Axiom" ;
+    rdfs:comment "A foundational claim accepted without derivation. Axioms are the trust root of the spec — they are the commitments everything else is built on. Lives in kg/turtle/axioms.ttl. Adding an axiom is high-stakes: it expands the system's substantive commitments." .
+
+:Theorem a owl:Class ;
+    rdfs:label "Theorem" ;
+    rdfs:comment "A claim derived from axioms (or other theorems) via one or more applications of named inference rules. NormativeStatements, Invariants, and Claims that aren't axiomatic are theorems. Every theorem must have :derivedVia pointing at a :Derivation whose premises ground out at axioms." .
+
+:Derivation a owl:Class ;
+    rdfs:label "Derivation" ;
+    rdfs:comment "One application of a named :InferenceRule, with explicit premises and conclusion. Derivations are first-class so the proof tree is queryable — every step in the spec's reasoning is auditable." .
+
+:InferenceRule a owl:Class ;
+    rdfs:label "Inference rule" ;
+    rdfs:comment "A schema for valid derivation steps (modus ponens, type instantiation, subclass inheritance, etc.). The catalog is finite and lives in kg/turtle/inference-rules.ttl. Every :Derivation must cite exactly one rule from this catalog — no ad-hoc reasoning." .
+
+:isAxiom a owl:DatatypeProperty ;
+    rdfs:range xsd:boolean ;
+    rdfs:label "Is axiom" ;
+    rdfs:comment "True if the subject is foundational and accepted without derivation. False (or absent) means the subject is a theorem and must have :derivedVia." .
+
+:derivedVia a owl:ObjectProperty ;
+    rdfs:domain :Theorem ;
+    rdfs:range  :Derivation ;
+    rdfs:label "Derived via" ;
+    rdfs:comment "The Derivation that justifies this theorem. A theorem may have multiple :derivedVia values if multiple proof paths exist (alternative justifications)." .
+
+:premise a owl:ObjectProperty ;
+    rdfs:domain :Derivation ;
+    rdfs:label "Premise" ;
+    rdfs:comment "An antecedent of the derivation — either an :Axiom or another :Theorem. A derivation must have ≥1 premise. The grounding check chases premises upstream until it reaches axioms." .
+
+:appliesRule a owl:ObjectProperty ;
+    rdfs:domain :Derivation ;
+    rdfs:range  :InferenceRule ;
+    rdfs:label "Applies rule" ;
+    rdfs:comment "The single inference rule this derivation applies. Functional — every Derivation has exactly one rule. Ad-hoc derivations without a cataloged rule are forbidden." .
+
+:axiomKind a owl:DatatypeProperty ;
+    rdfs:domain :Axiom ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Axiom kind" ;
+    rdfs:comment "Discriminator: 'definitional' (term equation), 'type-level' (class disjointness, cardinality), or 'substantive' (a foundational commitment about the world the spec models). Substantive axioms are the most consequential and should be unusually small in number." .
+
+:axiomMotivatedBy a owl:ObjectProperty ;
+    rdfs:domain :Axiom ;
+    rdfs:range  :Document ;
+    rdfs:label "Axiom motivated by" ;
+    rdfs:comment "The RFC whose prose introduces and justifies this axiom. Axioms live centrally in kg/turtle/axioms.ttl but trace back to a Document via this predicate so authors can see which axioms a given RFC commits the system to." .
+
+:premisePattern a owl:DatatypeProperty ;
+    rdfs:domain :InferenceRule ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Premise pattern" ;
+    rdfs:comment "SPARQL graph pattern that describes valid premises for this rule. The audit can verify that a Derivation's premises actually instantiate the rule's pattern." .
+
+:conclusionPattern a owl:DatatypeProperty ;
+    rdfs:domain :InferenceRule ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Conclusion pattern" ;
+    rdfs:comment "SPARQL graph pattern that describes valid conclusions for this rule. Together with :premisePattern, gives the rule a fully symbolic schema." .
+
+:mechanizedAs a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Mechanized as" ;
+    rdfs:comment "Name of the Lean 4 theorem (in Aion namespace) that proves this rule sound. Cross-reference into kg/lean/Aion/Logic/InferenceRulesProofs.lean. Actual existence of the theorem is enforced by //kg/lean:proofs_test (the Lean compiler resolves #check references generated from this catalog); this predicate exists so kg_lint and kg_metrics can report mechanization coverage without scanning Lean source." .
+
+:provenBy a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Proven by" ;
+    rdfs:comment "Name of a Lean 4 theorem (in Aion.Spec.Theorems or Aion.Derivations.Proofs) that kernel-verifies the propositional content of this NormativeStatement. Bidirectional sync test //kg/java/lean:provenby_sync_test enforces both directions: (a) every :provenBy value resolves to a non-sorry theorem, (b) every RFC-tagged theorem in Theorems.lean is referenced by some NS. The presence of this predicate is the authoritative signal for 'this NS is kernel-verified' — kg_metrics and Kg2md (the spec.md renderer) consult :provenBy rather than scanning Lean text, eliminating a class of drift between the spec page and the proof artifact." .
+
+# -----------------------------------------------------------------------------
+# Logical-form vocabulary — structural shape of a Theorem or Axiom.
+#
+# Used by :premisePattern / :conclusionPattern in inference-rules.ttl so the
+# audit can verify a Derivation actually instantiates its rule's schema.
+# Populated on individual Theorems/Axioms by PR-3+ (kg_normalize-driven).
+# -----------------------------------------------------------------------------
+
+:logicalForm a owl:DatatypeProperty ;
+    rdfs:range  xsd:string ;
+    rdfs:label "Logical form" ;
+    rdfs:comment "Discriminator for the structural shape of a proposition. One of: 'universal' (∀x:T. φ), 'typing' (a : T), 'predicate' (P(args)), 'conditional' (P → Q), 'equality' (a = b), 'subclass' (C ⊑ D). Determines which form-specific properties are expected on the Theorem/Axiom." .
+
+:overSort a owl:ObjectProperty ;
+    rdfs:label "Over sort" ;
+    rdfs:comment "For a 'universal' form (∀x:T. φ), the sort/class the quantifier ranges over." .
+
+:body a owl:ObjectProperty ;
+    rdfs:label "Body" ;
+    rdfs:comment "For 'universal'/'existential' forms, the proposition the quantifier binds." .
+
+:assertedPredicate a owl:ObjectProperty ;
+    rdfs:label "Asserted predicate" ;
+    rdfs:comment "For a 'predicate' form (P(a, b)), the predicate IRI being asserted." .
+
+:hasArgument a owl:ObjectProperty ;
+    rdfs:label "Has argument" ;
+    rdfs:comment "For a 'predicate' form, an argument applied to the predicate. Multiple values allowed; use :argumentIndex for ordering when significant." .
+
+:argumentIndex a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "Argument index" ;
+    rdfs:comment "Reified position of a :hasArgument value when ordering matters. 0-indexed." .
+
+:typingInstance a owl:ObjectProperty ;
+    rdfs:label "Typing instance" ;
+    rdfs:comment "For a 'typing' form (a : T), the instance a." .
+
+:typingClass a owl:ObjectProperty ;
+    rdfs:label "Typing class" ;
+    rdfs:comment "For a 'typing' form (a : T), the class T." .
+
+:antecedent a owl:ObjectProperty ;
+    rdfs:label "Antecedent" ;
+    rdfs:comment "For a 'conditional' form (P → Q), the antecedent P." .
+
+:consequent a owl:ObjectProperty ;
+    rdfs:label "Consequent" ;
+    rdfs:comment "For a 'conditional' form (P → Q), the consequent Q." .
+
+:lhs a owl:ObjectProperty ;
+    rdfs:label "Left-hand side" ;
+    rdfs:comment "For an 'equality' form (a = b), the LHS term a." .
+
+:rhs a owl:ObjectProperty ;
+    rdfs:label "Right-hand side" ;
+    rdfs:comment "For an 'equality' form (a = b), the RHS term b." .
+
+:subSort a owl:ObjectProperty ;
+    rdfs:label "Sub-sort" ;
+    rdfs:comment "For a 'subclass' form (C ⊑ D), the subclass C." .
+
+:superSort a owl:ObjectProperty ;
+    rdfs:label "Super-sort" ;
+    rdfs:comment "For a 'subclass' form (C ⊑ D), the superclass D." .
