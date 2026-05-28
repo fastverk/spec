@@ -14,7 +14,7 @@ the narrative-site builder land here too as the kg retirement completes.
 
 module(
     name = "rules_spec",
-    version = "0.1.0",
+    version = "0.2.0",
 )
 
 bazel_dep(name = "rules_java", version = "8.6.1")

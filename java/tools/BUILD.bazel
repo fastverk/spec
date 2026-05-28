@@ -1,0 +1,12 @@
+load("@rules_java//java:defs.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Generic byte-stable drift gate (the test-side counterpart to
+# //tools:update_artifact.sh). Consumed via the emit_diff_test macro in
+# //tools:diff.bzl, which wires it as a java_test in the consumer's package.
+java_library(
+    name = "diff_gate",
+    srcs = ["DiffGate.java"],
+    deps = ["@bazel_tools//tools/java/runfiles"],
+)
