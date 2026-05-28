@@ -14,7 +14,7 @@ the narrative-site builder land here too as the kg retirement completes.
 
 module(
     name = "rules_spec",
-    version = "0.0.1",
+    version = "0.1.0",
 )
 
 bazel_dep(name = "rules_java", version = "8.6.1")
@@ -45,15 +45,9 @@ use_repo(maven, "maven")
 # nothing external (pure Lean 4 core), so the lake workspace declares no
 # requires. Toolchain version matches Aion's (v4.30.0-rc2) so the modules
 # compile identically whether built here or as srcs in an Aion lean_test.
-bazel_dep(name = "rules_lean", version = "0.3.5")
-
-# Local override: the dep-free-lake-workspace relaxation isn't in a tagged
-# release yet (rules_lean rejected workspaces with no `require`s). Drop once
-# that fix lands in the public registry.
-local_path_override(
-    module_name = "rules_lean",
-    path = "/Volumes/Workspace/rules_lean",
-)
+# 0.3.6 ships the dep-free-lake-workspace relaxation this repo's empty
+# `require` list needs.
+bazel_dep(name = "rules_lean", version = "0.3.6")
 
 lake = use_extension("@rules_lean//lean:lake.bzl", "lake")
 lake.workspace(
@@ -70,15 +64,6 @@ register_toolchains("@rules_spec_lake//:lean_toolchain_def")
 # rules_spec uses these to define its corpus gate library declaratively: an
 # rdf_dataset over the RFC vocabulary + a spec_corpus_gates macro wiring
 # rdf_validate_test (SHACL shapes) + sparql_query_test (consistency queries)
-# over the ontology files it hosts under rdf/. Local overrides until the
-# merge-fix + sparql_query_smoke land in tagged releases.
+# over the ontology files it hosts under rdf/.
 bazel_dep(name = "rules_rdf", version = "0.3.0")
-bazel_dep(name = "rules_jena", version = "0.2.1")
-local_path_override(
-    module_name = "rules_rdf",
-    path = "/Volumes/Workspace/rules_rdf",
-)
-local_path_override(
-    module_name = "rules_jena",
-    path = "/Volumes/Workspace/rules_jena",
-)
+bazel_dep(name = "rules_jena", version = "0.3.0")
