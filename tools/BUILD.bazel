@@ -1,0 +1,7 @@
+package(default_visibility = ["//visibility:public"])
+
+# Generic emit-writeback helper: copies a Bazel-emitted artifact back into
+# the source tree (idempotent). Consumers wrap it in their own sh_binary
+# with (gen_rel, dst_rel) args. Exposed as a source label for cross-repo
+# srcs consumption.
+exports_files(["update_artifact.sh"])
