@@ -1,0 +1,66 @@
+load("@rules_java//java:defs.bzl", "java_library")
+
+package(default_visibility = ["//visibility:public"])
+
+JENA_DEPS = [
+    "@maven//:org_apache_jena_jena_arq",
+    "@maven//:org_apache_jena_jena_core",
+    "@maven//:org_apache_jena_jena_base",
+    "@maven//:org_apache_jena_jena_iri",
+    "@maven//:org_slf4j_slf4j_simple",
+]
+
+# Shared corpus loader — load all TBox + ABox TTLs into one in-memory
+# Jena Dataset. Leaf utility depended on by every corpus-reading tool.
+java_library(
+    name = "loader",
+    srcs = ["kg/Loader.java"],
+    deps = JENA_DEPS,
+)
+
+# Platform-correct cache/config/data dirs (XDG / macOS Library /
+# LOCALAPPDATA). Used by the LLM cache layer.
+java_library(
+    name = "aion_paths",
+    srcs = ["kg/AionPaths.java"],
+    deps = ["@maven//:dev_dirs_directories"],
+)
+
+# Deterministic Turtle serializer (byte-stable round-trip).
+java_library(
+    name = "writer",
+    srcs = ["kg/Writer.java"],
+    deps = JENA_DEPS,
+)
+
+# The graph-content gate runner: loads a Dataset and runs the SHACL +
+# zero-row consistency gates. Consumers supply the queries/shapes.
+java_library(
+    name = "gate_harness",
+    srcs = [
+        "kg/GateHarness.java",
+        "kg/Gates.java",
+    ],
+    deps = JENA_DEPS + ["@maven//:org_apache_jena_jena_shacl"],
+)
+
+# Mutation primitive: load TTL -> mutate Model -> preflight gates ->
+# serialize. The shared core used by kg_edit (Aion) and kg_research
+# (mycelium).
+java_library(
+    name = "write_ops",
+    srcs = ["kg/edit/WriteOps.java"],
+    deps = JENA_DEPS + [
+        ":loader",
+        ":writer",
+        ":gate_harness",
+    ],
+)
+
+# LLM adapter SPI + cache + concrete adapters (Anthropic / Ollama /
+# Fake). Kept dependency-light so non-LLM consumers don't pull it.
+java_library(
+    name = "llm",
+    srcs = glob(["kg/reasoner/llm/*.java"]),
+    deps = JENA_DEPS + [":aion_paths"],
+)

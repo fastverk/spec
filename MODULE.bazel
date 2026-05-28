@@ -1,0 +1,40 @@
+"""rules_spec — shared substrate for Lean-grounded specification projects.
+
+First content: the generic Jena/RDF corpus toolkit extracted from the
+Aion repo (kg.Loader / AionPaths / Writer / GateHarness + Gates, the
+kg.edit write-ops mutation primitive, and the kg.reasoner.llm adapter
+SPI). Consumed by Aion (the corpus gates, lint, reasoner, lean tooling)
+and by mycelium (the kg_research design-spike orchestrator) so there is
+one copy instead of duplicated trees.
+
+Future scope (per narrative/rules-spec-kg-retirement-sequencing.md in the
+Aion repo): the lean_emit pipelines, the graph-integrity gate macros, and
+the narrative-site builder land here too as the kg retirement completes.
+"""
+
+module(
+    name = "rules_spec",
+    version = "0.0.1",
+)
+
+bazel_dep(name = "rules_java", version = "8.6.1")
+bazel_dep(name = "rules_jvm_external", version = "6.5")
+
+# Jena (embedded SPARQL/RDF), slf4j backend, and directories (platform
+# cache paths for the LLM-response cache). Coordinates mirror Aion +
+# mycelium so the lifted sources build unchanged.
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    name = "maven",
+    artifacts = [
+        "org.apache.jena:apache-jena-libs:5.0.0",
+        "org.apache.jena:jena-shacl:5.0.0",
+        "org.slf4j:slf4j-simple:2.0.13",
+        "dev.dirs:directories:26",
+    ],
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
+    fetch_sources = False,
+)
+use_repo(maven, "maven")

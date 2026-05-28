@@ -1,0 +1,19 @@
+common --enable_bzlmod
+
+test --test_output=errors
+test --test_summary=terse
+
+# Apache Jena 5.x is compiled for Java 17+. Pin a remote 21 JDK for both
+# target and tool builds (same pin as the Aion + mycelium repos).
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+build --java_language_version=21
+build --tool_java_language_version=21
+
+# rules_jvm_external invokes coursier (a Java tool) at maven-fetch time,
+# and coursier needs a JDK on PATH / JAVA_HOME. Inherit JAVA_HOME from the
+# environment so the fetch works locally and in CI.
+common --repo_env=JAVA_HOME
+build --action_env=JAVA_HOME
+
+try-import %workspace%/user.bazelrc
