@@ -1,5 +1,12 @@
 common --enable_bzlmod
 
+# Bazel module registries: fastverk public + premium, then BCR. rules_lean
+# (the Lean toolchain backing the spec-framework modules) resolves from the
+# public fastverk registry.
+common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry-premium/main/
+common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://bcr.bazel.build/
+
 test --test_output=errors
 test --test_summary=terse
 

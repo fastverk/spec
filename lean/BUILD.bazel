@@ -1,0 +1,35 @@
+load("@rules_lean//lean:lean.bzl", "lean_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# Generic spec-framework Lean modules, lifted from the Aion repo. Exposed
+# as source labels so cross-repo consumers (Aion's lean_test targets) list
+# them in their own `srcs` — rules_lean shares Lean source at the file
+# level, not via a LeanInfo provider (same pattern as @rules_postgres//lean).
+# Namespace stays `Aion.Spec` / `Aion.Corpus` / `Aion.Emit` so consumers
+# need no source changes; a later pass may rename to a neutral `Spec`.
+exports_files([
+    "Aion/Spec/Universe.lean",
+    "Aion/Spec/Predicates.lean",
+    "Aion/Spec/Kernel.lean",
+    "Aion/Spec/Axioms.lean",
+    "Aion/Corpus/Schema.lean",
+    "Aion/Emit/TtlEmit.lean",
+    "Aion/Emit/MdEmit.lean",
+])
+
+# Compile the whole framework here (no external deps — pure Lean 4 core).
+lean_test(
+    name = "spec_framework_test",
+    srcs = [
+        "Aion/Spec/Universe.lean",
+        "Aion/Spec/Predicates.lean",
+        "Aion/Spec/Kernel.lean",
+        "Aion/Spec/Axioms.lean",
+        "Aion/Corpus/Schema.lean",
+        "Aion/Emit/TtlEmit.lean",
+        "Aion/Emit/MdEmit.lean",
+        "Aion/FrameworkCheck.lean",
+    ],
+    entry = "Aion/FrameworkCheck.lean",
+)

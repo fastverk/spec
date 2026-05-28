@@ -38,3 +38,30 @@ maven.install(
     fetch_sources = False,
 )
 use_repo(maven, "maven")
+
+# Lean toolchain — backs the generic spec-framework modules under lean/
+# (Aion.Spec.{Universe,Predicates,Kernel,Axioms}, Aion.Corpus.Schema,
+# Aion.Emit.{TtlEmit,MdEmit}), lifted from the Aion repo. These import
+# nothing external (pure Lean 4 core), so the lake workspace declares no
+# requires. Toolchain version matches Aion's (v4.30.0-rc2) so the modules
+# compile identically whether built here or as srcs in an Aion lean_test.
+bazel_dep(name = "rules_lean", version = "0.3.5")
+
+# Local override: the dep-free-lake-workspace relaxation isn't in a tagged
+# release yet (rules_lean rejected workspaces with no `require`s). Drop once
+# that fix lands in the public registry.
+local_path_override(
+    module_name = "rules_lean",
+    path = "/Volumes/Workspace/rules_lean",
+)
+
+lake = use_extension("@rules_lean//lean:lake.bzl", "lake")
+lake.workspace(
+    name = "rules_spec_lake",
+    lakefile = "//lean/lake:lakefile.lean",
+    lake_manifest = "//lean/lake:lake-manifest.json",
+    lean_toolchain = "//lean/lake:lean-toolchain",
+)
+use_repo(lake, "rules_spec_lake")
+
+register_toolchains("@rules_spec_lake//:lean_toolchain_def")

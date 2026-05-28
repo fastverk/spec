@@ -1,0 +1,9 @@
+package(default_visibility = ["//visibility:public"])
+
+# Lake workspace files referenced by the lake.workspace extension in
+# MODULE.bazel (pins the Lean toolchain for the spec-framework modules).
+exports_files([
+    "lakefile.lean",
+    "lake-manifest.json",
+    "lean-toolchain",
+])
