@@ -1,5 +1,5 @@
 /-
-Aion.Emit.TtlEmit — TTL (Turtle) string-emission helpers.
+Spec.Emit.TtlEmit — TTL (Turtle) string-emission helpers.
 
 Phase 1 of the dep-graph inversion: when the spec graph is emitted
 *from* Lean rather than authored *into* Lean from TTL, this module
@@ -20,7 +20,7 @@ fixed (4-space property indent, one property per line) so output is
 byte-stable.
 -/
 
-namespace Aion.Emit.TtlEmit
+namespace Spec.Emit.TtlEmit
 
 /-- Escape a string for Turtle's `"..."` literal syntax. Implements
     the standard escapes from the Turtle 1.1 grammar:
@@ -116,4 +116,4 @@ def emitPrefix (name : String) (iri : String) : String :=
 def emitPrefixes (prefixes : List (String × String)) : String :=
   String.intercalate "\n" (prefixes.map (fun (n, i) => emitPrefix n i)) ++ "\n\n"
 
-end Aion.Emit.TtlEmit
+end Spec.Emit.TtlEmit

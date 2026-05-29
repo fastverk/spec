@@ -1,15 +1,15 @@
 /-
-Aion.Spec.Predicates — the operations we observe on the universe.
+Spec.Predicates — the operations we observe on the universe.
 
 These are opaque, like the types they operate on. Their semantics
-are pinned down by the axioms in Aion.Spec.Axioms. Adding a new
+are pinned down by the axioms in Spec.Axioms. Adding a new
 predicate that no axiom constrains is pure overhead and should be
 avoided.
 -/
 
-import Aion.Spec.Universe
+import Spec.Universe
 
-namespace Aion.Spec
+namespace Spec
 
 /-- The EntityId assigned to a Resource at a given time. Defined as
     the Resource's `rawId` projected through `EntityId.resource` —
@@ -197,7 +197,7 @@ axiom filePureClassStipulated :
 
 /-- AX-033 — Locality of concerns. A Concern is "in its declared
     home" iff its declared-home subsystem actually hosts it. The
-    witness comes from `declaredHome_hosts` in `Aion.Spec.Universe`
+    witness comes from `declaredHome_hosts` in `Spec.Universe`
     (the impl-layer commitment that nothing is orphaned). -/
 def inDeclaredHome (c : Concern) : Prop :=
   hostsConcern (declaredHome c) c
@@ -223,7 +223,7 @@ def statementReachable (s : Statement) (w : Workspace) (_t : Time) : Prop :=
 -- them to gain real propositional content. Each now says:
 -- "there exists a read operation of the corresponding bitemporal
 -- kind that this Boundary accepts." The witnesses come from the
--- `canonical*Op` stipulation axioms in `Aion.Spec.Universe` — the
+-- `canonical*Op` stipulation axioms in `Spec.Universe` — the
 -- impl-layer commitment that every Boundary has a designated
 -- handler for each query flavor.
 def supportsAsOf (b : Boundary) : Prop :=
@@ -251,7 +251,7 @@ def kindOf (r : Resource) : String := r.kind
     interprets (parses / branches on / normalizes) it. Real
     propositional content: a universal negative over Operations,
     discharged by the `kindOpaqueStipulated` impl-layer commitment in
-    `Aion.Spec.Universe`. -/
+    `Spec.Universe`. -/
 def kindIsOpaque (r : Resource) : Prop :=
   ∀ o : Operation, ¬ interpretsKind o r
 
@@ -536,7 +536,7 @@ axiom grants : Capability → Principal → Time → Prop
 
     Refined from axiom to structural projection now that `Capability`
     carries a `permitsOp : Operation → Prop` field
-    (`Aion.Spec.Universe`). AX-040's iff (`K3.capabilityMediated`)
+    (`Spec.Universe`). AX-040's iff (`K3.capabilityMediated`)
     is unaffected — it still reduces to `Iff.rfl` since `authorized
     o t` is defined as the same existential. The refinement enables
     `Aion.Spec.CapabilityLattice` to derive lattice operations
@@ -764,4 +764,4 @@ opaque toolingRecognizes : ModuleLayout → Prop
 axiom toolingRecognizes_iff_canonical :
   ∀ (l : ModuleLayout), toolingRecognizes l ↔ l = canonicalLayout
 
-end Aion.Spec
+end Spec

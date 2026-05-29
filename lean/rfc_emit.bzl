@@ -38,9 +38,9 @@ load("@rules_lean//lean:lean.bzl", "lean_emit")
 
 # rules_spec-hosted Lean spec-emit framework. Label()-wrapped so they resolve
 # to rules_spec even when the macro is instantiated in a consumer's package.
-_TTL_EMIT_LIB = Label("//lean:Aion/Emit/TtlEmit.lean")
-_MD_EMIT_LIB = Label("//lean:Aion/Emit/MdEmit.lean")
-_SCHEMA_LIB = Label("//lean:Aion/Corpus/Schema.lean")
+_TTL_EMIT_LIB = Label("//lean:Spec/Emit/TtlEmit.lean")
+_MD_EMIT_LIB = Label("//lean:Spec/Emit/MdEmit.lean")
+_SCHEMA_LIB = Label("//lean:Spec/Corpus/Schema.lean")
 
 def rfc_emit_targets(
         num,

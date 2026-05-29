@@ -1,8 +1,8 @@
 /-
-Aion.Spec.Kernel — the foundational 7-pillar core of the Aion framework.
+Spec.Kernel — the foundational 7-pillar core of the Aion framework.
                    K1..K5 axiomatic; K6..K7 fully proved.
 
-Every fine-grained `theorem ax_AX_NNN` in `Aion.Spec.Axioms` projects
+Every fine-grained `theorem ax_AX_NNN` in `Spec.Axioms` projects
 exactly one field of one of these 7 K-pillars. The catalog of 55
 spec-level commitments collapses to:
 
@@ -43,9 +43,9 @@ Cost of moving from 46 axioms to (5 K + a handful of primitives):
     interested in a specific commitment look up the named field.
 -/
 
-import Aion.Spec.Predicates
+import Spec.Predicates
 
-namespace Aion.Spec
+namespace Spec
 
 -- ============================================================================
 -- K1 — Identity & uniqueness invariants
@@ -549,4 +549,4 @@ def k7 : K7_AestheticFloor where
   boundedDeclarationDensity := k7_boundedDeclarationDensity_thm
   boundedCoupling := k7_boundedCoupling_thm
 
-end Aion.Spec
+end Spec

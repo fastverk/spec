@@ -1,6 +1,6 @@
 /-
-Aion.Spec.Axioms — the spec's foundational propositions, ALL DERIVED
-from the 7-axiom kernel in `Aion.Spec.Kernel`.
+Spec.Axioms — the spec's foundational propositions, ALL DERIVED
+from the 7-axiom kernel in `Spec.Kernel`.
 
 Each `theorem ax_AX_NNN` projects exactly one field of one of the
 seven K-axioms (k1..k7). The kernel is the irreducible commitment;
@@ -25,9 +25,9 @@ project from them; 1 (AX-024) is proved from refined types. The
 audit surface is 5 paragraphs.
 -/
 
-import Aion.Spec.Kernel
+import Spec.Kernel
 
-namespace Aion.Spec
+namespace Spec
 
 -- ============================================================================
 -- K1 — Identity & uniqueness invariants
@@ -242,7 +242,7 @@ theorem ax_AX_006 :
     discharge in proof-tier-roadmap.md §"Vacuous-encoding audit").
 
     Witnesses come from the stipulated `canonical*Op` axioms in
-    `Aion.Spec.Universe`: each is `Boundary → ReadOperation`
+    `Spec.Universe`: each is `Boundary → ReadOperation`
     together with kind + acceptance lemmas. The impl-layer
     commitment is now decomposed into three named stipulations per
     flavor; AX-007 itself is a real proof composing them. -/
@@ -412,7 +412,7 @@ theorem ax_AX_032 : expressibleAsPEG aionGrammar :=
 /-- AX-033 — Locality of concerns. `inDeclaredHome c` is now real
     existential content: `hostsConcern (declaredHome c) c`. The
     proof is a direct application of the stipulated
-    `declaredHome_hosts` witness in `Aion.Spec.Universe` — the
+    `declaredHome_hosts` witness in `Spec.Universe` — the
     impl-layer commitment that no Concern is orphaned (declared in
     subsystem A but actually hosted by subsystem B).
 
@@ -544,4 +544,4 @@ theorem ax_AX_057 :
     ∀ (m : Module), coupling m ≤ MAX_COUPLING :=
   k7.boundedCoupling
 
-end Aion.Spec
+end Spec

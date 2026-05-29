@@ -1,10 +1,10 @@
 /-
-Aion.Spec.Universe — minimal types for encoding the spec's axioms
+Spec.Universe — minimal types for encoding the spec's axioms
 as Lean propositions.
 
 This is the universe of discourse. Each type is opaque — its
 internal structure is hidden, only its identity and the predicates
-that operate on it are observable. The axioms in Aion.Spec.Axioms
+that operate on it are observable. The axioms in Spec.Axioms
 state properties about these types and predicates.
 
 Why opaque? We are not trying to fully formalize Aion's runtime
@@ -20,7 +20,7 @@ we can replace its declaration with a refinement type and a real
 proof. For now, axioms are accepted; theorems compose them.
 -/
 
-namespace Aion.Spec
+namespace Spec
 
 /-- A discrete time index. Promoted from opaque to a `Nat`
     abbreviation: the spec models time as ordinal positions in an
@@ -291,7 +291,7 @@ opaque Declaration : Type
 /-- A layer of the system architecture. Refined from opaque to a
     concrete enum: the spec enumerates exactly three layers (model,
     runtime, physical). The refinement lets AX-024 be *proved*
-    rather than accepted — see `ax_AX_024` in Aion.Spec.Axioms.
+    rather than accepted — see `ax_AX_024` in Spec.Axioms.
 
     This is the first instance of the "promote axiom to theorem"
     pattern from docs/proof-tier-roadmap.md: a small, well-bounded
@@ -421,7 +421,7 @@ opaque ReadOperation : Type
     Phase Q-1 of the vacuous-encoding discharge replaces the old
     `supportsAsOf := True` family with real propositional content:
     `supportsAsOf b` now says "there exists a read operation whose
-    kind is `asOf` and which `b` accepts" (Aion.Spec.Predicates).
+    kind is `asOf` and which `b` accepts" (Spec.Predicates).
     Without this enum, the predicate had no shape to existentially
     quantify over — it could only be `True`. -/
 inductive ReadOpKind : Type where
@@ -714,11 +714,11 @@ noncomputable instance : Inhabited Operation :=
     rather than stipulated axiomatically.
 
     AX-040 (capability-mediated authorization) keeps its iff shape
-    via the `permits` projection in `Aion.Spec.Predicates`. -/
+    via the `permits` projection in `Spec.Predicates`. -/
 structure Capability where
   /-- The set of operations this capability permits, encoded as a
       predicate. The kernel-side `permits c o := c.permitsOp o`
-      wraps this in `Aion.Spec.Predicates`. -/
+      wraps this in `Spec.Predicates`. -/
   permitsOp : Operation → Prop
 
 /-- AX-009 (right conjunct) — Resource kind opacity. The relation
@@ -871,4 +871,4 @@ axiom justificationDeclOf : Module → Declaration
     (no axiom needed). -/
 def t0 : Time := 0
 
-end Aion.Spec
+end Spec

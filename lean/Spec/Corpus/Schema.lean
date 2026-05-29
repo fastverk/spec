@@ -1,5 +1,5 @@
 /-
-Aion.Corpus.Schema — shared structures for the per-RFC modules.
+Spec.Corpus.Schema — shared structures for the per-RFC modules.
 
 Phase 2 of the dep-graph inversion: instead of authoring TTL directly,
 each RFC's content lives in a Lean module under `Aion.Rfc.RfcNNNN`
@@ -17,7 +17,7 @@ optionality matches the corpus surface; `Option` for predicates that
 some instances lack, plain `String` / enum for predicates always present.
 -/
 
-namespace Aion.Corpus.Schema
+namespace Spec.Corpus.Schema
 
 /-- RFC-2119 modality. The corpus encodes these as IRIs in the
     `:foo` namespace; we project them into a Lean inductive so
@@ -231,4 +231,4 @@ structure Invariant where
   enforcedBy : Option String := none
   deriving Repr
 
-end Aion.Corpus.Schema
+end Spec.Corpus.Schema

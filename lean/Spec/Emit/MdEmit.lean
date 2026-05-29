@@ -1,7 +1,7 @@
 /-
-Aion.Emit.MdEmit — Markdown (CommonMark) string-emission helpers.
+Spec.Emit.MdEmit — Markdown (CommonMark) string-emission helpers.
 
-Sibling of `Aion.Emit.TtlEmit`. Pure `String` concatenation; the
+Sibling of `Spec.Emit.TtlEmit`. Pure `String` concatenation; the
 output targets mdbook's CommonMark dialect (the renderer the
 rest of `docs/` is built on).
 
@@ -16,7 +16,7 @@ Surface:
   - table (header row + body rows)
 -/
 
-namespace Aion.Emit.MdEmit
+namespace Spec.Emit.MdEmit
 
 /-- A heading: `# Title` for level 1, `## Subtitle` for level 2, etc.
     Includes the trailing blank line CommonMark needs to start a new
@@ -63,4 +63,4 @@ def table (header : List String) (rows : List (List String)) : String :=
 /-- Horizontal rule. -/
 def hrule : String := "\n---\n\n"
 
-end Aion.Emit.MdEmit
+end Spec.Emit.MdEmit
