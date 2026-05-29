@@ -1,0 +1,30 @@
+# ---
+# title: "Enforcement claims (sample)"
+# description: "What is enforced, where. Sample of 50 enforcement claims with predicate and value."
+# section: claims
+# format: table
+# columns: [subjectFqn, predicate, value, rfcId]
+# show_if_empty: true
+# order: 50
+# ---
+# All Enforcement claims — what is enforced, where, and at what phase.
+# Surfaces the runtime/compile-time/RLS/DB-trigger enforcement story
+# across the entire spec corpus.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn ?predicate ?value ?rfcId WHERE {
+  ?cl c:claimKind c:Enforcement ;
+      c:claimSubject ?s ;
+      c:claimPredicate ?predicate ;
+      c:derivedFromSection ?sec .
+  OPTIONAL { ?s d:fqn ?subjectFqn }
+  OPTIONAL { ?cl c:claimValue ?value }
+  OPTIONAL { ?cl c:claimObject ?obj }
+  ?sec rfc:sectionNumber ?secNum .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+ORDER BY ?rfcId ?subjectFqn
+LIMIT 50

@@ -1,0 +1,12 @@
+# Common prefixes — paste at the top of any query, or run via:
+#   make query Q=<path>
+# which prepends these automatically.
+
+PREFIX rfc:   <https://aion.savvi.io/ontology/rfc#>
+PREFIX rfcid: <https://aion.savvi.io/rfc/>
+PREFIX d:     <https://aion.savvi.io/ontology/domain#>
+PREFIX did:   <https://aion.savvi.io/domain/>
+PREFIX kp:    <https://aion.savvi.io/decisions/>
+PREFIX rdfs:  <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl:   <http://www.w3.org/2002/07/owl#>
+PREFIX xsd:   <http://www.w3.org/2001/XMLSchema#>

@@ -1,0 +1,29 @@
+# ---
+# title: "Type-assignment claims (sample)"
+# description: "Every `X has type Y` claim. Useful for cross-RFC type-consistency audits."
+# section: claims
+# format: table
+# columns: [subjectFqn, typeFqn, typeLiteral, rfcId]
+# show_if_empty: true
+# order: 90
+# ---
+# All TypeAssignment claims — every "X has type Y" assertion in the
+# corpus. Powerful for verifying type consistency across RFCs (e.g.,
+# is Resource.kind always typed as LtreePath?).
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn ?typeFqn ?typeLiteral ?rfcId
+WHERE {
+  ?cl c:claimKind c:TypeAssignment ;
+      c:claimSubject ?s ;
+      c:derivedFromSection ?sec .
+  ?s d:fqn ?subjectFqn .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+  OPTIONAL { ?cl c:claimObject ?o . ?o d:fqn ?typeFqn }
+  OPTIONAL { ?cl c:claimValue ?typeLiteral }
+}
+ORDER BY ?subjectFqn ?rfcId
+LIMIT 50

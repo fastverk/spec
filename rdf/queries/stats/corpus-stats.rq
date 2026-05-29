@@ -1,0 +1,27 @@
+# ---
+# title: "Corpus totals"
+# description: "Counts of documents, sections, normative rules, terms, and diagnostic codes across the loaded graph."
+# section: stats
+# format: summary
+# columns: [docs, sections, normativeRules, terms, diagnostics]
+# show_if_empty: true
+# order: 10
+# ---
+# Corpus stats — high-level counts across both phases.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX d:   <https://aion.savvi.io/ontology/domain#>
+
+SELECT
+  (COUNT(DISTINCT ?doc)  AS ?docs)
+  (COUNT(DISTINCT ?sec)  AS ?sections)
+  (COUNT(DISTINCT ?rule) AS ?normativeRules)
+  (COUNT(DISTINCT ?term) AS ?terms)
+  (COUNT(DISTINCT ?diag) AS ?diagnostics)
+WHERE {
+  { ?doc  a rfc:Document } UNION
+  { ?sec  a rfc:Section } UNION
+  { ?rule a rfc:NormativeStatement } UNION
+  { ?term a rfc:Term } UNION
+  { ?diag a rfc:Diagnostic }
+}

@@ -1,0 +1,27 @@
+# ---
+# title: "Dead dependsOn"
+# description: "RFC-A declares dependsOn RFC-B but no entity owned by RFC-A references any entity owned by RFC-B. The dependency is asserted in metadata but not exercised in the corpus."
+# severity: warning
+# tier: 3
+# rationale: "A live dependency should show up as some real cross-RFC link — A's rule cites B's diagnostic, A's term references B's entity, A's section :references B. If none of that exists, the dependsOn edge is editorial decoration, not a real semantic edge. Fix: either add the missing reference, or remove the edge."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?aId ?bId
+WHERE {
+  ?a a rfc:Document ; rfc:rfcId ?aId ; rfc:dependsOn ?b .
+  ?b rfc:rfcId ?bId .
+  FILTER NOT EXISTS {
+    # Walk into A's owned subjects, then look for any non-dependsOn edge
+    # whose object lies under B (the document or anything B owns).
+    ?a (rfc:hasSection|rfc:containsRule|rfc:introducesDiagnostic|rfc:definesTerm|rfc:references)+ ?ax .
+    ?ax ?p ?bx .
+    FILTER(?p != rfc:dependsOn)
+    {
+      ?b (rfc:hasSection|rfc:containsRule|rfc:introducesDiagnostic|rfc:definesTerm)+ ?bx .
+    } UNION {
+      FILTER(?bx = ?b)
+    }
+  }
+}
+ORDER BY ?aId ?bId

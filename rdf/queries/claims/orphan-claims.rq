@@ -1,0 +1,29 @@
+# ---
+# title: "Orphan claims (extractor QA)"
+# description: "Claims whose subject FQN has no Phase-2 entity. Usually extractor noise; useful for QA."
+# section: claims
+# format: table
+# columns: [rfcId, secNum, subject, text]
+# show_if_empty: true
+# order: 150
+# ---
+# Orphan claims — claims whose subject FQN has no Phase-2 declaration
+# entry. These are usually false positives from the extractor or evidence
+# that Phase 2 missed an entity. Useful for QA.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rfcId ?secNum ?subject ?text
+WHERE {
+  ?cl c:claimSubject ?s ;
+      c:claimText ?text ;
+      c:derivedFromSection ?sec .
+  ?sec rfc:sectionNumber ?secNum .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+  BIND(STR(?s) AS ?subject)
+  FILTER NOT EXISTS { ?s d:fqn ?fqn }
+}
+ORDER BY ?rfcId ?secNum
+LIMIT 50

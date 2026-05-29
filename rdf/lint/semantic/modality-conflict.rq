@@ -1,0 +1,28 @@
+# ---
+# title: "Modality conflict"
+# description: "Two NormativeStatements share the same predicate text but disagree on modality (MUST vs MUST_NOT, or SHOULD vs SHOULD_NOT). Likely a real contradiction across RFCs."
+# severity: error
+# tier: 3
+# rationale: "If RFC-A says MUST X and RFC-B says MUST NOT X (with byte-equal predicate text), one of them is wrong. Free-text predicates make this an exact-match starting point — once the corpus moves to structured predicates, this query gets sharper."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?text ?modA ?modB ?docA ?docB
+WHERE {
+  ?ruleA a rfc:NormativeStatement ; rfc:modality ?modA ; rfc:predicate ?text .
+  ?ruleB a rfc:NormativeStatement ; rfc:modality ?modB ; rfc:predicate ?text .
+  FILTER(STR(?ruleA) < STR(?ruleB))
+  FILTER(
+    (?modA = rfc:MUST   && ?modB = rfc:MUST_NOT) ||
+    (?modA = rfc:SHOULD && ?modB = rfc:SHOULD_NOT)
+  )
+  OPTIONAL {
+    ?docA a rfc:Document .
+    ?docA (rfc:hasSection|rfc:containsRule)+ ?ruleA .
+  }
+  OPTIONAL {
+    ?docB a rfc:Document .
+    ?docB (rfc:hasSection|rfc:containsRule)+ ?ruleB .
+  }
+}
+ORDER BY ?text

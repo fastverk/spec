@@ -1,0 +1,20 @@
+# ---
+# title: "Claim kinds — distribution"
+# description: "How the 4,000+ extracted prose claims distribute across the 20 claim kinds."
+# section: claims
+# format: table
+# columns: [kind, n]
+# show_if_empty: true
+# order: 10
+# ---
+# Distribution of claims across the 20 claim kinds.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?kind (COUNT(?cl) AS ?n) WHERE {
+  ?cl c:claimKind ?k .
+  ?k rdfs:label ?kind .
+}
+GROUP BY ?kind
+ORDER BY DESC(?n)

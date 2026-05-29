@@ -1,0 +1,17 @@
+# ---
+# title: "Claim contradiction"
+# description: "Two Phase-3 claims explicitly assert :contradicts each other. The corpus is making incompatible statements about the same entity."
+# severity: warning
+# tier: 3
+# rationale: "Once authors and reasoner rules start populating Proposition structure (v2.0+ ontology), :contradicts edges become meaningful. Today: 0 instances — the predicate exists but no claim asserts a contradiction yet. Promotion to error follows once v2.1 reasoner rules + v2.2 LLM-gated rules begin to populate this."
+# ---
+PREFIX claim: <https://aion.savvi.io/ontology/claims#>
+
+SELECT ?a ?b ?aSubject ?bSubject
+WHERE {
+  ?a a claim:Claim ; claim:contradicts ?b .
+  FILTER(STR(?a) < STR(?b))
+  OPTIONAL { ?a claim:claimSubject ?aSubject }
+  OPTIONAL { ?b claim:claimSubject ?bSubject }
+}
+ORDER BY ?a ?b

@@ -1,0 +1,34 @@
+# ---
+# title: "Everything about `core.provenance`"
+# description: "All claims for the parameterized subject. Edit `?targetFqn` in the query to inspect a different entity."
+# section: claims
+# format: table
+# columns: [kindLabel, predicate, objectOrValue, rfcId, secNum, text]
+# show_if_empty: true
+# order: 160
+# ---
+# All claims about a specific domain entity. Edit the BIND below to
+# inspect a different entity. This is the primary "everything we know
+# about X" query against the corpus.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?kindLabel ?predicate ?objectOrValue ?rfcId ?secNum ?text WHERE {
+  BIND ("core.provenance" AS ?targetFqn)
+  ?s d:fqn ?targetFqn .
+  ?cl c:claimSubject ?s ;
+      c:claimKind ?kind ;
+      c:claimPredicate ?predicate ;
+      c:claimText ?text ;
+      c:derivedFromSection ?sec .
+  ?kind rdfs:label ?kindLabel .
+  ?sec rfc:sectionNumber ?secNum .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+  OPTIONAL { ?cl c:claimObject ?obj . ?obj d:fqn ?objectFqn }
+  OPTIONAL { ?cl c:claimValue ?val }
+  BIND(COALESCE(?objectFqn, ?val, "") AS ?objectOrValue)
+}
+ORDER BY ?rfcId ?secNum

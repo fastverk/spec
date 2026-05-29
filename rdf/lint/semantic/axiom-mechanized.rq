@@ -1,0 +1,17 @@
+# ---
+# title: "Axiom propositional mechanization"
+# description: "Axiom in the catalog without a :mechanizedAs cross-reference to its Lean 4 axiom name. Visibility check — actual structural floor is enforced by the lean_test target //kg/lean:spec_test (the Lean kernel rejects derivations citing axioms not encoded). Mirrors inference-rule-mechanized for the axiom layer."
+# severity: error
+# tier: 4
+# inferred: false
+# rationale: "Each axiom in kg/turtle/axioms.ttl should eventually be encoded as a real Lean Prop in lean/Aion/Spec/Axioms.lean. The :mechanizedAs predicate names the Lean axiom (e.g. \"ax_AX_005\") so kg_metrics can report propositional-encoding coverage. Today the gap is intentional: 9 of 35 axioms are encoded; the remaining 26 are paced through batches per docs/proof-tier-roadmap.md. Promotes to error once the propositional encoding reaches all axioms — at that point, adding a new axiom without immediately encoding it should fail CI."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?axiom ?label
+WHERE {
+  ?axiom a rfc:Axiom .
+  OPTIONAL { ?axiom rfc:name ?label }
+  FILTER NOT EXISTS { ?axiom rfc:mechanizedAs ?leanName }
+}
+ORDER BY ?axiom

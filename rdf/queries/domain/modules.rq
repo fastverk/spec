@@ -1,0 +1,22 @@
+# ---
+# title: "Modules and Postgres schemas"
+# description: "All declared modules and the PG schemas they own."
+# section: domain
+# format: table
+# columns: [fqn, ownsSchema, summary, rfcId]
+# show_if_empty: true
+# order: 30
+# ---
+# All modules and the PG schemas they own (if any).
+
+PREFIX d:   <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?fqn ?ownsSchema ?summary ?rfcId
+WHERE {
+  ?m a d:Module ; d:fqn ?fqn .
+  OPTIONAL { ?m d:ownsSchema ?ownsSchema }
+  OPTIONAL { ?m d:summary ?summary }
+  OPTIONAL { ?m d:definedIn ?def . ?def rfc:rfcId ?rfcId }
+}
+ORDER BY ?fqn

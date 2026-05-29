@@ -1,0 +1,22 @@
+# ---
+# title: "Invariants and enforcement modes"
+# description: "Invariants pulled from each RFC's §Invariants section, with their enforcement strategy."
+# section: governance
+# format: table
+# columns: [rfcId, summary, enforcedBy]
+# show_if_empty: true
+# order: 20
+# ---
+# Invariants from the §Invariants section of each RFC, with their
+# enforcement mode (compile-time, runtime, RLS, DB-trigger, etc.).
+
+PREFIX d:   <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rfcId ?summary ?enforcedBy
+WHERE {
+  ?inv a d:Invariant ; d:summary ?summary .
+  OPTIONAL { ?inv d:enforcedBy ?enforcedBy }
+  OPTIONAL { ?inv d:definedIn ?doc . ?doc rfc:rfcId ?rfcId }
+}
+ORDER BY ?rfcId

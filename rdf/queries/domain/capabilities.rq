@@ -1,0 +1,22 @@
+# ---
+# title: "Capabilities by scope"
+# description: "All declared capabilities and their access scopes."
+# section: domain
+# format: table
+# columns: [fqn, scope, summary, rfcId]
+# show_if_empty: true
+# order: 50
+# ---
+# All capabilities and their scopes (root | core | app | admin | webhook | ...).
+
+PREFIX d:   <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?fqn ?scope ?summary ?rfcId
+WHERE {
+  ?c a d:Capability ; d:fqn ?fqn .
+  OPTIONAL { ?c d:capabilityScope ?scope }
+  OPTIONAL { ?c d:summary ?summary }
+  OPTIONAL { ?c d:definedIn ?def . ?def rfc:rfcId ?rfcId }
+}
+ORDER BY ?scope ?fqn

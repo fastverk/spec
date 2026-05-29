@@ -1,0 +1,22 @@
+# ---
+# title: "Graph predicates"
+# description: "All declared graph predicates with their ltree paths and external alignments."
+# section: domain
+# format: table
+# columns: [path, fqn, sameAs, rfcId]
+# show_if_empty: true
+# order: 40
+# ---
+# All graph predicates declared, with their ltree paths and ontology alignments.
+
+PREFIX d:   <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?path ?fqn ?sameAs ?rfcId
+WHERE {
+  ?p a d:Predicate ; d:fqn ?fqn .
+  OPTIONAL { ?p d:predicatePath ?path }
+  OPTIONAL { ?p d:sameAsExternal ?sameAs }
+  OPTIONAL { ?p d:definedIn ?def . ?def rfc:rfcId ?rfcId }
+}
+ORDER BY ?path

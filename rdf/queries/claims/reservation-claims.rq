@@ -1,0 +1,26 @@
+# ---
+# title: "Reservation claims"
+# description: "What is reserved for whom — capability-, namespace-, and intrinsic-only access boundaries."
+# section: claims
+# format: table
+# columns: [subjectFqn, predicate, objectFqn, rfcId]
+# show_if_empty: true
+# order: 70
+# ---
+# All Reservation claims — what is reserved for whom (capabilities,
+# namespaces, intrinsic-only access boundaries).
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn ?predicate ?objectFqn ?rfcId WHERE {
+  ?cl c:claimKind c:Reservation ;
+      c:claimSubject ?s ;
+      c:claimPredicate ?predicate ;
+      c:derivedFromSection ?sec .
+  OPTIONAL { ?s d:fqn ?subjectFqn }
+  OPTIONAL { ?cl c:claimObject ?o . ?o d:fqn ?objectFqn }
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+ORDER BY ?rfcId ?subjectFqn

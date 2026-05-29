@@ -1,0 +1,30 @@
+# ---
+# title: "Lifecycle transitions"
+# description: "Lifecycle/state-machine claims across the corpus."
+# section: claims
+# format: table
+# columns: [subjectFqn, predicate, value, text, rfcId]
+# show_if_empty: true
+# order: 100
+# ---
+# All Lifecycle claims — state transitions across the corpus.
+# Reveals the state machines embedded in the spec: install lifecycle,
+# session lifecycle, claim lifecycle, etc.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn ?predicate ?value ?text ?rfcId
+WHERE {
+  ?cl c:claimKind c:Lifecycle ;
+      c:claimSubject ?s ;
+      c:claimPredicate ?predicate ;
+      c:claimText ?text ;
+      c:derivedFromSection ?sec .
+  ?s d:fqn ?subjectFqn .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+  OPTIONAL { ?cl c:claimValue ?value }
+}
+ORDER BY ?subjectFqn ?rfcId
+LIMIT 40

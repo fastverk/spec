@@ -1,0 +1,19 @@
+# ---
+# title: "Term-definition drift"
+# description: "Same term name defined in ≥2 RFCs with non-equal definitions. Likely an unintentional redefinition that diverged from the original."
+# severity: error
+# tier: 3
+# rationale: "Definitions should be defined once and referenced. When two RFCs both define 'Subgraph' and the text differs (even slightly), one is stale. The fix: pick a canonical definer, demote the others to references."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?name ?defA ?defB ?docA ?docB
+WHERE {
+  ?termA a rfc:Term ; rfc:name ?name ; rfc:definition ?defA .
+  ?termB a rfc:Term ; rfc:name ?name ; rfc:definition ?defB .
+  FILTER(STR(?termA) < STR(?termB))
+  FILTER(?defA != ?defB)
+  ?docA a rfc:Document ; rfc:definesTerm ?termA .
+  ?docB a rfc:Document ; rfc:definesTerm ?termB .
+}
+ORDER BY ?name

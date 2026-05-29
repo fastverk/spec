@@ -1,0 +1,33 @@
+# ---
+# title: "Per-section claim-kind breakdown"
+# description: "How each high-density section's claims split between Constraint / Exclusion / Enforcement / Behavior / Mapping."
+# section: claims
+# format: table
+# columns: [rfcId, secNum, total, constraints, exclusions, enforcement, behavior, mappings]
+# show_if_empty: true
+# order: 40
+# ---
+# For every section, show the breakdown of claim kinds it produces.
+# Sections heavy in (Constraint, Exclusion, Enforcement) are normative;
+# sections heavy in (Behavior, Mapping, Composition) are descriptive.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?rfcId ?secNum
+       (COUNT(?cl) AS ?total)
+       (SUM(IF(?kind = c:Constraint,  1, 0)) AS ?constraints)
+       (SUM(IF(?kind = c:Exclusion,   1, 0)) AS ?exclusions)
+       (SUM(IF(?kind = c:Enforcement, 1, 0)) AS ?enforcement)
+       (SUM(IF(?kind = c:Behavior,    1, 0)) AS ?behavior)
+       (SUM(IF(?kind = c:Mapping,     1, 0)) AS ?mappings)
+WHERE {
+  ?cl c:claimKind ?kind ;
+      c:derivedFromSection ?sec .
+  ?sec rfc:sectionNumber ?secNum .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+GROUP BY ?rfcId ?secNum
+ORDER BY DESC(?total)
+LIMIT 25

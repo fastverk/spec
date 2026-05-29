@@ -1,0 +1,30 @@
+# Jena rule: derive :emits from rule predicate text mentioning a diagnostic code.
+#
+# For every (rule, diagnostic) pair where the rule's free-text predicate
+# contains the diagnostic's code as a substring, infer that the rule emits
+# the diagnostic.
+#
+# This is a high-precision pattern: when an author writes "...; otherwise
+# the compiler emits M36010" inside a NormativeStatement.predicate, the
+# code-mention is intentional. False positives are rare (codes are unique
+# strings; a M-code in prose almost always identifies a real link).
+#
+# Recall is NOT 100% — many rules describe the *condition* a diagnostic
+# fires under without naming the code. Those are picked up later by the
+# v2.2 LLM-gated emitter rule (inferenceTime: ranks rules by semantic
+# similarity to a diagnostic's description).
+#
+# Backed by the StrContains builtin in kg/java/reasoner/builtins/.
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#>.
+
+[emitsFromText:
+  (?rule rdf:type rfc:NormativeStatement)
+  (?rule rfc:predicate ?text)
+  (?diag rdf:type rfc:Diagnostic)
+  (?diag rfc:code ?code)
+  strContains(?text, ?code)
+  ->
+  (?rule rfc:emits ?diag)
+]

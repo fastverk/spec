@@ -1,0 +1,27 @@
+# ---
+# title: "Explicit contradictions"
+# description: "Pairs linked by `:contradicts`. Should typically be empty; non-empty rows warrant review."
+# section: claims
+# format: table
+# columns: [aRfc, aText, bRfc, bText]
+# show_if_empty: true
+# order: 120
+# ---
+# Explicit contradictions — claims that another claim explicitly marks
+# as contradictory via :contradicts. Should usually be empty; non-empty
+# rows are agent-flagged spec inconsistencies that warrant review.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?aRfc ?aText ?bRfc ?bText WHERE {
+  ?a c:contradicts ?b ;
+     c:claimText ?aText ;
+     c:derivedFromSection ?aSec .
+  ?b c:claimText ?bText ;
+     c:derivedFromSection ?bSec .
+  ?aDoc rfc:hasSection ?aSec ; rfc:rfcId ?aRfc .
+  ?bDoc rfc:hasSection ?bSec ; rfc:rfcId ?bRfc .
+}
+ORDER BY ?aRfc ?bRfc

@@ -1,0 +1,21 @@
+# ---
+# title: "Diagnostic-code ranges by RFC"
+# description: "Each RFC's declared MNN diagnostic range and how many codes it actually defines."
+# section: structure
+# format: table
+# columns: [rfcId, diagnosticRange, codes]
+# show_if_empty: true
+# order: 20
+# ---
+# Diagnostic-code authority — which RFC owns which MNN range, and how many codes does it actually use.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rfcId ?diagnosticRange (COUNT(?d) AS ?codes)
+WHERE {
+  ?doc a rfc:Document ; rfc:rfcId ?rfcId .
+  OPTIONAL { ?doc rfc:diagnosticRange ?diagnosticRange }
+  OPTIONAL { ?doc rfc:introducesDiagnostic ?d }
+}
+GROUP BY ?rfcId ?diagnosticRange
+ORDER BY ?rfcId

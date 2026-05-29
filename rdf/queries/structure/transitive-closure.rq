@@ -1,0 +1,22 @@
+# ---
+# title: "Transitive dependency closure (RFC-0049)"
+# description: "All upstream RFCs of the parameterized target. Edit `?target` in the query to change the focus RFC."
+# section: structure
+# format: table
+# columns: [upstreamId, title]
+# show_if_empty: true
+# order: 50
+# ---
+# Transitive dependency closure — all RFCs upstream of a given RFC.
+# Edit the ?target binding to query a different RFC.
+
+PREFIX rfc:   <https://aion.savvi.io/ontology/rfc#>
+PREFIX rfcid: <https://aion.savvi.io/rfc/>
+
+SELECT DISTINCT ?upstreamId ?title
+WHERE {
+  BIND(rfcid:RFC-0049 AS ?target)
+  ?target rfc:dependsOn+ ?up .
+  ?up rfc:rfcId ?upstreamId ; rfc:title ?title .
+}
+ORDER BY ?upstreamId

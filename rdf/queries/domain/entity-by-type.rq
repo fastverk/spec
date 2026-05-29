@@ -1,0 +1,20 @@
+# ---
+# title: "Domain entity inventory by type"
+# description: "Phase-2 entity counts grouped by RDF class (Module, Predicate, Capability, Declaration, ...)."
+# section: domain
+# format: table
+# columns: [type, n]
+# show_if_empty: true
+# order: 10
+# ---
+# Domain-entity counts by type — Phase 2 inventory.
+
+PREFIX d: <https://aion.savvi.io/ontology/domain#>
+
+SELECT ?type (COUNT(?e) AS ?n)
+WHERE {
+  ?e a ?type .
+  FILTER(STRSTARTS(STR(?type), "https://aion.savvi.io/ontology/domain#"))
+}
+GROUP BY ?type
+ORDER BY DESC(?n)

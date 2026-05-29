@@ -1,0 +1,21 @@
+# ---
+# title: "Declaration kinds"
+# description: "All declaration kinds with their classifying class (template kind, content kind, primitive kind, ...)."
+# section: domain
+# format: table
+# columns: [kindClass, fqn, rfcId]
+# show_if_empty: true
+# order: 20
+# ---
+# All declaration kinds, by class.
+
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?kindClass ?fqn ?rfcId
+WHERE {
+  ?dk a d:DeclarationKind ; d:fqn ?fqn .
+  OPTIONAL { ?dk d:kindClass ?kindClass }
+  OPTIONAL { ?dk d:definedIn ?def . ?def rfc:rfcId ?rfcId }
+}
+ORDER BY ?kindClass ?fqn

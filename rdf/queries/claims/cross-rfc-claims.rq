@@ -1,0 +1,29 @@
+# ---
+# title: "Entities cited by 3+ RFCs"
+# description: "Subjects that the spec talks about across many RFCs — the load-bearing concepts."
+# section: claims
+# format: table
+# columns: [subjectFqn, rfcs, claims]
+# show_if_empty: true
+# order: 110
+# ---
+# Domain entities that are the subject of claims in multiple RFCs.
+# Surfaces "load-bearing" entities — concepts the entire corpus revolves
+# around. The most-cited entities are typically the ones whose definitions
+# carry the most spec weight.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn (COUNT(DISTINCT ?rfcId) AS ?rfcs) (COUNT(?cl) AS ?claims)
+WHERE {
+  ?cl c:claimSubject ?s ;
+      c:derivedFromSection ?sec .
+  ?s d:fqn ?subjectFqn .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+GROUP BY ?subjectFqn
+HAVING (COUNT(DISTINCT ?rfcId) > 2)
+ORDER BY DESC(?rfcs) DESC(?claims)
+LIMIT 30

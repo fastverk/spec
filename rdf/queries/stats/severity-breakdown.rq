@@ -1,0 +1,21 @@
+# ---
+# title: "Diagnostic severity breakdown"
+# description: "Diagnostic codes grouped by severity class."
+# section: stats
+# format: table
+# columns: [severity, n]
+# show_if_empty: true
+# order: 30
+# ---
+# Severity breakdown — diagnostic codes by severity.
+
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?severity (COUNT(?d) AS ?n)
+WHERE {
+  ?d a rfc:Diagnostic ; rfc:severity ?s .
+  ?s rdfs:label ?severity .
+}
+GROUP BY ?severity
+ORDER BY DESC(?n)

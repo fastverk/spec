@@ -1,0 +1,37 @@
+# ---
+# title: "Entity impact: `core.provenance`"
+# description: "Where the parameterized entity is defined and asserted. Edit `?targetFqn` to inspect a different entity."
+# section: analysis
+# format: table
+# columns: [fqn, rfcId, relation, secNum]
+# show_if_empty: true
+# order: 20
+# ---
+# For a given domain entity FQN, find:
+#   - which RFC(s) define it
+#   - which RFCs assert claims about it (as Phase-3 lands)
+#   - which sections cite it
+# Edit the BIND below to inspect a different entity.
+
+PREFIX d:   <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?fqn ?rfcId ?relation ?secNum
+WHERE {
+  BIND ("core.provenance" AS ?targetFqn)
+  ?e d:fqn ?targetFqn .
+  ?e d:fqn ?fqn .
+
+  {
+    ?e d:definedIn ?doc .
+    BIND("definedIn" AS ?relation)
+    BIND("" AS ?secNum)
+    ?doc rfc:rfcId ?rfcId .
+  } UNION {
+    ?e d:assertedBy ?sec .
+    ?sec rfc:sectionNumber ?secNum .
+    BIND("assertedBy" AS ?relation)
+    ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+  }
+}
+ORDER BY ?relation ?rfcId

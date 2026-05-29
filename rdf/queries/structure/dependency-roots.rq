@@ -1,0 +1,21 @@
+# ---
+# title: "Dependency roots"
+# description: "RFCs that nothing depends on — typically the foundational specs (terminology, type model, etc.)."
+# section: structure
+# format: table
+# columns: [rfcId, title]
+# show_if_empty: true
+# order: 40
+# ---
+# RFCs that no other RFC depends on — leaf consumers (or orphans).
+# Inverse view: roots (RFCs nothing depends on) typically include the most
+# foundational specs (terminology, type model, etc.).
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rfcId ?title
+WHERE {
+  ?doc a rfc:Document ; rfc:rfcId ?rfcId ; rfc:title ?title .
+  FILTER NOT EXISTS { ?other rfc:dependsOn ?doc }
+}
+ORDER BY ?rfcId

@@ -1,0 +1,23 @@
+# ---
+# title: "Enforcement phase distribution"
+# description: "How enforcement is split across compile-time / runtime / RLS / DB-trigger / template-driven phases."
+# section: claims
+# format: table
+# columns: [phase, n]
+# show_if_empty: true
+# order: 60
+# ---
+# Enforcement claims grouped by phase (compile-time / runtime / RLS / etc).
+# Pulls the value field which carries the phase classification for
+# Enforcement claims. Surfaces which constraints are caught when.
+
+PREFIX c: <https://aion.savvi.io/ontology/claims#>
+
+SELECT ?phase (COUNT(?cl) AS ?n)
+WHERE {
+  ?cl c:claimKind c:Enforcement ;
+      c:claimValue ?phase .
+}
+GROUP BY ?phase
+ORDER BY DESC(?n)
+LIMIT 30

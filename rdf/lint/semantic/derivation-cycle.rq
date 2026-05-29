@@ -1,0 +1,16 @@
+# ---
+# title: "Derivation cycle"
+# description: "A theorem appears in its own :derivedVia/:premise transitive closure. Circular reasoning — the theorem is being used to justify itself."
+# severity: warning
+# tier: 4
+# inferred: false
+# rationale: "A cycle in the derivation graph means a theorem (transitively) cites itself as a premise. This is unsound — the proof would never terminate at axioms. SPARQL property paths over (:derivedVia/:premise)+ enable detection without a separate graph-walk implementation. Enters at warning during corpus backfill (PR-4+); promotes to error once corpus is clean since cycles are categorically wrong."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT DISTINCT ?theorem ?theoremLabel
+WHERE {
+  ?theorem (rfc:derivedVia/rfc:premise)+ ?theorem .
+  OPTIONAL { ?theorem rfc:name ?theoremLabel }
+}
+ORDER BY ?theorem

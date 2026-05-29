@@ -19,3 +19,32 @@ spec_corpus_gates(
     name = "vocab_selftest",
     dataset = ":vocab",
 )
+
+# ── Migrated from Aion kg/: the generic RFC/spec-KG query + lint + rule
+# catalog. Consumers fold these in alongside their corpus (the SPARQL
+# patterns target the rfc: vocab; lints are Tier-3 integrity checks; the
+# rule derives rfc:emits from diagnostic-code mentions in rule text).
+
+# Full analytics + consistency query catalog (claims / domain / governance /
+# stats / structure / analysis + the 4 consistency gates).
+filegroup(
+    name = "queries",
+    srcs = glob(["queries/**/*.rq"], exclude = ["queries/consistency/*.rq"]) + [
+        "//rdf/queries/consistency:circular-deps.rq",
+        "//rdf/queries/consistency:dangling-references.rq",
+        "//rdf/queries/consistency:diagnostic-collisions.rq",
+        "//rdf/queries/consistency:inverse-edges.rq",
+    ],
+)
+
+# Semantic lint checks (one .rq each), run by @rules_spec//java:kg_lint_lib.
+filegroup(
+    name = "lint",
+    srcs = glob(["lint/**/*.rq"]),
+)
+
+# Jena inference rules (e.g. emits-from-text), run by @rules_spec//java:reasoner.
+filegroup(
+    name = "rules",
+    srcs = glob(["rules/*.rule"]),
+)

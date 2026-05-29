@@ -1,0 +1,28 @@
+# ---
+# title: "KP decisions referenced or closed"
+# description: "All KP design decisions invoked or closed by the corpus."
+# section: governance
+# format: table
+# columns: [decisionId, rfcId, relation]
+# show_if_empty: true
+# order: 10
+# ---
+# All KP design decisions referenced or closed by the corpus.
+
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?decisionId ?rfcId ?relation
+WHERE {
+  ?doc rfc:rfcId ?rfcId .
+  {
+    ?doc rfc:invokesDecision ?dec .
+    ?dec rfc:decisionId ?decisionId .
+    BIND("invokes" AS ?relation)
+  } UNION {
+    ?doc rfc:closes ?dec .
+    ?dec rfc:decisionId ?decisionId .
+    BIND("closes" AS ?relation)
+  }
+}
+ORDER BY ?decisionId ?rfcId

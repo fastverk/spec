@@ -1,0 +1,21 @@
+# ---
+# title: "Normative modality breakdown"
+# description: "Distribution of RFC 2119 modalities (MUST / SHOULD / MAY / MUST NOT / ...) across all normative statements."
+# section: stats
+# format: table
+# columns: [modality, n]
+# show_if_empty: true
+# order: 20
+# ---
+# Modality breakdown — count of normative rules by RFC 2119 modality.
+
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?modality (COUNT(?r) AS ?n)
+WHERE {
+  ?r a rfc:NormativeStatement ; rfc:modality ?m .
+  ?m rdfs:label ?modality .
+}
+GROUP BY ?modality
+ORDER BY DESC(?n)

@@ -1,0 +1,25 @@
+# ---
+# title: "MUST rules mentioning `template`"
+# description: "All MUST/MUST NOT rules whose predicate matches the search term. Edit the FILTER to change it."
+# section: analysis
+# format: table
+# columns: [rfcId, secNum, modality, predicate]
+# show_if_empty: true
+# order: 10
+# ---
+# All MUST rules across the corpus mentioning a specific term.
+# Edit the FILTER below to change the search term.
+
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?rfcId ?secNum ?modality ?predicate
+WHERE {
+  ?doc rfc:rfcId ?rfcId ; rfc:hasSection ?sec .
+  ?sec rfc:sectionNumber ?secNum ; rfc:containsRule ?rule .
+  ?rule rfc:modality ?mod ; rfc:predicate ?predicate .
+  ?mod rdfs:label ?modality .
+  FILTER (CONTAINS(LCASE(?predicate), "template"))
+  FILTER (?modality = "MUST" || ?modality = "MUST NOT")
+}
+ORDER BY ?rfcId ?secNum

@@ -1,0 +1,34 @@
+# ---
+# title: "Theorem grounding"
+# description: "Theorem with no transitive :derivedVia path to an :Axiom. Treats the spec as a proof system: every claim should be either axiomatic (declared :isAxiom true) or grounded in axioms via the inference-rule catalog."
+# severity: error
+# tier: 4
+# inferred: false
+# rationale: "The grounding check is the centerpiece of the proof-system audit. A theorem without a derivation path is an unjustified claim — the spec asserts it but supplies no reason. Backward-chained: starts from each proposition (NormativeStatement, explicit :Theorem, eventually :Claim/:Invariant) and walks :derivedVia/:premise upstream looking for an Axiom. Enters at warning during corpus backfill (PR-4+ uses kg_normalize to extract :derivedVia from prose); promotes to error once coverage stabilizes near 100%. We enumerate proposition classes directly rather than using rdfs:subClassOf because the OWL reasoner's reified-statement housekeeping introduced byte-instability in the inferred graph; explicit enumeration is deterministic and the union grows by hand as new proposition classes appear."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?theorem ?rfcId
+WHERE {
+  # Enumerate propositions: explicit Theorems plus the proposition
+  # classes we know are theorem-like. As new classes are added (Claim,
+  # Invariant, etc.) extend this union.
+  { ?theorem a rfc:Theorem . }
+  UNION
+  { ?theorem a rfc:NormativeStatement . }
+
+  FILTER NOT EXISTS { ?theorem rfc:isAxiom true }
+  FILTER NOT EXISTS {
+    # Goal-directed walk: theorem reaches an axiom via any number of
+    # derivation steps, where each step is :derivedVia/:premise+.
+    ?theorem (rfc:derivedVia/rfc:premise)+ ?ancestor .
+    ?ancestor rfc:isAxiom true .
+  }
+  # Carry the owning RFC for grouping in reports.
+  OPTIONAL {
+    ?doc a rfc:Document ;
+         rfc:rfcId ?rfcId ;
+         rfc:hasSection/rfc:containsRule ?theorem .
+  }
+}
+ORDER BY ?rfcId ?theorem

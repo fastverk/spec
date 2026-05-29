@@ -1,0 +1,35 @@
+# ---
+# title: "Implicit cross-RFC conflicts"
+# description: "Same (subject, predicate) with divergent values across RFCs. Often legitimate, sometimes real."
+# section: claims
+# format: table
+# columns: [subjectFqn, predicate, distinctValues, evidence]
+# show_if_empty: true
+# order: 130
+# ---
+# Implicit conflicts — same subject + same predicate + different
+# objects/values across different RFCs. Often legitimate (one entity has
+# multiple aspects across the spec) but sometimes surfaces real divergence.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn ?predicate
+       (COUNT(DISTINCT ?val) AS ?distinctValues)
+       (GROUP_CONCAT(DISTINCT CONCAT(?rfcId, ":", ?val); separator=" | ") AS ?evidence)
+WHERE {
+  ?cl c:claimSubject ?s ;
+      c:claimPredicate ?predicate ;
+      c:derivedFromSection ?sec .
+  ?s d:fqn ?subjectFqn .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+  OPTIONAL { ?cl c:claimObject ?obj . ?obj d:fqn ?objFqn }
+  OPTIONAL { ?cl c:claimValue ?lit }
+  BIND(COALESCE(?objFqn, ?lit, "?") AS ?val)
+  FILTER (?val != "?")
+}
+GROUP BY ?subjectFqn ?predicate
+HAVING (COUNT(DISTINCT ?val) > 1 && COUNT(DISTINCT ?rfcId) > 1)
+ORDER BY DESC(?distinctValues)
+LIMIT 30

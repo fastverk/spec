@@ -1,0 +1,17 @@
+# ---
+# title: "Orphan diagnostic"
+# description: "Diagnostic with no NormativeStatement linked to it via :emits. The rule that triggers the diagnostic isn't structurally identified."
+# severity: warning
+# tier: 3
+# inferred: true
+# rationale: "Every diagnostic should be emitted by at least one normative rule — otherwise the conditions under which it fires aren't queryable. The :emits predicate (added in PR-22) lets us answer 'which rule does this diagnostic correspond to?' Run against authored + reasoner-inferred triples (inferred: true) so kg/rules/emits-from-text.rule's contributions count. Promotion path: more rules in v2.1+ and LLM-gated extraction in v2.2 drive the count toward zero, then ratchet to error."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?code ?rfcId ?description
+WHERE {
+  ?doc a rfc:Document ; rfc:rfcId ?rfcId ; rfc:introducesDiagnostic ?diag .
+  ?diag rfc:code ?code ; rfc:description ?description .
+  FILTER NOT EXISTS { ?rule rfc:emits ?diag }
+}
+ORDER BY ?code

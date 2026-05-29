@@ -1,0 +1,26 @@
+# ---
+# title: "Entities defined or asserted by multiple RFCs"
+# description: "Concepts that span the corpus — load-bearing names whose definitions touch multiple specs."
+# section: domain
+# format: table
+# columns: [fqn, defCount, rfcs]
+# show_if_empty: true
+# order: 60
+# ---
+# Domain entities defined or asserted by multiple RFCs — semantic agreement
+# across the spec. Useful for finding "load-bearing" concepts that span the
+# corpus and for detecting fragmentation when the same name has divergent
+# meanings.
+
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?fqn (COUNT(DISTINCT ?def) AS ?defCount) (GROUP_CONCAT(DISTINCT ?rfcId; separator=", ") AS ?rfcs)
+WHERE {
+  ?e d:fqn ?fqn ; d:definedIn ?def .
+  ?def rfc:rfcId ?rfcId .
+}
+GROUP BY ?fqn
+HAVING (COUNT(DISTINCT ?def) > 1)
+ORDER BY DESC(?defCount) ?fqn
+LIMIT 30

@@ -1,0 +1,29 @@
+# ---
+# title: "Exclusion claims (MUST NOT / forbidden)"
+# description: "Explicit prohibitions across the corpus."
+# section: claims
+# format: table
+# columns: [subjectFqn, predicate, objectOrValue, rfcId]
+# show_if_empty: true
+# order: 80
+# ---
+# All Exclusion claims (MUST NOT / forbidden / incompatible).
+# These are the explicit prohibitions across the corpus.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX d:    <https://aion.savvi.io/ontology/domain#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?subjectFqn ?predicate ?objectOrValue ?rfcId WHERE {
+  ?cl c:claimKind c:Exclusion ;
+      c:claimSubject ?s ;
+      c:claimPredicate ?predicate ;
+      c:derivedFromSection ?sec .
+  OPTIONAL { ?s d:fqn ?subjectFqn }
+  OPTIONAL { ?cl c:claimObject ?obj . ?obj d:fqn ?objectFqn }
+  OPTIONAL { ?cl c:claimValue ?val }
+  BIND(COALESCE(?objectFqn, ?val, "") AS ?objectOrValue)
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+ORDER BY ?rfcId ?subjectFqn
+LIMIT 50

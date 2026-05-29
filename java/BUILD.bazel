@@ -78,3 +78,88 @@ java_library(
     srcs = glob(["kg/reasoner/llm/*.java"]),
     deps = JENA_DEPS + [":aion_paths"],
 )
+
+# ── Migrated from Aion kg/java: generic spec-stack KG tooling ──────────
+# Libraries only; consumers (Aion) keep the *_sync_test / *_pr_gate
+# java_binary targets that point these mains at their own corpus + data.
+
+# Semantic lint engine — a catalog of Tier-3 corpus checks (one .rq each).
+java_library(
+    name = "kg_lint_lib",
+    srcs = [
+        "kg/lint/KgLint.java",
+        "kg/lint/LintCheck.java",
+    ],
+    deps = JENA_DEPS + [":loader"],
+)
+
+# OWL-MICRO + Jena-rule reasoner runner (+ StrContains builtin).
+java_library(
+    name = "reasoner",
+    srcs = [
+        "kg/reasoner/KgReasoner.java",
+        "kg/reasoner/builtins/StrContains.java",
+    ],
+    deps = JENA_DEPS + [
+        ":loader",
+        ":writer",
+        ":aion_paths",
+        ":llm",
+    ],
+)
+
+# Corpus coverage/metrics dashboard generator.
+java_library(
+    name = "metrics",
+    srcs = ["kg/metrics/KgMetrics.java"],
+    deps = JENA_DEPS + [
+        ":loader",
+        ":kg_lint_lib",
+    ],
+)
+
+# Corpus → Lean derivation-stub generator.
+java_library(
+    name = "corpus_to_lean",
+    srcs = ["kg/lean/CorpusToLean.java"],
+    deps = JENA_DEPS + [":loader"],
+)
+
+# Lean proof post-processor (sorry-patch failing proofs). Standalone.
+java_library(
+    name = "validate_proofs",
+    srcs = ["kg/lean/ValidateProofs.java"],
+)
+
+# LLM-gated Lean proof generator.
+java_library(
+    name = "generate_proofs",
+    srcs = ["kg/lean/GenerateProofs.java"],
+    deps = JENA_DEPS + [
+        ":loader",
+        ":llm",
+        ":validate_proofs",
+    ],
+)
+
+# provenBy ↔ theorem bidirectional sync checker.
+java_library(
+    name = "provenby",
+    srcs = ["kg/lean/ProvenBySyncCheck.java"],
+    deps = JENA_DEPS + [":loader"],
+)
+
+# KG authoring CLI (search / show / scaffold / add-edge / remove-term).
+java_library(
+    name = "kg_edit_lib",
+    srcs = glob([
+        "kg/edit/*.java",
+        "kg/edit/cmd/*.java",
+    ]),
+    deps = JENA_DEPS + [
+        ":loader",
+        ":writer",
+        ":gate_harness",
+        ":write_ops",
+    ],
+)

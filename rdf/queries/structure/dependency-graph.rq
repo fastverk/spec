@@ -1,0 +1,21 @@
+# ---
+# title: "Cross-RFC dependency edges"
+# description: "All depends/extends/refines/closes/supersedes edges between RFCs."
+# section: structure
+# format: table
+# columns: [fromId, relation, toId]
+# show_if_empty: true
+# order: 30
+# ---
+# Cross-RFC edge graph — for visualization or impact analysis.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?fromId ?relation ?toId
+WHERE {
+  ?from rfc:rfcId ?fromId .
+  VALUES ?relation { rfc:dependsOn rfc:extends rfc:supersedes rfc:refines rfc:closes }
+  ?from ?relation ?to .
+  ?to rfc:rfcId ?toId .
+}
+ORDER BY ?fromId ?relation ?toId

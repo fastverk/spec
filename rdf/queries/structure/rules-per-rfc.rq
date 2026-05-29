@@ -1,0 +1,21 @@
+# ---
+# title: "Top RFCs by normative-rule density"
+# description: "Which RFCs carry the most MUST/SHOULD/MAY rules."
+# section: structure
+# format: table
+# columns: [rfcId, title, n]
+# show_if_empty: true
+# order: 10
+# ---
+# Top RFCs by normative-rule density.
+
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rfcId ?title (COUNT(?rule) AS ?n)
+WHERE {
+  ?d a rfc:Document ; rfc:rfcId ?rfcId ; rfc:title ?title ; rfc:hasSection ?s .
+  ?s rfc:containsRule ?rule .
+}
+GROUP BY ?rfcId ?title
+ORDER BY DESC(?n)
+LIMIT 20

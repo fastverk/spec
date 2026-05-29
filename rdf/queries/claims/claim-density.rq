@@ -1,0 +1,26 @@
+# ---
+# title: "Claim-density hotspots"
+# description: "Sections carrying the most extracted claims — the load-bearing constraint hotspots."
+# section: claims
+# format: table
+# columns: [rfcId, secNum, secTitle, claims]
+# show_if_empty: true
+# order: 30
+# ---
+# Claim density per RFC section — sections with the most claims
+# anchored to them. Highest-density sections are the load-bearing
+# constraint hotspots in the spec.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rfcId ?secNum ?secTitle (COUNT(?cl) AS ?claims)
+WHERE {
+  ?cl c:derivedFromSection ?sec .
+  ?sec rfc:sectionNumber ?secNum ;
+       rfc:title ?secTitle .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+GROUP BY ?rfcId ?secNum ?secTitle
+ORDER BY DESC(?claims)
+LIMIT 25

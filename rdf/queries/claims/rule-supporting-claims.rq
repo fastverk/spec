@@ -1,0 +1,30 @@
+# ---
+# title: "Claims supporting Phase-1 rules (sample)"
+# description: "Claims explicitly elaborating a NormativeStatement via `:supportsRule` — the rule-as-text → claim-as-fact bridge."
+# section: claims
+# format: table
+# columns: [rfcId, secNum, modality, rulePredicate, claimText]
+# show_if_empty: true
+# order: 140
+# ---
+# For each Phase-1 NormativeStatement, show the Phase-3 claims that
+# explicitly elaborate it via :supportsRule. This bridges the
+# rule-as-text → claim-as-fact layers.
+
+PREFIX c:    <https://aion.savvi.io/ontology/claims#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?rfcId ?secNum ?modality ?rulePredicate ?claimText
+WHERE {
+  ?cl c:supportsRule ?rule ;
+      c:claimText ?claimText ;
+      c:derivedFromSection ?sec .
+  ?rule rfc:modality ?mod ;
+        rfc:predicate ?rulePredicate .
+  ?mod rdfs:label ?modality .
+  ?sec rfc:sectionNumber ?secNum .
+  ?doc rfc:hasSection ?sec ; rfc:rfcId ?rfcId .
+}
+ORDER BY ?rfcId ?secNum
+LIMIT 50

@@ -1,0 +1,22 @@
+# ---
+# title: "Top claim predicates"
+# description: "The verb-phrase ontology that emerged from the corpus, sorted by frequency."
+# section: claims
+# format: table
+# columns: [predicate, n]
+# show_if_empty: true
+# order: 20
+# ---
+# The vocabulary of claim predicates used by extractors. Reveals the
+# actual verb-phrase ontology that emerged from the corpus, useful for
+# understanding the shape of the spec and for future schema refinement.
+
+PREFIX c: <https://aion.savvi.io/ontology/claims#>
+
+SELECT ?predicate (COUNT(?cl) AS ?n)
+WHERE {
+  ?cl c:claimPredicate ?predicate .
+}
+GROUP BY ?predicate
+ORDER BY DESC(?n)
+LIMIT 40

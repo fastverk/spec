@@ -1,0 +1,23 @@
+# ---
+# title: "Inference rule pattern presence"
+# description: "InferenceRule without both :premisePattern and :conclusionPattern. Rules must declare a SPARQL graph fragment for their valid premises and conclusion so the audit can verify that Derivations actually instantiate the rule."
+# severity: warning
+# tier: 4
+# inferred: false
+# rationale: "Without a premise/conclusion schema, a Derivation citing the rule cannot be machine-verified. The :premisePattern is a SPARQL graph fragment describing the shape of valid premises; :conclusionPattern describes the conclusion's shape. Promotes from warning to error in PR-3+ once Derivations exist and the schema-validator is wired into kg_lint. This check is the structural counterpart of inference-rule-mechanized (which surfaces missing Lean proofs)."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rule ?label ?missing
+WHERE {
+  ?rule a rfc:InferenceRule .
+  OPTIONAL { ?rule rfc:name ?label }
+  {
+    FILTER NOT EXISTS { ?rule rfc:premisePattern ?p }
+    BIND("premisePattern" AS ?missing)
+  } UNION {
+    FILTER NOT EXISTS { ?rule rfc:conclusionPattern ?c }
+    BIND("conclusionPattern" AS ?missing)
+  }
+}
+ORDER BY ?rule ?missing

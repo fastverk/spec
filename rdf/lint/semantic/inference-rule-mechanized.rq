@@ -1,0 +1,17 @@
+# ---
+# title: "Inference rule mechanization"
+# description: "InferenceRule in the catalog without a :mechanizedAs cross-reference to its Lean 4 soundness theorem. Visibility check — actual gating happens in //kg/lean:proofs_test (the Lean compiler refuses to resolve #check references for missing theorems)."
+# severity: error
+# tier: 4
+# inferred: false
+# rationale: "Each inference rule must have a Lean theorem in lean/Aion/Logic/InferenceRulesProofs.lean proving it sound under the model in Core.lean. The :mechanizedAs predicate names that theorem so kg_metrics can report mechanization coverage. The actual obligation is enforced structurally by the lean_test target — adding a rule without supplying a proof breaks the build via the generated InferenceRulesGenerated.lean #check references. This SPARQL check exists for visibility (which rules are mechanized?) and as a single source of truth for the cross-reference; promotes from warning to error once the cross-reference is mandatory."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?rule ?label
+WHERE {
+  ?rule a rfc:InferenceRule .
+  OPTIONAL { ?rule rfc:name ?label }
+  FILTER NOT EXISTS { ?rule rfc:mechanizedAs ?theorem }
+}
+ORDER BY ?rule
