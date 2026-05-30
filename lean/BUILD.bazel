@@ -15,8 +15,11 @@ exports_files([
     "Spec/Kernel.lean",
     "Spec/Axioms.lean",
     "Spec/Corpus/Schema.lean",
+    "Spec/Corpus/Inference.lean",
     "Spec/Emit/TtlEmit.lean",
     "Spec/Emit/MdEmit.lean",
+    "Spec/Logic/Core.lean",
+    "Spec/Logic/InferenceRulesProofs.lean",
 ])
 
 # Compile the whole framework here (no external deps — pure Lean 4 core).
@@ -28,8 +31,11 @@ lean_test(
         "Spec/Kernel.lean",
         "Spec/Axioms.lean",
         "Spec/Corpus/Schema.lean",
+        "Spec/Corpus/Inference.lean",
         "Spec/Emit/TtlEmit.lean",
         "Spec/Emit/MdEmit.lean",
+        "Spec/Logic/Core.lean",
+        "Spec/Logic/InferenceRulesProofs.lean",
         "Spec/FrameworkCheck.lean",
     ],
     entry = "Spec/FrameworkCheck.lean",

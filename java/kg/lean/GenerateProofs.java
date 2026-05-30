@@ -396,11 +396,12 @@ public final class GenerateProofs {
         buf.append("//kg/lean:proofs_compiled_test type-checks every theorem here\n");
         buf.append("(deferreds keep the file compiling because they're sorry).\n");
         buf.append("-/\n\n");
-        buf.append("import Aion.Spec.Axioms\n");
-        buf.append("import Aion.Logic.InferenceRulesProofs\n\n");
+        buf.append("import Spec.Axioms\n");
+        buf.append("import Spec.Logic.InferenceRulesProofs\n\n");
         buf.append("set_option linter.unusedVariables false\n");
         buf.append("set_option linter.unusedSectionVars false\n\n");
-        buf.append("open Aion.Spec\n");
+        buf.append("open _root_.Spec\n");
+        buf.append("open _root_.Spec.Logic\n");
         buf.append("open Aion\n\n");
         buf.append("namespace Aion.Derivations.Proofs\n\n");
     }

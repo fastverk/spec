@@ -217,7 +217,7 @@ public final class CorpusToLean {
         w.println("replace `sorry` with real proofs.");
         w.println("-/");
         w.println();
-        w.println("import Aion.Logic.InferenceRulesProofs");
+        w.println("import Spec.Logic.InferenceRulesProofs");
         w.println();
         w.println("set_option linter.unusedVariables false");
         w.println();
@@ -247,7 +247,7 @@ public final class CorpusToLean {
         for (Derivation d : derivations) rulesUsed.add(d.ruleName);
         w.println("-- Inference-rule cross-references (existence + type check)");
         for (String r : rulesUsed) {
-            w.printf("#check @Aion.%s_sound%n", r);
+            w.printf("#check @Spec.Logic.%s_sound%n", r);
         }
         w.println();
 
