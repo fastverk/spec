@@ -56,11 +56,20 @@ public final class ProvenBySyncCheck {
     public static void main(String[] args) throws IOException {
         Path kgRoot = Loader.resolveKgRoot();
         Path workspace = kgRoot.getParent();
-        Path theoremsFile = workspace.resolve("lean/Aion/Spec/Theorems.lean");
+        Path theoremsRoot = workspace.resolve("lean/Aion/Spec");
         Path proofsFile = workspace.resolve("lean/Aion/Derivations/Proofs.lean");
 
-        if (!Files.isRegularFile(theoremsFile)) {
-            System.err.println("ERROR: not found: " + theoremsFile);
+        // Gather every Theorems.lean under lean/Aion/Spec/** (the monolith was
+        // split into per-area files on 2026-05-30). Each file is scanned the
+        // same way; we union the results.
+        java.util.List<Path> theoremsFiles = new java.util.ArrayList<>();
+        try (java.util.stream.Stream<Path> walk = Files.walk(theoremsRoot)) {
+            walk.filter(Files::isRegularFile)
+                .filter(p -> p.getFileName().toString().equals("Theorems.lean"))
+                .forEach(theoremsFiles::add);
+        }
+        if (theoremsFiles.isEmpty()) {
+            System.err.println("ERROR: no Theorems.lean files under " + theoremsRoot);
             System.exit(2);
         }
         if (!Files.isRegularFile(proofsFile)) {
@@ -68,13 +77,20 @@ public final class ProvenBySyncCheck {
             System.exit(2);
         }
 
-        // 1. Build (theoremName -> kernelVerified?) maps for both files.
+        // 1. Build (theoremName -> kernelVerified?) maps for every Theorems.lean
+        //    plus Proofs.lean.
         java.util.Map<String, Boolean> theoremStatus = new TreeMap<>();
-        addBlockBased(theoremStatus, theoremsFile);
+        for (Path tf : theoremsFiles) {
+            addBlockBased(theoremStatus, tf);
+        }
         addBlockBased(theoremStatus, proofsFile);
 
-        // 2. Build the set of RFC-tagged hand theorem names (for reverse check).
-        Set<String> rfcTaggedHand = collectRfcTagged(theoremsFile);
+        // 2. Build the set of RFC-tagged hand theorem names (for reverse check)
+        //    by unioning across every Theorems.lean.
+        Set<String> rfcTaggedHand = new java.util.TreeSet<>();
+        for (Path tf : theoremsFiles) {
+            rfcTaggedHand.addAll(collectRfcTagged(tf));
+        }
 
         // 3. Pull all :provenBy values from TTL.
         Dataset ds = Loader.loadDataset(kgRoot);

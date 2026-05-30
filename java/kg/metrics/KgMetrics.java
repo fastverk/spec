@@ -121,15 +121,25 @@ public final class KgMetrics {
         out.append("> the proof-of-concept target.\n\n");
 
         Path proofsFile = kgRoot.getParent().resolve("lean/Aion/Derivations/Proofs.lean");
-        Path theoremsFile = kgRoot.getParent().resolve("lean/Aion/Spec/Theorems.lean");
+        Path theoremsRoot = kgRoot.getParent().resolve("lean/Aion/Spec");
         Map<String, int[]> stats = parseProofsLean(proofsFile);
 
-        // Add hand-written worked theorems from Theorems.lean. Each
-        // `-- RFC-NNNN ...` block there is treated as one additional
-        // kernel-verified credit against the RFC's deferred set.
-        // Capped at the deferred count so coverage never exceeds 100%
-        // (hand theorems target previously-deferred derivations).
-        Map<String, Integer> handProven = parseTheoremsLean(theoremsFile);
+        // Add hand-written worked theorems from every Theorems.lean under
+        // lean/Aion/Spec/** (the monolith was split into per-area files on
+        // 2026-05-30). Each `-- RFC-NNNN ...` block credits one additional
+        // kernel-verified proof against the RFC's deferred set. Capped at
+        // the deferred count so coverage never exceeds 100% (hand theorems
+        // target previously-deferred derivations).
+        Map<String, Integer> handProven = new java.util.LinkedHashMap<>();
+        try (java.util.stream.Stream<Path> walk = Files.walk(theoremsRoot)) {
+            for (Path tf : (Iterable<Path>) walk.filter(Files::isRegularFile)
+                                                .filter(p -> p.getFileName().toString().equals("Theorems.lean"))::iterator) {
+                Map<String, Integer> per = parseTheoremsLean(tf);
+                for (Map.Entry<String, Integer> e : per.entrySet()) {
+                    handProven.merge(e.getKey(), e.getValue(), Integer::sum);
+                }
+            }
+        }
         for (Map.Entry<String, Integer> e : handProven.entrySet()) {
             int[] s = stats.computeIfAbsent(e.getKey(), k -> new int[2]);
             int deferred = s[0] - s[1];
