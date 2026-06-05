@@ -51,7 +51,8 @@ def rfc_emit_targets(
         inference_src,
         out_prefix = "RFC-",
         framework_srcs = [],
-        card_needs_corpus = False):
+        card_needs_corpus = False,
+        ttl_needs_corpus = False):
     """Generate the ttl / card / spec_md `lean_emit` targets for one RFC.
 
     Args:
@@ -68,10 +69,12 @@ def rfc_emit_targets(
       card_needs_corpus: if True, the card target also gets the full corpus
         (other_rfc_srcs + inference) — for a registry-driven card emitter.
     """
+    ttl_srcs = [_TTL_EMIT_LIB, _SCHEMA_LIB, rfc_src] + framework_srcs
+    if ttl_needs_corpus:
+        ttl_srcs = ttl_srcs + [inference_src] + other_rfc_srcs
     lean_emit(
         name = "rfc_{}_ttl_generated".format(num),
-        srcs = [_TTL_EMIT_LIB, _SCHEMA_LIB, rfc_src] + framework_srcs +
-               [emit_helpers.ttl, runners.ttl],
+        srcs = ttl_srcs + [emit_helpers.ttl, runners.ttl],
         entry = runners.ttl,
         out = "{}{}.ttl".format(out_prefix, num),
     )
