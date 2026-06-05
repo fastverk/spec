@@ -1,4 +1,4 @@
-load("@rules_spec//tools:diff.bzl", "emit_diff_test")
+load("@spec//tools:diff.bzl", "emit_diff_test")
 
 package(default_visibility = ["//visibility:public"])
 

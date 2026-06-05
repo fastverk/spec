@@ -28,19 +28,19 @@ public final class Loader {
     private Loader() {}
 
     /** Classpath resource path of the framework rfc: vocabulary, bundled in
-     *  this rules_spec jar (see java/BUILD.bazel resources). */
+     *  this spec jar (see java/BUILD.bazel resources). */
     private static final String RFC_VOCAB_RESOURCE = "/ontology/aion-rfc.ttl";
 
     /**
      * Load the framework rfc: vocabulary (a classpath resource shipped with
-     * rules_spec) plus the consumer's domain TBox (aion-domain / aion-claims)
+     * spec) plus the consumer's domain TBox (aion-domain / aion-claims)
      * and every TTL under turtle/, turtle-domain/, turtle-claims/ from kgRoot,
      * into one in-memory Dataset. Files are read in sorted order so blank-node
      * IDs are deterministic across runs.
      */
     /**
      * Read the framework rfc: vocabulary — a classpath resource shipped with
-     * rules_spec — into {@code model}. Tools that build their own corpus model
+     * spec — into {@code model}. Tools that build their own corpus model
      * (e.g. KgReasoner) call this instead of path-reading ontology/aion-rfc.ttl.
      */
     public static void loadFrameworkVocab(Model model) throws IOException {
@@ -48,7 +48,7 @@ public final class Loader {
             if (in == null) {
                 throw new IOException(
                     "rfc: vocabulary resource not on classpath: " + RFC_VOCAB_RESOURCE +
-                    " (is the rules_spec loader jar a dep?)");
+                    " (is the spec loader jar a dep?)");
             }
             RDFDataMgr.read(model, in, Lang.TURTLE);
         }
@@ -56,7 +56,7 @@ public final class Loader {
 
     public static Dataset loadDataset(Path kgRoot) throws IOException {
         Model model = ModelFactory.createDefaultModel();
-        // Framework vocabulary ships with rules_spec (classpath), not under
+        // Framework vocabulary ships with spec (classpath), not under
         // the consumer's kg-root.
         loadFrameworkVocab(model);
         for (Path p : List.of(

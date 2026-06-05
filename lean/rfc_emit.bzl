@@ -1,17 +1,17 @@
 """rfc_emit_targets — the generic per-RFC documentation emit shape.
 
-rules_spec hosts the Lean spec-emit framework (`Aion.Emit.TtlEmit`,
+spec hosts the Lean spec-emit framework (`Aion.Emit.TtlEmit`,
 `Aion.Emit.MdEmit`, `Aion.Corpus.Schema`). This macro wires the three standard
 per-RFC emits — TTL, rationale card, and spec.md — over a consumer's per-RFC
 Lean module plus the consumer's thin runner/emit-helper `.lean` files, injecting
-the rules_spec framework libraries automatically.
+the spec framework libraries automatically.
 
 A consumer supplies its own file paths via the `emit_helpers` / `runners`
-structs (so each project keeps its own namespace + layout); the rules_spec
-framework srcs are resolved here with `Label()` so they bind to rules_spec
+structs (so each project keeps its own namespace + layout); the spec
+framework srcs are resolved here with `Label()` so they bind to spec
 regardless of the caller's package.
 
-    load("@rules_spec//lean:rfc_emit.bzl", "rfc_emit_targets")
+    load("@spec//lean:rfc_emit.bzl", "rfc_emit_targets")
 
     rfc_emit_targets(
         num = "0036",
@@ -36,8 +36,8 @@ generates `rfc_0036_ttl_generated`, `rfc_0036_card_generated`, and
 
 load("@rules_lean//lean:lean.bzl", "lean_emit")
 
-# rules_spec-hosted Lean spec-emit framework. Label()-wrapped so they resolve
-# to rules_spec even when the macro is instantiated in a consumer's package.
+# spec-hosted Lean spec-emit framework. Label()-wrapped so they resolve
+# to spec even when the macro is instantiated in a consumer's package.
 _TTL_EMIT_LIB = Label("//lean:Spec/Emit/TtlEmit.lean")
 _MD_EMIT_LIB = Label("//lean:Spec/Emit/MdEmit.lean")
 _SCHEMA_LIB = Label("//lean:Spec/Corpus/Schema.lean")

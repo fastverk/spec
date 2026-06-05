@@ -4,7 +4,7 @@ load(":gates.bzl", "spec_corpus_gates")
 package(default_visibility = ["//visibility:public"])
 
 # The RFC vocabulary as a dataset. Consumers fold this into their corpus
-# via `deps = ["@rules_spec//rdf:vocab"]` so the gate queries resolve the
+# via `deps = ["@spec//rdf:vocab"]` so the gate queries resolve the
 # rfc: terms.
 rdf_dataset(
     name = "vocab",
@@ -37,13 +37,13 @@ filegroup(
     ],
 )
 
-# Semantic lint checks (one .rq each), run by @rules_spec//java:kg_lint_lib.
+# Semantic lint checks (one .rq each), run by @spec//java:kg_lint_lib.
 filegroup(
     name = "lint",
     srcs = glob(["lint/**/*.rq"]),
 )
 
-# Jena inference rules (e.g. emits-from-text), run by @rules_spec//java:reasoner.
+# Jena inference rules (e.g. emits-from-text), run by @spec//java:reasoner.
 filegroup(
     name = "rules",
     srcs = glob(["rules/*.rule"]),

@@ -48,7 +48,7 @@ import org.apache.jena.shacl.ValidationReport;
 public final class GateHarness {
 
     /** The 4 generic RFC-corpus consistency gates — SPARQL bundled as
-     *  classpath resources with rules_spec (not under the consumer kg-root).
+     *  classpath resources with spec (not under the consumer kg-root).
      *  Resource path layout mirrors the source under rdf/queries/. */
     private static final Map<String, String> CONSISTENCY_RESOURCES = Map.of(
         "dangling",        "/queries/consistency/dangling-references.rq",
@@ -63,7 +63,7 @@ public final class GateHarness {
         "contradictions",  "queries/claims/contradictions.rq"
     );
 
-    /** Classpath resource of the framework SHACL shapes (ships with rules_spec). */
+    /** Classpath resource of the framework SHACL shapes (ships with spec). */
     private static final String SHAPES_RESOURCE = "/ontology/shapes.ttl";
 
     private GateHarness() {}
@@ -169,7 +169,7 @@ public final class GateHarness {
         unionModel.add(ds.getDefaultModel());
         ds.listNames().forEachRemaining(name -> unionModel.add(ds.getNamedModel(name)));
 
-        // SHACL shapes ship with rules_spec as a classpath resource.
+        // SHACL shapes ship with spec as a classpath resource.
         Model shapesModel = ModelFactory.createDefaultModel();
         try (InputStream in = GateHarness.class.getResourceAsStream(SHAPES_RESOURCE)) {
             if (in == null) {

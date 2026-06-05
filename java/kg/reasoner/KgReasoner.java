@@ -313,7 +313,7 @@ public final class KgReasoner {
     // -----------------------------------------------------------------------
 
     private static void loadAllTbox(Path kgRoot, Model into) throws IOException {
-        // The framework rfc: vocabulary ships as a rules_spec classpath
+        // The framework rfc: vocabulary ships as a spec classpath
         // resource (via the //kg/java:loader dep); domain TBox is kg-root.
         Loader.loadFrameworkVocab(into);
         for (Path p : List.of(

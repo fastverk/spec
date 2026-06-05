@@ -45,7 +45,7 @@ public final class Gates {
     }
 
     /** Read a .rq query bundled as a classpath resource (the framework
-     *  consistency gates ship with rules_spec) and strip its frontmatter. */
+     *  consistency gates ship with spec) and strip its frontmatter. */
     public static String readSparqlResource(String resourcePath) throws IOException {
         try (InputStream in = Gates.class.getResourceAsStream(resourcePath)) {
             if (in == null) {

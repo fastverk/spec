@@ -1,4 +1,4 @@
-"""rules_spec — shared substrate for Lean-grounded specification projects.
+"""spec — shared substrate for Lean-grounded specification projects.
 
 First content: the generic Jena/RDF corpus toolkit extracted from the
 Aion repo (kg.Loader / AionPaths / Writer / GateHarness + Gates, the
@@ -13,7 +13,7 @@ the narrative-site builder land here too as the kg retirement completes.
 """
 
 module(
-    name = "rules_spec",
+    name = "spec",
     version = "0.5.1",
 )
 
@@ -51,17 +51,17 @@ bazel_dep(name = "rules_lean", version = "0.3.6")
 
 lake = use_extension("@rules_lean//lean:lake.bzl", "lake")
 lake.workspace(
-    name = "rules_spec_lake",
+    name = "spec_lake",
     lakefile = "//lean/lake:lakefile.lean",
     lake_manifest = "//lean/lake:lake-manifest.json",
     lean_toolchain = "//lean/lake:lean-toolchain",
 )
-use_repo(lake, "rules_spec_lake")
+use_repo(lake, "spec_lake")
 
-register_toolchains("@rules_spec_lake//:lean_toolchain_def")
+register_toolchains("@spec_lake//:lean_toolchain_def")
 
 # rules_rdf (engine-agnostic RDF rules) + rules_jena (Jena toolchain impls).
-# rules_spec uses these to define its corpus gate library declaratively: an
+# spec uses these to define its corpus gate library declaratively: an
 # rdf_dataset over the RFC vocabulary + a spec_corpus_gates macro wiring
 # rdf_validate_test (SHACL shapes) + sparql_query_test (consistency queries)
 # over the ontology files it hosts under rdf/.

@@ -1,5 +1,5 @@
 /-
-FrameworkCheck — entry point for rules_spec's spec-framework lean_test.
+FrameworkCheck — entry point for spec's spec-framework lean_test.
 
 Imports every framework module so a single `lean_test` compiles the whole
 set (Axioms transitively pulls Kernel → Predicates → Universe; Schema and

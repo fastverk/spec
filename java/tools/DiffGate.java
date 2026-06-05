@@ -13,7 +13,7 @@ import java.util.List;
  * Byte-stable drift gate: compares a Bazel-generated artifact against its
  * committed copy in the source tree. The generic counterpart to
  * {@code //tools:update_artifact.sh} (which writes the artifact back) — run
- * this as a {@code java_test} via rules_spec's {@code emit_diff_test} macro to
+ * this as a {@code java_test} via spec's {@code emit_diff_test} macro to
  * fail the build whenever the committed copy drifts from the emitter.
  *
  * <p>Args: {@code <generated_rlocation> <committed_rlocation> <update_target_label>}.

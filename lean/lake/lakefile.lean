@@ -1,7 +1,7 @@
 import Lake
 open Lake DSL
 
--- Dep-free Lake workspace for rules_spec's Lean spec-framework modules
+-- Dep-free Lake workspace for spec's Lean spec-framework modules
 -- (Aion.Spec.{Universe,Predicates,Kernel,Axioms}, Aion.Corpus.Schema,
 -- Aion.Emit.{TtlEmit,MdEmit}). They import only Lean 4 core, so there are
 -- no `require`s. rules_lean's lake.workspace accepts a dep-free workspace
