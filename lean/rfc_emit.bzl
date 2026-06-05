@@ -49,7 +49,9 @@ def rfc_emit_targets(
         emit_helpers,
         runners,
         inference_src,
-        out_prefix = "RFC-"):
+        out_prefix = "RFC-",
+        framework_srcs = [],
+        card_needs_corpus = False):
     """Generate the ttl / card / spec_md `lean_emit` targets for one RFC.
 
     Args:
@@ -61,17 +63,25 @@ def rfc_emit_targets(
       runners: struct(ttl, card, spec_md) of the caller's per-RFC runner paths.
       inference_src: caller's Logic/Inference.lean path (spec.md corpus graph).
       out_prefix: emitted filename prefix (default "RFC-").
+      framework_srcs: shared lib srcs every per-RFC module depends on (e.g. a
+        SpecModule bundle type the RFC modules import); compiled in all targets.
+      card_needs_corpus: if True, the card target also gets the full corpus
+        (other_rfc_srcs + inference) — for a registry-driven card emitter.
     """
     lean_emit(
         name = "rfc_{}_ttl_generated".format(num),
-        srcs = [_TTL_EMIT_LIB, _SCHEMA_LIB, rfc_src, emit_helpers.ttl, runners.ttl],
+        srcs = [_TTL_EMIT_LIB, _SCHEMA_LIB, rfc_src] + framework_srcs +
+               [emit_helpers.ttl, runners.ttl],
         entry = runners.ttl,
         out = "{}{}.ttl".format(out_prefix, num),
     )
 
+    card_srcs = [_SCHEMA_LIB, rfc_src] + framework_srcs
+    if card_needs_corpus:
+        card_srcs = card_srcs + [inference_src] + other_rfc_srcs
     lean_emit(
         name = "rfc_{}_card_generated".format(num),
-        srcs = [_SCHEMA_LIB, rfc_src, emit_helpers.card, runners.card],
+        srcs = card_srcs + [emit_helpers.card, runners.card],
         entry = runners.card,
         out = "{}{}-card.md".format(out_prefix, num),
     )
@@ -86,7 +96,7 @@ def rfc_emit_targets(
             _SCHEMA_LIB,
             inference_src,
             rfc_src,
-        ] + other_rfc_srcs + [
+        ] + other_rfc_srcs + framework_srcs + [
             emit_helpers.spec_md,
             runners.spec_md,
         ],
