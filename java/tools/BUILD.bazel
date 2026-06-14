@@ -1,4 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,4 +9,19 @@ java_library(
     name = "diff_gate",
     srcs = ["DiffGate.java"],
     deps = ["@bazel_tools//tools/java/runfiles"],
+)
+
+# Conventional-Commit message generator over a staged git diff. Reuses the
+# spec LLM layer (//java:llm) — prompt folded in from the archived
+# `mattmarshall/scope` CLI. Library + a runnable binary (+ `--selftest`).
+java_library(
+    name = "commit_msg",
+    srcs = ["CommitMessageGen.java"],
+    deps = ["//java:llm"],
+)
+
+java_binary(
+    name = "commit_msg_bin",
+    main_class = "tools.CommitMessageGen",
+    runtime_deps = [":commit_msg"],
 )
