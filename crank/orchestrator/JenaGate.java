@@ -15,7 +15,11 @@ import org.apache.jena.rdf.model.Model;
 public final class JenaGate implements Gate {
   @Override
   public boolean passes(Collection<Triple> graph) {
-    Model m = JenaGraph.toModel(graph);
+    return passesModel(JenaGraph.toModel(graph));
+  }
+
+  /** Gate an already-materialized model (e.g. the loaded ratio corpus). */
+  public boolean passesModel(Model m) {
     boolean hasCycle = JenaGraph.ask(m, "ASK { ?x (rfc:dependsOn)+ ?x }");
     return !hasCycle;
   }
