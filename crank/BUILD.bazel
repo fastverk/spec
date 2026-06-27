@@ -5,10 +5,12 @@ load("//rdf:gates.bzl", "spec_corpus_gates")
 package(default_visibility = ["//visibility:public"])
 
 # ── A contract-bound crank (predict → project → gate → measure) ────────────
-# predict: a fleet worker returns a fastverk.crank.v1.PredictResponse
-#   (//crank/proto:crank_proto) — deltas/crank-003.delta.textproto — proposing
-#   edits to the under-specified ai-insights leaf (RFC-0914). Its applied form is
-#   deltas/crank-003.delta.ttl (GraphDelta.add as triples).
+# predict: a fleet worker returns a fastverk.crank.v1.PredictResponse (the
+#   contract + engine now live in the dedicated `crank` repo) —
+#   deltas/crank-003.delta.textproto — proposing edits to the under-specified
+#   ai-insights leaf (RFC-0914). Its applied form is deltas/crank-003.delta.ttl
+#   (GraphDelta.add as triples). This target is the RDF-gate side: it folds that
+#   delta into the corpus and checks it passes spec_corpus_gates.
 # project/gate: the deterministic half folds the delta into the corpus and runs
 #   spec_corpus_gates (SHACL + consistency). Green ⇒ the proposal is admitted.
 # measure: crank-measure.rq records the densified graph (RFC-0914: 1 → 3 claims).
