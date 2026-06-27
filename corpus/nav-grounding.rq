@@ -1,0 +1,31 @@
+# nav-grounding.rq — NAV-scoped instance of the proof-system grounding audit.
+#
+# The org-wide rdf/lint/semantic/grounding.rq walks every Theorem /
+# NormativeStatement. This query narrows the same backward-chaining walk to
+# the SEC NAV standard (RFC-0950): it selects each NAV claim that is NOT an
+# axiom AND has NO (rfc:derivedVia/rfc:premise)+ path to an :isAxiom-true
+# ancestor — i.e. an ungrounded NAV claim.
+#
+# Zero rows means every one of the 19 NAV claims is either a regulatory axiom
+# (2 of them) or derives, through corpus/derivations.ttl, back to one of those
+# axioms. Wired both as a readable tsv (sparql_query) and a zero-row gate
+# (sparql_query_test) over //corpus:nav_grounded.
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?claim ?predicate
+WHERE {
+  # Scope: only the normative claims contained in the SEC NAV standard.
+  <https://ratio.dev/corpus/RFC-0950> rfc:hasSection/rfc:containsRule ?claim .
+
+  # Drop the claims that are themselves axioms — they need no derivation.
+  FILTER NOT EXISTS { ?claim rfc:isAxiom true }
+
+  # Ungrounded: no derivation chain reaches an axiom ancestor.
+  FILTER NOT EXISTS {
+    ?claim (rfc:derivedVia/rfc:premise)+ ?ancestor .
+    ?ancestor rfc:isAxiom true .
+  }
+
+  OPTIONAL { ?claim rfc:predicate ?predicate . }
+}
+ORDER BY ?claim

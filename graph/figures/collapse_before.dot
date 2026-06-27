@@ -1,0 +1,40 @@
+// collapse_before.dot — the rough corpus G0 as a "claim gas" (high temperature).
+//
+// Sixteen component specs, each carrying its OWN duplicated copy of the same
+// boilerplate (the admission sentence, the status box, a private kernel
+// reference). The redundancy R is visible as repeated, unshared satellite
+// nodes; there is no shared center. Force-directed (sfdp) so the duplication
+// reads as scatter.
+//
+// Pair: collapse_after.dot is the crystallized form. Rendered by
+// //graph:collapse_before_svg.
+digraph claim_gas {
+  layout = sfdp;
+  overlap = prism;
+  splines = false;
+  bgcolor = "transparent";
+  K = 0.7;
+  node [shape=box, style="rounded,filled", fontname="Helvetica",
+        fontsize=9, color="#3A2A1C", penwidth=0.7];
+  edge [color="#B98E5E", penwidth=0.6, arrowsize=0.4];
+
+  // Each spec is a 3-node clump: spec -> its own "admits via kernel" copy and
+  // its own "status box" copy. The kernel reference is duplicated 16×.
+  // Macro-by-hand: 16 near-identical subgraphs.
+  spec01 [label="trading", fillcolor="#D9C19A"];      a01 [label="admits via kernel", fillcolor="#F4EEDD"]; s01 [label="status box", fillcolor="#F4EEDD"]; spec01 -> a01; spec01 -> s01;
+  spec02 [label="billing", fillcolor="#D9C19A"];       a02 [label="admits via kernel", fillcolor="#F4EEDD"]; s02 [label="status box", fillcolor="#F4EEDD"]; spec02 -> a02; spec02 -> s02;
+  spec03 [label="compliance", fillcolor="#D9C19A"];    a03 [label="admits via kernel", fillcolor="#F4EEDD"]; s03 [label="status box", fillcolor="#F4EEDD"]; spec03 -> a03; spec03 -> s03;
+  spec04 [label="proposal gen", fillcolor="#D9C19A"];  a04 [label="admits via kernel", fillcolor="#F4EEDD"]; s04 [label="status box", fillcolor="#F4EEDD"]; spec04 -> a04; spec04 -> s04;
+  spec05 [label="model mgmt", fillcolor="#D9C19A"];    a05 [label="admits via kernel", fillcolor="#F4EEDD"]; s05 [label="status box", fillcolor="#F4EEDD"]; spec05 -> a05; spec05 -> s05;
+  spec06 [label="integrations", fillcolor="#D9C19A"];  a06 [label="admits via kernel", fillcolor="#F4EEDD"]; s06 [label="status box", fillcolor="#F4EEDD"]; spec06 -> a06; spec06 -> s06;
+  spec07 [label="ai insights", fillcolor="#D9C19A"];   a07 [label="admits via kernel", fillcolor="#F4EEDD"]; s07 [label="status box", fillcolor="#F4EEDD"]; spec07 -> a07; spec07 -> s07;
+  spec08 [label="risk analytics", fillcolor="#D9C19A"];a08 [label="sandbox sim", fillcolor="#F4EEDD"];      s08 [label="status box", fillcolor="#F4EEDD"]; spec08 -> a08; spec08 -> s08;
+  spec09 [label="portfolio acct", fillcolor="#D9C19A"];a09 [label="read projection", fillcolor="#F4EEDD"];  s09 [label="status box", fillcolor="#F4EEDD"]; spec09 -> a09; spec09 -> s09;
+  spec10 [label="client portal", fillcolor="#D9C19A"]; a10 [label="read projection", fillcolor="#F4EEDD"];  s10 [label="status box", fillcolor="#F4EEDD"]; spec10 -> a10; spec10 -> s10;
+  spec11 [label="business intel", fillcolor="#D9C19A"];a11 [label="read projection", fillcolor="#F4EEDD"];  s11 [label="status box", fillcolor="#F4EEDD"]; spec11 -> a11; spec11 -> s11;
+  spec12 [label="CRM", fillcolor="#D9C19A"];           a12 [label="gRPC extension", fillcolor="#F4EEDD"];   s12 [label="status box", fillcolor="#F4EEDD"]; spec12 -> a12; spec12 -> s12;
+  spec13 [label="data aggregation",fillcolor="#D9C19A"];a13 [label="typed facts", fillcolor="#F4EEDD"];     s13 [label="status box", fillcolor="#F4EEDD"]; spec13 -> a13; spec13 -> s13;
+  spec14 [label="alt investments", fillcolor="#D9C19A"];a14 [label="typed facts", fillcolor="#F4EEDD"];     s14 [label="status box", fillcolor="#F4EEDD"]; spec14 -> a14; spec14 -> s14;
+  spec15 [label="data governance", fillcolor="#D9C19A"];a15 [label="content-addressed", fillcolor="#F4EEDD"];s15 [label="status box", fillcolor="#F4EEDD"]; spec15 -> a15; spec15 -> s15;
+  spec16 [label="specialized svc", fillcolor="#D9C19A"];a16 [label="admits via kernel", fillcolor="#F4EEDD"];s16 [label="status box", fillcolor="#F4EEDD"]; spec16 -> a16; spec16 -> s16;
+}

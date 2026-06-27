@@ -1,0 +1,14 @@
+# The collapsed (compact) representation: each component as a thin instance tuple
+# — just its name and the motif signature it instantiates. With the 7 template
+# bodies (rcx:templatePredicate), these 16 tuples reconstruct the corpus: 16
+# specs collapse to 7 templates + 16 parameter tuples.
+PREFIX rcx:  <https://ratio.dev/corpus/ext#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?component (GROUP_CONCAT(DISTINCT ?mid; SEPARATOR=", ") AS ?motifs) WHERE {
+  ?c rcx:realizesMotif ?m .
+  BIND(STRAFTER(STR(?c), "corpus/") AS ?component)
+  BIND(STRAFTER(STR(?m), "ext#") AS ?mid)
+}
+GROUP BY ?component
+ORDER BY ?component

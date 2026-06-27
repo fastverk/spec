@@ -1,0 +1,51 @@
+% Forward (noising) vs reverse (denoising) over typed claim graphs.
+\begin{figure}[t]
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  font=\footnotesize, >={Stealth[length=2.4mm]},
+  cn/.style={circle, fill=black!70, inner sep=1.3pt},
+  panel/.style={draw=black!20, rounded corners=3pt, minimum width=30mm, minimum height=24mm},
+]
+% Panel G0 — coherent crystal (connected, typed)
+\node[panel] (p0) at (0,0) {};
+\node[font=\scriptsize] at (0,-1.6) {$G_0$ (crystal)};
+\node[cn] (a0) at (-0.7,0.6) {}; \node[cn] (b0) at (0.6,0.7) {};
+\node[cn] (c0) at (-0.4,-0.3) {}; \node[cn] (d0) at (0.7,-0.4) {};
+\node[cn] (e0) at (0.0,0.2) {};
+\draw[black!55] (a0)--(e0) (b0)--(e0) (c0)--(e0) (d0)--(e0) (a0)--(c0) (b0)--(d0);
+
+% Panel Gk — partially noised
+\node[panel] (pk) at (4.2,0) {};
+\node[font=\scriptsize] at (4.2,-1.6) {$G_k$};
+\node[cn] at (3.6,0.6) {}; \node[cn] (bk) at (4.8,0.7) {};
+\node[cn] (ck) at (3.9,-0.3) {}; \node[cn] at (4.9,-0.5) {};
+\node[cn] (ek) at (4.2,0.1) {};
+\draw[black!45] (bk)--(ek) (ck)--(ek);
+
+% Panel GT — claim gas (max entropy, edgeless)
+\node[panel] (pt) at (8.4,0) {};
+\node[font=\scriptsize] at (8.4,-1.6) {$G_T\sim\pi_{\mathrm{prior}}$ (claim gas)};
+\foreach \x/\y in {-0.7/0.6, 0.6/0.7, -0.4/-0.3, 0.7/-0.5, 0.0/0.2, 0.9/0.3, -0.8/-0.6}
+  {\node[cn] at (8.4+\x,\y) {};}
+
+% Arrows
+\draw[->, black!70] ([yshift=2mm]p0.north east) -- ([yshift=2mm]pk.north west)
+  node[midway, above, font=\scriptsize] {};
+\draw[->, black!70] ([yshift=2mm]pk.north east) -- ([yshift=2mm]pt.north west);
+\node[font=\scriptsize] at (6.3,1.85) {forward $q$: noising $\;(Q^V_t,Q^E_t)$};
+\node[font=\scriptsize] at (2.1,1.85) {$\approx\textsf{decompose}$};
+
+\draw[->, black!70] ([yshift=-2mm]pt.south west) -- ([yshift=-2mm]pk.south east);
+\draw[->, black!70] ([yshift=-2mm]pk.south west) -- ([yshift=-2mm]p0.south east);
+\node[font=\scriptsize] at (6.3,-2.15) {reverse: predict $+$ project};
+\node[font=\scriptsize] at (2.1,-2.15) {(crystallize)};
+\end{tikzpicture}%
+}
+\caption{Refinement as graph diffusion. The forward process corrupts a coherent
+spec graph $G_0$ toward a maximum-entropy ``claim gas'' $\pi_{\mathrm{prior}}$
+(type-marginal nodes, no edges); \textsf{decompose} initializes near that prior
+directly from a document. The reverse process alternates a stochastic predictor
+with a deterministic projection to crystallize a coherent, compact graph.}
+\label{fig:diffusion}
+\end{figure}

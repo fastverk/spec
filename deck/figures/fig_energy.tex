@@ -1,0 +1,32 @@
+% Cost terms of E(G_0) measured by crank-001 — the four we want to drive down.
+% (Structure terms L=64 edges, S=7 templates are shown as stat tiles on the
+% slide; they live on a different scale and we want them to rise, not fall.)
+\begin{tikzpicture}
+\begin{axis}[
+  xbar,
+  width=0.86\linewidth, height=4.2cm,
+  bar width=10pt,
+  xmin=0, xmax=10,
+  enlarge y limits=0.28,
+  axis lines=left,
+  xlabel={count (lower is better)},
+  every axis x label/.style={at={(axis description cs:0.5,-0.12)},anchor=north,
+                             font=\scriptsize\color{ratioInk}},
+  symbolic y coords={U\,under-spec,D\,dangling,R\,redundancy,C\,contradiction},
+  ytick=data,
+  yticklabel style={font=\footnotesize\color{ratioInk}},
+  xtick={0,2,4,6,8,10},
+  xticklabel style={font=\scriptsize\color{ratioInk}},
+  nodes near coords,
+  nodes near coords style={font=\footnotesize\bfseries\color{ratioInk}},
+  every node near coord/.append style={anchor=west},
+  tick style={color=ratioBrown},
+]
+\addplot[draw=ratioInk, fill=ratioTan] coordinates {
+  (8,U\,under-spec)
+  (5,D\,dangling)
+  (8,R\,redundancy)
+  (3,C\,contradiction)
+};
+\end{axis}
+\end{tikzpicture}

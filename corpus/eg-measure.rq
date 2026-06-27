@@ -1,0 +1,40 @@
+# Measure the E(G)-relevant structure of the materialized ratio corpus, straight
+# from the graph (asserted triples only — no reasoner closure). The numbers that
+# crank-001 estimated by reading prose are now read off the graph instead.
+PREFIX : <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?metric ?value WHERE {
+  { SELECT ("documents" AS ?metric) (COUNT(DISTINCT ?d) AS ?value)
+    WHERE { ?d a :Document } }
+  UNION
+  { SELECT ("claims (NormativeStatements)" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { ?n a :NormativeStatement } }
+  UNION
+  { SELECT ("dependsOn edges" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?a :dependsOn ?b } }
+  UNION
+  { SELECT ("refines edges" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?a :refines ?b } }
+  UNION
+  { SELECT ("containsRule edges" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?s :containsRule ?n } }
+  UNION
+  { SELECT ("MUST claims" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?n a :NormativeStatement ; :modality :MUST } }
+  UNION
+  { SELECT ("MUST_NOT claims" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?n a :NormativeStatement ; :modality :MUST_NOT } }
+  UNION
+  { SELECT ("MAY claims" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?n a :NormativeStatement ; :modality :MAY } }
+  UNION
+  { SELECT ("proven claims (provenBy)" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { ?n :provenBy ?p } }
+  UNION
+  { SELECT ("conservation-hub in-degree" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?x :dependsOn <https://ratio.dev/corpus/RFC-0900> } }
+  UNION
+  { SELECT ("read-projection-hub in-degree" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?x :dependsOn <https://ratio.dev/corpus/RFC-0901> } }
+}
+ORDER BY DESC(?value)

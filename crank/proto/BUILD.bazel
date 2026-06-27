@@ -1,0 +1,39 @@
+load("@io_grpc_grpc_java//:java_grpc_library.bzl", "java_grpc_library")
+load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@rules_proto//proto:defs.bzl", "proto_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# The crank predict contract: the CrankPredictor gRPC service + its messages
+# (PredictRequest/Response, GraphDelta, Term, Triple, EnergySnapshot, Provenance).
+# Domain-neutral and lifted into the spine (spec) — agora's fleet implements this
+# contract; ratio (and any corpus) is just an input. Aligned with agora.v1 wire
+# types so an agora Bidder adapts with a thin shim.
+#
+#   bazel build //crank/proto:crank_proto
+proto_library(
+    name = "crank_proto",
+    srcs = ["crank.proto"],
+)
+
+# Java bindings for the contract messages (PredictRequest/Response, GraphDelta,
+# Term/Triple, EnergySnapshot, Provenance) — consumed by the JVM orchestrator
+# (//crank/orchestrator).
+java_proto_library(
+    name = "crank_java_proto",
+    deps = [":crank_proto"],
+)
+
+# The gRPC service stub for CrankPredictor.Predict: generates
+# CrankPredictorGrpc (the blocking/async client stubs + the
+# CrankPredictorImplBase server base) on top of the message bindings. This is
+# the transport the orchestrator dials — a GrpcPredictor wraps the blocking stub
+# as the CrankPredictor interface, so swapping MockPredictor for a real agora
+# endpoint changes one constructor argument and nothing in the loop.
+#
+#   bazel build //crank/proto:crank_java_grpc
+java_grpc_library(
+    name = "crank_java_grpc",
+    srcs = [":crank_proto"],
+    deps = [":crank_java_proto"],
+)

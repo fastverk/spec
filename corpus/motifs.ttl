@@ -1,0 +1,63 @@
+# motifs.ttl — the symmetry layer over the ratio corpus.
+#
+# crank-001 found the 16 components are one orbit collapsing to 7 motif templates.
+# That symmetry was implicit in the prose; here it is explicit structure the
+# compaction can detect: 7 :Motif individuals and the realizesMotif edges from
+# each component. The symmetry-detection pass groups components by their motif
+# signature; the collapse pass (next) factors each orbit to a parametrized
+# template. Uses a ratio extension namespace (rcx:) so it layers over the shared
+# aion-rfc vocabulary without modifying it.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rc:   <https://ratio.dev/corpus/> .
+@prefix rcx:  <https://ratio.dev/corpus/ext#> .
+
+rcx:Motif a rdfs:Class ; rdfs:label "Spec motif template" .
+rcx:realizesMotif a rdfs:Property ; rdfs:label "realizes motif" ;
+    rdfs:comment "A component Document realizes (is an instance of) a motif template." .
+
+rcx:M1 a rcx:Motif ; rdfs:label "M1 propose -> kernel admits" .
+rcx:M2 a rcx:Motif ; rdfs:label "M2 sandboxed simulation over kernel" .
+rcx:M3 a rcx:Motif ; rdfs:label "M3 read-only projection" .
+rcx:M4 a rcx:Motif ; rdfs:label "M4 extension over gRPC API" .
+rcx:M5 a rcx:Motif ; rdfs:label "M5 typed fact plane" .
+rcx:M6 a rcx:Motif ; rdfs:label "M6 conserved-dimension generalization" .
+rcx:M7 a rcx:Motif ; rdfs:label "M7 content-addressed artifact" .
+
+# Collapse to templates (S↑): the canonical, parametrized claim body of each
+# motif. The 16 components' per-instance claims are instances of these 7
+# templates with the {bracketed} holes filled — the redundancy the symmetry
+# recovers. One template predicate stands in for an orbit of component claims.
+rcx:templatePredicate a rdfs:Property ; rdfs:label "canonical template predicate" .
+
+rcx:M1 rcx:templatePredicate
+  "A {proposer} MUST route every write through the kernel write-door (core:12); non-conserving proposals are rejected." .
+rcx:M2 rcx:templatePredicate
+  "A {proposer} MAY evaluate {artifact} in a sandboxed simulation over the kernel before admission." .
+rcx:M3 rcx:templatePredicate
+  "A {surface} MUST be a read-only projection of the ledger, holding no write authority." .
+rcx:M4 rcx:templatePredicate
+  "A {app} MUST act as an extension over the gRPC API, holding no ledger authority." .
+rcx:M5 rcx:templatePredicate
+  "{external-data} MUST enter as typed facts on the fact plane, never as direct ledger writes." .
+rcx:M6 rcx:templatePredicate
+  "A {new-dimension} MUST be modeled by generalizing the conserved dimensions of the kernel." .
+rcx:M7 rcx:templatePredicate
+  "A {artifact} MUST be a content-addressed artifact with explicit provenance." .
+
+rc:RFC-0901 rcx:realizesMotif rcx:M3, rcx:M6 .
+rc:RFC-0902 rcx:realizesMotif rcx:M5 .
+rc:RFC-0903 rcx:realizesMotif rcx:M1 .
+rc:RFC-0904 rcx:realizesMotif rcx:M1, rcx:M7 .
+rc:RFC-0905 rcx:realizesMotif rcx:M1, rcx:M2 .
+rc:RFC-0906 rcx:realizesMotif rcx:M1, rcx:M7 .
+rc:RFC-0907 rcx:realizesMotif rcx:M3, rcx:M4 .
+rc:RFC-0908 rcx:realizesMotif rcx:M4 .
+rc:RFC-0909 rcx:realizesMotif rcx:M1, rcx:M7 .
+rc:RFC-0910 rcx:realizesMotif rcx:M2, rcx:M5 .
+rc:RFC-0911 rcx:realizesMotif rcx:M3 .
+rc:RFC-0912 rcx:realizesMotif rcx:M5, rcx:M6 .
+rc:RFC-0913 rcx:realizesMotif rcx:M1, rcx:M4 .
+rc:RFC-0914 rcx:realizesMotif rcx:M1 .
+rc:RFC-0915 rcx:realizesMotif rcx:M7 .
+rc:RFC-0916 rcx:realizesMotif rcx:M6 .

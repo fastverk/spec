@@ -1,0 +1,15 @@
+load("@rules_tectonic//tectonic:defs.bzl", "tectonic_pdf")
+
+package(default_visibility = ["//visibility:public"])
+
+# The crystallization whitepaper — formalizes docs/rfc-001b (spec-graph
+# refinement as training-free graph diffusion) as a PDF via rules_tectonic.
+# All figures are native TikZ / pgfplots, so the whole paper is one hermetic
+# tectonic action.
+#
+#   bazel build //paper:crystallization  ->  bazel-bin/paper/crystallization.pdf
+tectonic_pdf(
+    name = "crystallization",
+    main = "main.tex",
+    srcs = glob(["figures/*.tex"]),
+)

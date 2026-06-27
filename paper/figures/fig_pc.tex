@@ -1,0 +1,34 @@
+% The predictor-corrector refinement step.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize, >={Stealth[length=2.4mm]}, node distance=10mm,
+  box/.style={draw, rounded corners=3pt, align=center, minimum height=13mm,
+              text width=42mm, inner sep=4pt},
+  pred/.style={box, fill=black!4},
+  corr/.style={box, fill=black!10},
+  st/.style={font=\footnotesize},
+]
+\node[st] (gt) {$G_t$};
+\node[pred, right=of gt] (P) {\textbf{Predictor}\\ LLM ensemble (stochastic)\\ \scriptsize propose $\to$ merge $\to$ verify, at $\tau_t$};
+\node[st, right=of P] (gm) {$\tilde G$};
+\node[corr, right=of gm] (C) {\textbf{Corrector}\\ deterministic projection $P$\\ \scriptsize dedup, transitive-reduce, collapse symmetry, canonicalize};
+\node[st, right=of C] (gt1) {$G_{t-1}$};
+
+\draw[->] (gt) -- (P);
+\draw[->] (P) -- (gm);
+\draw[->] (gm) -- (C);
+\draw[->] (C) -- (gt1);
+\draw[->, black!60] (gt1) to[bend left=22]
+  node[below, font=\scriptsize] {repeat; \; $\tau_t\downarrow$, \;\; $E(G)\downarrow$} (gt);
+
+\node[font=\scriptsize, align=center, above=1mm of P] {finite $\tau$ (explore)};
+\node[font=\scriptsize, align=center, above=1mm of C] {$\tau{=}0$ (proven $E(P(G))\le E(G)$)};
+\end{tikzpicture}
+\caption{One reverse step is \emph{predict then project}. The predictor is a
+training-free, in-context LLM denoiser exploring at temperature $\tau_t$; the
+corrector is a deterministic, machine-checked projection onto the gate-passing
+manifold that never raises the energy. Iterating with $\tau_t\to 0$ crystallizes
+the graph.}
+\label{fig:pc}
+\end{figure}

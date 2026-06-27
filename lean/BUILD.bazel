@@ -20,7 +20,17 @@ exports_files([
     "Spec/Emit/MdEmit.lean",
     "Spec/Logic/Core.lean",
     "Spec/Logic/InferenceRulesProofs.lean",
+    "Spec/Compaction/Projection.lean",
 ])
+
+# The deterministic corrector core: proves the compaction (reverse-diffusion
+# corrector) invariants — meaning-preserving, energy-non-increasing, idempotent —
+# for the redundancy-collapse pass. Pure Lean 4 core; compiling = proofs check.
+lean_test(
+    name = "compaction_test",
+    srcs = ["Spec/Compaction/Projection.lean"],
+    entry = "Spec/Compaction/Projection.lean",
+)
 
 # Compile the whole framework here (no external deps — pure Lean 4 core).
 lean_test(

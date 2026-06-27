@@ -1,0 +1,73 @@
+load("@rules_java//java:defs.bzl", "java_library", "java_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# The crank loop driver (predict → project → gate → measure, τ↓), compiling
+# against the contract's Java bindings (//crank/proto:crank_java_proto). The
+# predictor is the CrankPredictor interface; swap MockPredictor for the gRPC stub
+# to the agora fleet and the loop is unchanged.
+java_library(
+    name = "orchestrator",
+    srcs = [
+        "CrankOrchestrator.java",
+        "CrankPredictor.java",
+        "MockPredictor.java",
+    ],
+    deps = ["//crank/proto:crank_java_proto"],
+)
+
+# Runs the loop with the in-process mock fleet and asserts it converges + E(G)
+# descends. use_testrunner=False so the plain main() IS the test (no junit dep).
+java_test(
+    name = "crank_check",
+    srcs = ["CrankCheck.java"],
+    main_class = "dev.fastverk.crank.orchestrator.CrankCheck",
+    use_testrunner = False,
+    deps = [
+        ":orchestrator",
+        "//crank/proto:crank_java_proto",
+    ],
+)
+
+# The gRPC transport: GrpcPredictor (client — wraps the CrankPredictorGrpc
+# blocking stub as the CrankPredictor interface) + CrankPredictorService (server
+# — adapts a plain CrankPredictor into the generated service base). Kept OUT of
+# :orchestrator on purpose, so the loop library has zero transport deps and
+# stays dial-only-the-interface; this is the layer that binds to a wire.
+java_library(
+    name = "grpc_transport",
+    srcs = [
+        "CrankPredictorService.java",
+        "GrpcPredictor.java",
+    ],
+    deps = [
+        ":orchestrator",
+        "//crank/proto:crank_java_grpc",
+        "//crank/proto:crank_java_proto",
+        "@io_grpc_grpc_java//api",
+        "@io_grpc_grpc_java//stub",
+    ],
+)
+
+# The real-transport proof: stands up an in-process gRPC server bound to the
+# service (delegating to MockPredictor), dials it through GrpcPredictor, and runs
+# the whole crank loop over the stub — same loop as crank_check, now marshalling
+# every PredictRequest/PredictResponse across the contract. Asserts it still
+# converges + E(G) descends. In-process transport ⇒ hermetic + port-free.
+java_test(
+    name = "grpc_round_trip",
+    srcs = ["GrpcRoundTrip.java"],
+    main_class = "dev.fastverk.crank.orchestrator.GrpcRoundTrip",
+    use_testrunner = False,
+    runtime_deps = [
+        "@io_grpc_grpc_java//core",
+        "@io_grpc_grpc_java//netty",
+    ],
+    deps = [
+        ":grpc_transport",
+        ":orchestrator",
+        "//crank/proto:crank_java_proto",
+        "@io_grpc_grpc_java//api",
+        "@io_grpc_grpc_java//inprocess",
+    ],
+)

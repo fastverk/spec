@@ -1,0 +1,14 @@
+# The dependsOn edges the transitive-reduction pass removes: each is implied by a
+# longer path, so dropping it preserves the transitive closure (reachability).
+PREFIX : <https://aion.savvi.io/ontology/rfc#>
+
+SELECT DISTINCT ?from ?to ?via WHERE {
+  ?a :dependsOn ?c .
+  ?a :dependsOn ?b .
+  ?b (:dependsOn)+ ?c .
+  FILTER(?a != ?b && ?b != ?c)
+  BIND(STRAFTER(STR(?a), "corpus/") AS ?from)
+  BIND(STRAFTER(STR(?c), "corpus/") AS ?to)
+  BIND(STRAFTER(STR(?b), "corpus/") AS ?via)
+}
+ORDER BY ?from ?to
