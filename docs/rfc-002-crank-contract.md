@@ -103,7 +103,14 @@ transport is now wired (gRPC, both ends; see below).
    `JenaGate` rejects unsound deltas (a `dependsOn` cycle) via SPARQL.
    `//crank/orchestrator:jena_energy_check` proves the real E(G) descends.
 
+And the loop now runs against the **full materialized ratio corpus**:
+`//crank/orchestrator:corpus_crank` loads `ratio-corpus.ttl` (19 claims, 17
+ungrounded, L=17, R=4, S=15), grounds an ungrounded claim per crank, and the
+real ARQ-SPARQL E(G) descends −9 → −11 → −13 → −15 → −17 → −19 with the dependsOn
+DAG kept acyclic by `JenaGate`.
+
 The contract, both wire ends, the deterministic+gated loop with real SPARQL
-measurement, and a real validate→repair fleet worker are all in place. What
-remains is purely the live LLM proposer + running the loop against the full
-materialized ratio corpus rather than the synthetic demo graph.
+measurement over the real corpus, and a real validate→repair fleet worker are
+all in place. The single remaining piece is the live **LLM proposer** (the
+Claude/RunPod bidder that creatively proposes the grounding) replacing the
+deterministic stand-in — everything it plugs into is built and verified.

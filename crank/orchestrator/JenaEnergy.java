@@ -32,8 +32,17 @@ public final class JenaEnergy implements EnergyModel {
 
   @Override
   public EnergySnapshot measure(Collection<Triple> graph, int frontierSize, int redundant, double tau) {
-    Model m = JenaGraph.toModel(graph);
+    return measureModel(JenaGraph.toModel(graph), frontierSize, tau);
+  }
 
+  /**
+   * Measure E(G) over an arbitrary Jena model — e.g. the full materialized ratio
+   * corpus loaded straight from {@code ratio-corpus.ttl}, not a synthetic graph.
+   * U (the frontier) is supplied by the caller, since "under-specified" is a
+   * domain judgment (here: ungrounded claims); the structural terms are read off
+   * the graph by the same SPARQL the {@code //corpus} targets use.
+   */
+  public EnergySnapshot measureModel(Model m, int frontierSize, double tau) {
     // L = transitive-reduction count of dependsOn (drop transitively-implied
     // edges — they are R, not real connectivity) + refines + references.
     int connectivity =

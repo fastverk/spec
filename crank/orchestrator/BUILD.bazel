@@ -73,6 +73,25 @@ java_test(
     ] + JENA_DEPS,
 )
 
+# Cranks the FULL materialized ratio corpus (ratio-corpus.ttl, bundled as a
+# resource): measures real E(G) with SPARQL, grounds ungrounded claims one per
+# crank (U↓), and asserts the real E(G) descends crank over crank while the
+# dependsOn DAG stays acyclic. Proves the measure/gate work on the real corpus,
+# not just the synthetic demo graph.
+java_test(
+    name = "corpus_crank",
+    srcs = ["CorpusCrank.java"],
+    main_class = "dev.fastverk.crank.orchestrator.CorpusCrank",
+    resource_strip_prefix = "corpus",
+    resources = ["//corpus:ratio-corpus.ttl"],
+    use_testrunner = False,
+    deps = [
+        ":jena_measure",
+        ":orchestrator",
+        "//crank/proto:crank_java_proto",
+    ] + JENA_DEPS,
+)
+
 # The gRPC transport: GrpcPredictor (client — wraps the CrankPredictorGrpc
 # blocking stub as the CrankPredictor interface) + CrankPredictorService (server
 # — adapts a plain CrankPredictor into the generated service base). Kept OUT of
