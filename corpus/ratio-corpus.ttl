@@ -1,0 +1,204 @@
+# ratio-corpus.ttl — the materialized ratio spec corpus (Phase 0 seed graph).
+#
+# The crank-001 corpus (the conservation kernel + the 16 advertised components),
+# expressed as instances of the shared spec vocabulary (rdf/ontology/aion-rfc.ttl)
+# so it loads into Jena and is gated by spec_corpus_gates (SHACL shapes + the four
+# consistency invariants). This is the first reverse-diffusion step materialized
+# as a real graph: every prior crank measurement (claims, edges, hubs) now has a
+# triple behind it, and subsequent cranks measure E(G) over THIS graph.
+#
+# Modeled faithfully to crank-001 §2-3: conservation (core-2) and the write-door
+# (core-12) are the kernel hubs; portfolio-accounting (RFC-0901) is the
+# read-projection hub; every component dependsOn the kernel, forming the
+# near-star. Documents carry RFC-09xx ids (the vocabulary's Document id form);
+# these are ratio-corpus docs, not Aion RFCs.
+#
+# Densification note: this seed carries one primary motif claim per component
+# (~18 NormativeStatements, ~24 edges) — the well-formed skeleton. Crank-002
+# densifies toward the full 73 claims / 64 edges.
+
+@prefix :   <https://aion.savvi.io/ontology/rfc#> .
+@prefix rc: <https://ratio.dev/corpus/> .
+
+# =============================================================================
+# Core — the conservation accounting kernel (the trust root / hubs)
+# =============================================================================
+
+rc:RFC-0900 a :Document ;
+    :rfcId "RFC-0900" ;
+    :title "Conservation Accounting Kernel" ;
+    :status "stable" ;
+    :hasSection rc:RFC-0900-s1 .
+
+rc:RFC-0900-s1 a :Section ;
+    :sectionNumber "1" ; :title "Invariants" ; :sectionKind :Invariants ;
+    :containsRule rc:core-2, rc:core-12 .
+
+# core:2 — the sole proven invariant (the central hub of the near-star).
+rc:core-2 a :NormativeStatement ;
+    :modality :MUST ;
+    :predicate "A transaction conserves value if and only if its net vector is zero." ;
+    :isAxiom false ;
+    :provenBy "Ratio.Core.conserves_iff_zero" ;
+    :rationale "The kernel's sole proven invariant; nearly every component realizes it." .
+
+# core:12 — the single write-door every proposing component routes through.
+rc:core-12 a :NormativeStatement ;
+    :modality :MUST ;
+    :predicate "CreateTransaction MUST reject any transaction whose net vector is non-zero." ;
+    :isAxiom false ;
+    :provenBy "Ratio.Core.createTransaction_rejects_nonconserving" ;
+    :rationale "The write-door; conservation is enforced at the boundary." .
+
+# =============================================================================
+# Components — the 16 advertised wealth-tech components (one primary motif each)
+# =============================================================================
+
+rc:RFC-0901 a :Document ;
+    :rfcId "RFC-0901" ; :title "Portfolio Accounting & Performance Reporting" ;
+    :status "draft" ; :hasSection rc:RFC-0901-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0901-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:pa-3 .
+rc:pa-3 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Reporting surfaces MUST be read-only projections of the ledger (M3)." ;
+    :rationale "Read-projection hub; dependency root for portal, CRM, BI, billing." .
+
+rc:RFC-0902 a :Document ;
+    :rfcId "RFC-0902" ; :title "Data Aggregation & Reconciliation" ;
+    :status "draft" ; :hasSection rc:RFC-0902-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0902-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:dataagg-1 .
+rc:dataagg-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "External data MUST enter as typed facts on a fact plane (M5), never as direct ledger writes." .
+
+rc:RFC-0903 a :Document ;
+    :rfcId "RFC-0903" ; :title "Trading & Rebalancing" ;
+    :status "draft" ; :hasSection rc:RFC-0903-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0903-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:trading-1 .
+rc:trading-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Every proposed trade MUST be admitted through the kernel write-door (M1)." .
+
+rc:RFC-0904 a :Document ;
+    :rfcId "RFC-0904" ; :title "Models & Managed Accounts" ;
+    :status "draft" ; :hasSection rc:RFC-0904-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0904-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:model-1 .
+rc:model-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Model definitions MUST be content-addressed artifacts (M7) admitted via the kernel (M1)." .
+
+rc:RFC-0905 a :Document ;
+    :rfcId "RFC-0905" ; :title "Proposal Generation" ;
+    :status "draft" ; :hasSection rc:RFC-0905-s1 ;
+    :dependsOn rc:RFC-0900, rc:RFC-0901 .
+rc:RFC-0905-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:proposal-1, rc:proposal-2 .
+rc:proposal-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Generated proposals MUST be admitted through the kernel write-door (M1)." .
+rc:proposal-2 a :NormativeStatement ; :modality :MAY ;
+    :predicate "Proposals MAY be evaluated in a sandboxed simulation over the kernel before admission (M2)." .
+
+rc:RFC-0906 a :Document ;
+    :rfcId "RFC-0906" ; :title "Billing & Revenue Management" ;
+    :status "draft" ; :hasSection rc:RFC-0906-s1 ;
+    :dependsOn rc:RFC-0900, rc:RFC-0901 .
+rc:RFC-0906-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:billing-1 .
+rc:billing-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Fee postings MUST be admitted through the kernel write-door (M1) as content-addressed artifacts (M7)." .
+
+rc:RFC-0907 a :Document ;
+    :rfcId "RFC-0907" ; :title "Client Experience Portal" ;
+    :status "draft" ; :hasSection rc:RFC-0907-s1 ;
+    :dependsOn rc:RFC-0901 .
+rc:RFC-0907-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:portal-1 .
+rc:portal-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "The portal MUST present read-only projections (M3) and extend the platform over the gRPC API (M4)." .
+
+rc:RFC-0908 a :Document ;
+    :rfcId "RFC-0908" ; :title "CRM" ;
+    :status "draft" ; :hasSection rc:RFC-0908-s1 ;
+    :dependsOn rc:RFC-0901 .
+rc:RFC-0908-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:crm-1 .
+rc:crm-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "CRM functionality MUST be an extension over the gRPC API (M4), holding no ledger authority." .
+
+rc:RFC-0909 a :Document ;
+    :rfcId "RFC-0909" ; :title "Compliance & Surveillance" ;
+    :status "draft" ; :hasSection rc:RFC-0909-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0909-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:compliance-1 .
+rc:compliance-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Compliance rules MUST be admitted through the kernel (M1) and recorded as content-addressed artifacts (M7)." .
+
+rc:RFC-0910 a :Document ;
+    :rfcId "RFC-0910" ; :title "Risk Analytics & Scenario Modeling" ;
+    :status "draft" ; :hasSection rc:RFC-0910-s1 ;
+    :dependsOn rc:RFC-0900, rc:RFC-0902 .
+rc:RFC-0910-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:risk-1 .
+rc:risk-1 a :NormativeStatement ; :modality :MAY ;
+    :predicate "Risk analytics MAY run as sandboxed simulations over the kernel (M2) atop typed facts (M5)." .
+
+rc:RFC-0911 a :Document ;
+    :rfcId "RFC-0911" ; :title "Practice Analytics & Business Intelligence" ;
+    :status "draft" ; :hasSection rc:RFC-0911-s1 ;
+    :dependsOn rc:RFC-0901 .
+rc:RFC-0911-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:bi-1 .
+rc:bi-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "BI dashboards MUST read from read-only projections (M3), never from the write path." .
+
+rc:RFC-0912 a :Document ;
+    :rfcId "RFC-0912" ; :title "Alternative Investments Servicing" ;
+    :status "draft" ; :hasSection rc:RFC-0912-s1 ;
+    :dependsOn rc:RFC-0900, rc:RFC-0902 .
+rc:RFC-0912-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:alts-1 .
+rc:alts-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Alternative assets MUST be modeled by generalizing the conserved dimensions (M6) over typed facts (M5)." .
+
+rc:RFC-0913 a :Document ;
+    :rfcId "RFC-0913" ; :title "Integrations, API & Marketplace" ;
+    :status "draft" ; :hasSection rc:RFC-0913-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0913-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:integrations-1 .
+rc:integrations-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Integrations MUST act as gRPC extensions (M4); writes MUST route through the kernel (M1)." .
+
+rc:RFC-0914 a :Document ;
+    :rfcId "RFC-0914" ; :title "AI & Natural-Language Insights" ;
+    :status "draft" ; :hasSection rc:RFC-0914-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0914-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:ai-1 .
+rc:ai-1 a :NormativeStatement ; :modality :MUST_NOT ;
+    :predicate "A language model MUST NOT write to the ledger except by proposing entries admitted through the kernel (M1)." ;
+    :rationale "Scoped to conservation: the kernel proves conservation, not authorization (crank-001 C1)." .
+
+rc:RFC-0915 a :Document ;
+    :rfcId "RFC-0915" ; :title "Access Control & Data Governance" ;
+    :status "draft" ; :hasSection rc:RFC-0915-s1 ;
+    :dependsOn rc:RFC-0900 .
+rc:RFC-0915-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:governance-1 .
+rc:governance-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Governed artifacts MUST be content-addressed (M7) with explicit provenance." .
+
+rc:RFC-0916 a :Document ;
+    :rfcId "RFC-0916" ; :title "Trust, Retirement & Insurance Servicing" ;
+    :status "draft" ; :hasSection rc:RFC-0916-s1 ;
+    :dependsOn rc:RFC-0900 ;
+    :refines rc:RFC-0912 .
+rc:RFC-0916-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
+    :sectionKind :Normative ; :containsRule rc:special-1 .
+rc:special-1 a :NormativeStatement ; :modality :MUST ;
+    :predicate "Specialized servicing MUST reuse the conserved-dimension generalization (M6) of alternative investments." .

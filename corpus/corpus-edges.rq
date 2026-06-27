@@ -1,0 +1,19 @@
+# Extract the corpus graph's typed edges straight from the store, as the data a
+# SPARQL->dot renderer turns into the hero graph. This is the "deck is an output
+# of the pipeline" step: the figure's topology is read from the materialized
+# graph, not hand-authored. (The remaining step is the mechanical tsv->dot
+# formatting + dot_pdf render.)
+PREFIX :    <https://aion.savvi.io/ontology/rfc#>
+PREFIX rc:  <https://ratio.dev/corpus/>
+
+SELECT ?src ?rel ?dst WHERE {
+  { ?s :dependsOn ?d . BIND(STRAFTER(STR(?s), "corpus/") AS ?src)
+    BIND("dependsOn" AS ?rel) BIND(STRAFTER(STR(?d), "corpus/") AS ?dst) }
+  UNION
+  { ?s :refines ?d . BIND(STRAFTER(STR(?s), "corpus/") AS ?src)
+    BIND("refines" AS ?rel) BIND(STRAFTER(STR(?d), "corpus/") AS ?dst) }
+  UNION
+  { ?s :references ?d . BIND(STRAFTER(STR(?s), "corpus/") AS ?src)
+    BIND("references" AS ?rel) BIND(STRAFTER(STR(?d), "corpus/") AS ?dst) }
+}
+ORDER BY ?rel ?src ?dst

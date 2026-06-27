@@ -1,0 +1,19 @@
+# The compression the template collapse buys: 7 canonical template bodies
+# parametrize all 16 components (the recoverable symmetry S, as MDL).
+PREFIX :    <https://aion.savvi.io/ontology/rfc#>
+PREFIX rcx: <https://ratio.dev/corpus/ext#>
+
+SELECT ?metric ?value WHERE {
+  { SELECT ("motif template bodies" AS ?metric) (COUNT(DISTINCT ?m) AS ?value)
+    WHERE { ?m rcx:templatePredicate ?p } }
+  UNION
+  { SELECT ("components parametrized" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c rcx:realizesMotif ?m } }
+  UNION
+  { SELECT ("instance tuples" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c rcx:realizesMotif ?m } }
+  UNION
+  { SELECT ("component claims subsumed by templates" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { ?d a :Document ; rcx:realizesMotif ?m ; :hasSection ?s . ?s :containsRule ?n } }
+}
+ORDER BY DESC(?value)

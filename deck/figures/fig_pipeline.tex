@@ -1,0 +1,23 @@
+% The next reverse step as a four-stage pipeline (crank-001 §6 action queue).
+\begin{tikzpicture}[
+  font=\footnotesize,
+  >={Stealth[length=2.2mm]},
+  stage/.style={draw=ratioInk, rounded corners=3pt, align=center,
+                text width=23mm, minimum height=15mm, inner sep=3pt, line width=0.7pt},
+]
+\node[stage, fill=ratioSand] (proj) {\textbf{1. Project}\\[2pt]
+  \scriptsize collapse 16$\to$7 motifs; dedupe R1--R8\\[1pt]
+  \scriptsize\color{ratioBrown}$S\!\uparrow\ R\!\downarrow$ (safe)};
+\node[stage, fill=ratioSand, right=8mm of proj] (gate) {\textbf{2. Gate-fix}\\[2pt]
+  \scriptsize scope the auth claim; split ``claim''\\[1pt]
+  \scriptsize\color{ratioBrown}$C\!\downarrow\ D\!\downarrow$};
+\node[stage, fill=ratioSand, right=8mm of gate] (front) {\textbf{3. Frontier}\\[2pt]
+  \scriptsize internalize SEC 2a-4 (NAV), then ASC 820, GIPS\\[1pt]
+  \scriptsize\color{ratioBrown}$U\!\downarrow$ (all OPEN)};
+\node[stage, fill=ratioTan, right=8mm of front] (mat) {\textbf{4. Materialize}\\[2pt]
+  \scriptsize seed the Jena graph (Phase 0)\\[1pt]
+  \scriptsize\color{ratioBrown}measure $E(G)$ live};
+\draw[->, ratioBrown, line width=1pt] (proj) -- (gate);
+\draw[->, ratioBrown, line width=1pt] (gate) -- (front);
+\draw[->, ratioBrown, line width=1pt] (front) -- (mat);
+\end{tikzpicture}

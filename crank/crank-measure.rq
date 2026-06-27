@@ -1,0 +1,16 @@
+# Measure the graph after a predicted delta is applied — the *measure* stage of a
+# contract-bound crank. Shows the under-specified ai-insights leaf (RFC-0914)
+# densified from 1 claim to 3, and the corpus claim count grown, all still gated.
+PREFIX : <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?metric ?value WHERE {
+  { SELECT ("claims (NormativeStatements)" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { ?n a :NormativeStatement } }
+  UNION
+  { SELECT ("documents" AS ?metric) (COUNT(DISTINCT ?d) AS ?value)
+    WHERE { ?d a :Document } }
+  UNION
+  { SELECT ("ai-insights claims (RFC-0914)" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { <https://ratio.dev/corpus/RFC-0914> :hasSection ?s . ?s :containsRule ?n } }
+}
+ORDER BY DESC(?value)

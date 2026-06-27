@@ -1,0 +1,69 @@
+load("@rules_graphviz//graphviz:defs.bzl", "dot_diagram", "svg_pdf")
+
+package(default_visibility = ["//visibility:public"])
+
+# The authored crank-001 spec-graph figures, rendered hermetically to SVG by
+# rules_graphviz (WASM graphviz under bun — no host `dot`). These SVGs are the
+# canonical render of the graph: vector, browser-embeddable (the future web
+# explorer), and the exact shape a Phase-0 SPARQL -> dot generator will emit
+# from the materialized Jena graph. The deck (//deck) bridges the same .dot
+# sources to PDF for tectonic embedding.
+#
+#   bazel build //graph:svgs   ->  bazel-bin/graph/{crystal,collapse_*}_svg.svg
+
+# The "crystal" near-star — radial layout rooted at conservation.
+dot_diagram(
+    name = "crystal_svg",
+    src = "figures/crystal.dot",
+    engine = "twopi",
+)
+
+# Before/after the deterministic projection: "claim gas" -> "crystal".
+dot_diagram(
+    name = "collapse_before_svg",
+    src = "figures/collapse_before.dot",
+    engine = "sfdp",
+)
+
+dot_diagram(
+    name = "collapse_after_svg",
+    src = "figures/collapse_after.dot",
+    engine = "dot",
+)
+
+filegroup(
+    name = "svgs",
+    srcs = [
+        ":collapse_after_svg",
+        ":collapse_before_svg",
+        ":crystal_svg",
+    ],
+)
+
+# Vector PDF of each graph, converted hermetically from the canonical SVG above
+# (rules_graphviz svg_pdf: bun + vendored converter, no host `dot`). tectonic
+# embeds PDF, not SVG, so the deck (//deck) consumes these. Converting the same
+# SVG (rather than re-rendering) guarantees the PDF matches the canonical SVG.
+svg_pdf(
+    name = "crystal_pdf",
+    src = ":crystal_svg",
+)
+
+svg_pdf(
+    name = "collapse_before_pdf",
+    src = ":collapse_before_svg",
+)
+
+svg_pdf(
+    name = "collapse_after_pdf",
+    src = ":collapse_after_svg",
+)
+
+filegroup(
+    name = "pdfs",
+    srcs = [
+        ":collapse_after_pdf",
+        ":collapse_before_pdf",
+        ":crystal_pdf",
+    ],
+)

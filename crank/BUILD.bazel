@@ -1,0 +1,81 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+
+package(default_visibility = ["//visibility:public"])
+
+# ── A contract-bound crank (predict → project → gate → measure) ────────────
+# predict: a fleet worker returns a fastverk.crank.v1.PredictResponse
+#   (//crank/proto:crank_proto) — deltas/crank-003.delta.textproto — proposing
+#   edits to the under-specified ai-insights leaf (RFC-0914). Its applied form is
+#   deltas/crank-003.delta.ttl (GraphDelta.add as triples).
+# project/gate: the deterministic half folds the delta into the corpus and runs
+#   spec_corpus_gates (SHACL + consistency). Green ⇒ the proposal is admitted.
+# measure: crank-measure.rq records the densified graph (RFC-0914: 1 → 3 claims).
+rdf_dataset(
+    name = "crank_003",
+    srcs = [
+        "deltas/crank-003.delta.ttl",
+        "//corpus:motifs.ttl",
+        "//corpus:ratio-corpus.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:vocab"],
+)
+
+spec_corpus_gates(
+    name = "crank_003_gates",
+    dataset = ":crank_003",
+)
+
+sparql_query(
+    name = "crank_003_measure",
+    dataset = ":crank_003",
+    query = "crank-measure.rq",
+    out_format = "tsv",
+)
+
+# The *measure* stage of the deterministic crank loop
+# (predict -> project -> gate -> measure). It builds the two //corpus SPARQL
+# measurement targets over the materialized ratio corpus and reads the
+# E(G)-relevant counts off the graph.
+#
+# Recording a crank row into the committed series is done with the POSIX sh
+# script (idempotent upsert per crank index):
+#
+#   sh crank/record-eg.sh N            # record crank N into crank/eg-series.tsv
+#
+# `record_eg` below is the buildable/runnable snapshot target: it re-derives the
+# current graph's normalized E(G) row straight from the two measurement tsvs and
+# emits it as a build artifact, so the measure stage is reproducible under Bazel.
+# (A native genrule is used rather than sh_binary because rules_shell is not a
+# direct dep of this module.)
+#
+#   bazel build //crank:record_eg
+#   cat bazel-bin/crank/eg-snapshot.tsv
+genrule(
+    name = "record_eg",
+    srcs = [
+        "//corpus:eg_measure",
+        "//corpus:compaction_measure",
+    ],
+    outs = ["eg-snapshot.tsv"],
+    # Parse the two measurement tsvs and emit one normalized row:
+    #   crank   R   L   S   claims   docs   note
+    # R = redundant edges, L = dependsOn after transitive reduction,
+    # S = motif templates, claims = NormativeStatements, docs = Documents.
+    cmd = """
+EG=$(location //corpus:eg_measure)
+CM=$(location //corpus:compaction_measure)
+val() { awk -F '\\t' -v k="$$2" 'index($$1,k)>0{v=$$2;gsub(/"/,"",v);gsub(/[ \\t\\r]/,"",v);print v;exit}' "$$1"; }
+R=$$(val "$$CM" "redundant edges")
+L=$$(val "$$CM" "after reduction")
+S=$$(val "$$CM" "motif templates")
+CLAIMS=$$(val "$$EG" "claims (NormativeStatements)")
+DOCS=$$(val "$$EG" "documents")
+{
+  printf 'crank\\tR\\tL\\tS\\tclaims\\tdocs\\tnote\\n'
+  printf 'current\\t%s\\t%s\\t%s\\t%s\\t%s\\tgraph-measured\\n' "$$R" "$$L" "$$S" "$$CLAIMS" "$$DOCS"
+} > $@
+""",
+)

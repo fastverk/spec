@@ -1,0 +1,124 @@
+# derivations.ttl — the FULL proof-system form of the SEC NAV grounding.
+#
+# nav-sec-2a4.ttl carries the lightweight dependency layer (rcx:groundedIn:
+# "this claim presupposes those claims"). This file reifies each of those
+# edges into the aion-rfc proof vocabulary the grounding lint walks:
+#
+#   rc:<claim> rfc:derivedVia rc:<claim>-deriv .
+#   rc:<claim>-deriv a rfc:Derivation ;
+#       rfc:premise <each rcx:groundedIn target> ;
+#       rfc:appliesRule rcx:regulatory-grounding .
+#
+# Every non-axiom NormativeStatement (17 of the 19 NAV claims) thus gets a
+# :Derivation whose premises are exactly its rcx:groundedIn targets. Because
+# those targets chase back to the two regulatory axioms
+# (rc:nav-2a4-current-value-method, rc:nav-2a41-statutory-value, both
+# :isAxiom true), every (rfc:derivedVia/rfc:premise)+ chain terminates at an
+# axiom — so grounding.rq (and corpus/nav-grounding.rq) return zero rows.
+#
+# One InferenceRule (rcx:regulatory-grounding) backs every step: a NAV claim
+# is justified by the regulatory premises it presupposes, each itself an
+# axiom or a grounded claim.
+
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix rc:   <https://ratio.dev/corpus/> .
+@prefix rcx:  <https://ratio.dev/corpus/ext#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+# -- The single inference rule every NAV derivation applies ------------------
+rcx:regulatory-grounding a rfc:InferenceRule ;
+    rdfs:label "regulatory grounding" ;
+    rfc:premisePattern "?premise a rfc:NormativeStatement . { ?premise rfc:isAxiom true } UNION { ?premise rfc:derivedVia ?d }" ;
+    rfc:conclusionPattern "?claim a rfc:NormativeStatement ; rfc:derivedVia [ rfc:premise ?premise ]" ;
+    rfc:mechanizedAs "Aion.Derivations.regulatoryGrounding" .
+
+# -- Section 1: NAV computation (Rule 2a-4) ----------------------------------
+
+rc:nav-2a4-assets-minus-liabilities rfc:derivedVia rc:nav-2a4-assets-minus-liabilities-deriv .
+rc:nav-2a4-assets-minus-liabilities-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method, rc:nav-2a4-securities-valuation, rc:nav-2a4-expense-accrual ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-securities-valuation rfc:derivedVia rc:nav-2a4-securities-valuation-deriv .
+rc:nav-2a4-securities-valuation-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-holdings-changes-timing rfc:derivedVia rc:nav-2a4-holdings-changes-timing-deriv .
+rc:nav-2a4-holdings-changes-timing-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-securities-valuation ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-shares-outstanding-timing rfc:derivedVia rc:nav-2a4-shares-outstanding-timing-deriv .
+rc:nav-2a4-shares-outstanding-timing-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-expense-accrual rfc:derivedVia rc:nav-2a4-expense-accrual-deriv .
+rc:nav-2a4-expense-accrual-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-dividends-receivable rfc:derivedVia rc:nav-2a4-dividends-receivable-deriv .
+rc:nav-2a4-dividends-receivable-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-interest-income-accrual rfc:derivedVia rc:nav-2a4-interest-income-accrual-deriv .
+rc:nav-2a4-interest-income-accrual-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a4-de-minimis-exception rfc:derivedVia rc:nav-2a4-de-minimis-exception-deriv .
+rc:nav-2a4-de-minimis-exception-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-expense-accrual, rc:nav-2a4-interest-income-accrual ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+# -- Section 2: Fair value (Rule 2a-5; statutory value) ----------------------
+
+rc:nav-2a5-fair-value-good-faith rfc:derivedVia rc:nav-2a5-fair-value-good-faith-deriv .
+rc:nav-2a5-fair-value-good-faith-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a41-statutory-value ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a5-readily-available-quotation rfc:derivedVia rc:nav-2a5-readily-available-quotation-deriv .
+rc:nav-2a5-readily-available-quotation-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-securities-valuation, rc:nav-2a41-statutory-value ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a5-board-or-designee rfc:derivedVia rc:nav-2a5-board-or-designee-deriv .
+rc:nav-2a5-board-or-designee-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a5-fair-value-good-faith, rc:nav-2a41-statutory-value ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-2a5-designee-reporting rfc:derivedVia rc:nav-2a5-designee-reporting-deriv .
+rc:nav-2a5-designee-reporting-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a5-board-or-designee ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+# -- Section 3: Pricing & cadence (Rule 22c-1) -------------------------------
+
+rc:nav-22c1-forward-pricing rfc:derivedVia rc:nav-22c1-forward-pricing-deriv .
+rc:nav-22c1-forward-pricing-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-22c1-daily-cadence rfc:derivedVia rc:nav-22c1-daily-cadence-deriv .
+rc:nav-22c1-daily-cadence-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-22c1-forward-pricing, rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-22c1-board-sets-time rfc:derivedVia rc:nav-22c1-board-sets-time-deriv .
+rc:nav-22c1-board-sets-time-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-22c1-daily-cadence ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-22c1-swing-pricing rfc:derivedVia rc:nav-22c1-swing-pricing-deriv .
+rc:nav-22c1-swing-pricing-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-22c1-forward-pricing, rc:nav-2a4-current-value-method ;
+    rfc:appliesRule rcx:regulatory-grounding .
+
+rc:nav-22c1-variable-annuity rfc:derivedVia rc:nav-22c1-variable-annuity-deriv .
+rc:nav-22c1-variable-annuity-deriv a rfc:Derivation ;
+    rfc:premise rc:nav-22c1-forward-pricing ;
+    rfc:appliesRule rcx:regulatory-grounding .

@@ -1,0 +1,32 @@
+# A fastverk.crank.v1.PredictResponse — one fleet worker's proposal for crank-003,
+# attacking the under-specified ai-insights leaf (RFC-0914, U). This is exactly
+# what CrankPredictor.Predict returns over the wire; deltas/crank-003.delta.ttl is
+# the same add-set in applied (TTL) form. Validate with:
+#   protoc --encode=fastverk.crank.v1.PredictResponse \
+#     --proto_path=crank/proto crank/proto/crank.proto < this-file
+delta {
+  add { subject { iri: "rc:RFC-0914-s1" } predicate { iri: "rfc:containsRule" } object { iri: "rc:ai-2" } }
+  add { subject { iri: "rc:ai-2" } predicate { iri: "rdf:type" } object { iri: "rfc:NormativeStatement" } }
+  add { subject { iri: "rc:ai-2" } predicate { iri: "rfc:modality" } object { iri: "rfc:MUST" } }
+  add { subject { iri: "rc:ai-2" } predicate { iri: "rfc:predicate" } object { literal: "AI-generated explanations MUST cite the read-only projections (M3) they summarize." } }
+  add { subject { iri: "rc:RFC-0914-s1" } predicate { iri: "rfc:containsRule" } object { iri: "rc:ai-3" } }
+  add { subject { iri: "rc:ai-3" } predicate { iri: "rdf:type" } object { iri: "rfc:NormativeStatement" } }
+  add { subject { iri: "rc:ai-3" } predicate { iri: "rfc:modality" } object { iri: "rfc:MUST_NOT" } }
+  add { subject { iri: "rc:ai-3" } predicate { iri: "rfc:predicate" } object { literal: "An AI explanation MUST NOT assert a figure absent from a read-only projection." } }
+  prov {
+    proposer_models: "ensemble-a"
+    proposer_models: "ensemble-b"
+    confidence: 0.86
+    proposer_id: "fleet-worker-3"
+    repair_iters: 1
+  }
+}
+projected_energy {
+  redundancy: 4
+  contradictions: 0
+  dangling: 0
+  under_spec: 6
+  connectivity: 16
+  symmetry: 7
+  temperature: 0.6
+}

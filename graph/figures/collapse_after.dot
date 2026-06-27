@@ -1,0 +1,60 @@
+// collapse_after.dot — the same corpus crystallized (temperature -> 0).
+//
+// The 16 duplicated boilerplate clumps of collapse_before.dot collapse onto
+// 7 shared motif templates and a single shared kernel. Redundancy R is gone
+// (one copy of each motif, hoisted); symmetry S is banked; every instance is
+// now a thin tuple pointing at its template. Hierarchical (dot) layout so the
+// shared spine is legible.
+//
+// Pair: collapse_before.dot is the pre-projection "claim gas". Rendered by
+// //graph:collapse_after_svg.
+digraph crystal_after {
+  layout = dot;
+  rankdir = LR;
+  bgcolor = "transparent";
+  nodesep = 0.18;
+  ranksep = 1.1;
+  node [shape=box, style="rounded,filled", fontname="Helvetica",
+        fontsize=10, color="#3A2A1C", penwidth=1.0];
+  edge [color="#6E4F34", penwidth=0.9, arrowsize=0.6];
+
+  // The single shared kernel (was duplicated 16× before).
+  kernel [label="conservation kernel\ncore:2 / core:12", rank=max,
+          fillcolor="#6E4F34", fontcolor="#F4EEDD", fontsize=12, penwidth=2.0];
+
+  // The 7 motif templates — one copy each.
+  node [fillcolor="#B98E5E", fontcolor="#3A2A1C", fontsize=10, penwidth=1.4];
+  M1 [label="M1 propose -> admit"];
+  M2 [label="M2 sandboxed sim"];
+  M3 [label="M3 read projection"];
+  M4 [label="M4 gRPC extension"];
+  M5 [label="M5 typed fact plane"];
+  M6 [label="M6 conserved-dim gen."];
+  M7 [label="M7 content-addressed"];
+  M1 -> kernel; M2 -> kernel; M3 -> kernel;
+  M4 -> kernel; M5 -> kernel; M6 -> kernel; M7 -> kernel;
+
+  // 16 thin instance tuples — just parameters now, all sharing their template.
+  node [shape=box, style="filled", fillcolor="#F4EEDD", fontcolor="#3A2A1C",
+        fontsize=8, penwidth=0.6, height=0.22];
+  i_trading [label="trading"]; i_billing [label="billing"]; i_compliance [label="compliance"];
+  i_proposal [label="proposal"]; i_model [label="model mgmt"]; i_integr [label="integrations"];
+  i_ai [label="ai insights"]; i_special [label="specialized svc"];
+  i_trading -> M1; i_billing -> M1; i_compliance -> M1; i_proposal -> M1;
+  i_model -> M1; i_integr -> M1; i_ai -> M1; i_special -> M1;
+
+  i_risk [label="risk"]; i_proposal2 [label="proposal (sim)"];
+  i_risk -> M2; i_proposal2 -> M2;
+
+  i_pa [label="portfolio acct"]; i_portal [label="client portal"]; i_bi [label="business intel"];
+  i_pa -> M3; i_portal -> M3; i_bi -> M3;
+
+  i_crm [label="CRM"]; i_portal2 [label="client portal (ext)"];
+  i_crm -> M4; i_portal2 -> M4;
+
+  i_dataagg [label="data aggregation"]; i_alts [label="alt investments"];
+  i_dataagg -> M5; i_alts -> M5; i_alts -> M6;
+
+  i_gov [label="data governance"];
+  i_gov -> M7;
+}

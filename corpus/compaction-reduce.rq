@@ -1,0 +1,15 @@
+# The transitively-reduced dependsOn graph: the deterministic corrector's output
+# edge layer. Every redundant (transitively-implied) edge is dropped; the
+# closure is preserved because :dependsOn is owl:TransitiveProperty. Emitted as a
+# graph (turtle), so it chains into rdf_dataset / further sparql_query / render.
+PREFIX : <https://aion.savvi.io/ontology/rfc#>
+
+CONSTRUCT { ?a :dependsOn ?c }
+WHERE {
+  ?a :dependsOn ?c .
+  FILTER NOT EXISTS {
+    ?a :dependsOn ?b .
+    ?b (:dependsOn)+ ?c .
+    FILTER(?a != ?b && ?b != ?c)
+  }
+}

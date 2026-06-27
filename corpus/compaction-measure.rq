@@ -1,0 +1,30 @@
+# Measure the deterministic compaction (corrector pass) over the real graph:
+# transitive reduction of the dependsOn DAG (L-cost down, closure preserved
+# because :dependsOn is owl:TransitiveProperty) and the motif symmetry (S).
+PREFIX :    <https://aion.savvi.io/ontology/rfc#>
+PREFIX rcx: <https://ratio.dev/corpus/ext#>
+
+SELECT ?metric ?value WHERE {
+  { SELECT ("dependsOn edges (before)" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?a :dependsOn ?b } }
+  UNION
+  { SELECT ("redundant edges (transitively implied)" AS ?metric)
+           (COUNT(DISTINCT CONCAT(STR(?a), "|", STR(?c))) AS ?value)
+    WHERE { ?a :dependsOn ?c . ?a :dependsOn ?b . ?b (:dependsOn)+ ?c .
+            FILTER(?a != ?b && ?b != ?c) } }
+  UNION
+  { SELECT ("dependsOn edges (after reduction)" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?a :dependsOn ?c .
+            FILTER NOT EXISTS { ?a :dependsOn ?b . ?b (:dependsOn)+ ?c .
+                                FILTER(?a != ?b && ?b != ?c) } } }
+  UNION
+  { SELECT ("motif templates (S)" AS ?metric) (COUNT(DISTINCT ?m) AS ?value)
+    WHERE { ?c rcx:realizesMotif ?m } }
+  UNION
+  { SELECT ("components covered by motifs" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c rcx:realizesMotif ?m } }
+  UNION
+  { SELECT ("realizesMotif edges" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?c rcx:realizesMotif ?m } }
+}
+ORDER BY DESC(?value)

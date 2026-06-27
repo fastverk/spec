@@ -1,0 +1,13 @@
+load("@rules_tectonic//tectonic:defs.bzl", "tectonic_pdf")
+
+package(default_visibility = ["//visibility:public"])
+
+# "Moves the needle" one-pager: the deterministic corrector's measured effect on
+# the materialized graph (//corpus), rendered via rules_tectonic. All numbers are
+# graph-derived (see //corpus:compaction_measure, :eg_measure).
+#
+#   bazel build //impact:needle  ->  bazel-bin/impact/needle.pdf
+tectonic_pdf(
+    name = "needle",
+    main = "needle.tex",
+)

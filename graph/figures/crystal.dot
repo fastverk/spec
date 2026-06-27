@@ -1,0 +1,87 @@
+// crystal.dot — the crank-001 spec-graph as a near-star around conservation.
+//
+// Radial (twopi) layout rooted at the conservation invariant: the three hub
+// nodes form the inner ring, the seven motif templates the middle ring, and
+// the component instances + frontier standards the outer ring. This is the
+// "crystal" — the compact, strongly-linked form the corpus crystallizes into.
+//
+// Rendered hermetically to SVG by //graph:crystal_svg (rules_graphviz, twopi)
+// and bridged to PDF for the deck by //deck (host `dot -Ktwopi -Tpdf`).
+// Colors are the ratio brand palette.
+digraph crystal {
+  layout = twopi;
+  root = conservation;
+  ranksep = "1.5 equally";
+  overlap = false;
+  splines = true;
+  bgcolor = "transparent";
+  node [shape=box, style="rounded,filled", fontname="Helvetica",
+        fontsize=10, color="#3A2A1C", penwidth=1.0, margin="0.08,0.04"];
+  edge [color="#6E4F34", penwidth=0.9, arrowsize=0.6];
+
+  // ---- center: the sole proven invariant ----
+  conservation [label="Conservation\ncore:2\nnet vector = 0",
+                fillcolor="#6E4F34", fontcolor="#F4EEDD",
+                fontsize=15, penwidth=2.0, margin="0.16,0.10"];
+
+  // ---- inner ring: the three hubs (highest centrality) ----
+  createtx  [label="CreateTransaction\ncore:12\nthe write-door",
+             fillcolor="#B98E5E", fontcolor="#3A2A1C", fontsize=12, penwidth=1.6];
+  readproj  [label="Read projections\nportfolio-accounting:3",
+             fillcolor="#B98E5E", fontcolor="#3A2A1C", fontsize=12, penwidth=1.6];
+  createtx -> conservation [label="rejects\nnon-conserving", fontsize=8, fontcolor="#6E4F34"];
+  readproj -> conservation [label="projects", fontsize=8, fontcolor="#6E4F34"];
+
+  // ---- middle ring: the seven motif templates ----
+  node [fillcolor="#D9C19A", fontcolor="#3A2A1C", fontsize=10, penwidth=1.0];
+  M1 [label="M1 propose -> admit"];
+  M2 [label="M2 sandboxed sim"];
+  M3 [label="M3 read-only projection"];
+  M4 [label="M4 gRPC extension"];
+  M5 [label="M5 typed fact plane"];
+  M6 [label="M6 conserved-dim\ngeneralization"];
+  M7 [label="M7 content-addressed\nartifact"];
+  M1 -> createtx;
+  M2 -> createtx [style=dashed, label="simulates", fontsize=8, fontcolor="#6E4F34"];
+  M3 -> readproj;
+  M4 -> readproj [style=dashed];
+  M5 -> createtx [style=dashed];
+  M6 -> conservation [label="adds dims", fontsize=8, fontcolor="#6E4F34"];
+  M7 -> conservation [style=dotted, label="cross-cutting", fontsize=8, fontcolor="#6E4F34"];
+
+  // ---- outer ring: component instances (thin parameter tuples) ----
+  node [shape=box, style="rounded,filled", fillcolor="#F4EEDD",
+        fontcolor="#3A2A1C", fontsize=9, penwidth=0.8];
+  trading      [label="trading /\nrebalancing"];
+  billing      [label="billing"];
+  compliance   [label="compliance"];
+  proposal     [label="proposal gen"];
+  modelmgmt    [label="model mgmt"];
+  risk         [label="risk analytics"];
+  pa           [label="portfolio\naccounting"];
+  clientportal [label="client portal"];
+  bi           [label="business\nintelligence"];
+  crm          [label="CRM"];
+  dataagg      [label="data\naggregation"];
+  alts         [label="alternative\ninvestments"];
+  trading -> M1; billing -> M1; compliance -> M1; proposal -> M1; modelmgmt -> M1;
+  risk -> M2; proposal -> M2;
+  pa -> M3; clientportal -> M3; bi -> M3;
+  crm -> M4; clientportal -> M4;
+  dataagg -> M5; alts -> M5;
+  alts -> M6;
+
+  // ---- frontier: external standards to internalize (license-colored) ----
+  // green = OPEN, red = paywalled (metadata-only per RFC-001 §7.1).
+  node [shape=note, fontsize=9, penwidth=1.0];
+  nav   [label="SEC Rule 2a-4\n(NAV)", fillcolor="#CFE8CF", color="#2F6B2F"];
+  asc820[label="FASB ASC 820\n(fair value)", fillcolor="#CFE8CF", color="#2F6B2F"];
+  gips  [label="GIPS 2020\n(returns)", fillcolor="#CFE8CF", color="#2F6B2F"];
+  taxlot[label="IRC tax-lot\n(cost basis)", fillcolor="#CFE8CF", color="#2F6B2F"];
+  ieee  [label="IEEE 754\n(money math)", fillcolor="#F0D2D2", color="#9B2C2C"];
+  nav -> readproj [style=dotted, label="grounds", fontsize=8, fontcolor="#2F6B2F"];
+  asc820 -> M5 [style=dotted];
+  gips -> M2 [style=dotted];
+  taxlot -> M6 [style=dotted];
+  ieee -> conservation [style=dotted, label="paywalled", fontsize=8, fontcolor="#9B2C2C"];
+}

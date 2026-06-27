@@ -1,0 +1,190 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//reason:defs.bzl", "rdf_reason")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query", "sparql_query_test")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+
+package(default_visibility = ["//visibility:public"])
+
+# The materialized ratio spec corpus (Phase 0 seed graph): the crank-001 corpus
+# as instances of the shared spec vocabulary, loaded into Jena and gated.
+#
+#   bazel build //corpus:ratio_corpus              # parse + fold in the vocab
+#   bazel test  //corpus:ratio_corpus_gates_...    # SHACL + 4 consistency gates
+rdf_dataset(
+    name = "ratio_corpus",
+    srcs = [
+        "motifs.ttl",
+        "ratio-corpus.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:vocab"],
+)
+
+# SHACL shapes + the four consistency invariants (dangling refs, dependency
+# cycles, diagnostic-code collisions, asymmetric inverse edges) over the real
+# graph. Green here means the seed is well-formed and internally consistent.
+spec_corpus_gates(
+    name = "ratio_corpus_gates",
+    dataset = ":ratio_corpus",
+)
+
+# Measure the graph: the E(G)-relevant counts read straight off the materialized
+# corpus (the numbers crank-001 estimated from prose, now graph-derived).
+#
+#   bazel build //corpus:eg_measure
+#   cat bazel-bin/corpus/eg_measure.tsv
+sparql_query(
+    name = "eg_measure",
+    dataset = ":ratio_corpus",
+    query = "eg-measure.rq",
+    out_format = "tsv",
+)
+
+# Corpus + the first internalized frontier standard (SEC NAV). Gating the
+# combined dataset proves the standard is well-formed AND that its
+# internalization edges (:references into the corpus) resolve — no dangling.
+rdf_dataset(
+    name = "corpus_standards",
+    srcs = [
+        "motifs.ttl",
+        "nav-sec-2a4.ttl",
+        "ratio-corpus.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:vocab"],
+)
+
+spec_corpus_gates(
+    name = "corpus_standards_gates",
+    dataset = ":corpus_standards",
+)
+
+# Measure the internalization: standards loaded + how many corpus claims/components
+# the standard now grounds.
+sparql_query(
+    name = "standards_measure",
+    dataset = ":corpus_standards",
+    query = "standards-measure.rq",
+    out_format = "tsv",
+)
+
+# The hero graph's topology, read from the materialized graph (SPARQL -> render
+# data). tsv -> dot -> dot_pdf is the remaining mechanical render step.
+sparql_query(
+    name = "corpus_edges",
+    dataset = ":corpus_standards",
+    query = "corpus-edges.rq",
+    out_format = "tsv",
+)
+
+# ── Deterministic compaction (corrector pass, RFC-001 §5) ──────────────────
+# Executable passes over the real graph: transitive reduction of the dependsOn
+# DAG (L-cost down, closure preserved) + motif symmetry detection (S). The
+# Lean-proven core of the corrector invariants lives in //lean (Spec.Compaction).
+
+# Before/after summary of the compaction.
+sparql_query(
+    name = "compaction_measure",
+    dataset = ":ratio_corpus",
+    query = "compaction-measure.rq",
+    out_format = "tsv",
+)
+
+# The exact edges transitive reduction removes (each implied by a longer path).
+sparql_query(
+    name = "redundant_edges",
+    dataset = ":ratio_corpus",
+    query = "redundant-edges.rq",
+    out_format = "tsv",
+)
+
+# The motif orbit structure (symmetry detection).
+sparql_query(
+    name = "motif_orbits",
+    dataset = ":ratio_corpus",
+    query = "motif-orbits.rq",
+    out_format = "tsv",
+)
+
+# The transitively-reduced dependsOn graph itself (the corrector's output edge
+# layer), as turtle — chains into rdf_dataset / render.
+sparql_query(
+    name = "compaction_reduced_graph",
+    dataset = ":ratio_corpus",
+    query = "compaction-reduce.rq",
+    out_format = "turtle",
+)
+
+# Collapse to templates (S↑): the compact representation (7 template bodies +
+# 16 thin component tuples) and the compression it buys.
+sparql_query(
+    name = "templates_view",
+    dataset = ":ratio_corpus",
+    query = "templates-view.rq",
+    out_format = "tsv",
+)
+
+sparql_query(
+    name = "templates_measure",
+    dataset = ":ratio_corpus",
+    query = "templates-measure.rq",
+    out_format = "tsv",
+)
+
+# ── NAV → theorems (RFC-001 §6 materialization) ────────────────────────────
+# Apply the normative-is-theorem rule over the corpus + NAV standard: every
+# non-axiom NormativeStatement becomes a :Theorem, grounded toward the two
+# regulatory axioms. The reasoned graph chains into a measure.
+rdf_reason(
+    name = "corpus_theorems",
+    base = ":corpus_standards",
+    profile = "custom",
+    rules = "normative-is-theorem.rule",
+    include_base = True,
+)
+
+sparql_query(
+    name = "theorem_measure",
+    dataset = ":corpus_theorems",
+    query = "theorem-measure.rq",
+    out_format = "tsv",
+)
+
+# ── NAV grounding (RFC-001 §6 full derivation form) ────────────────────────
+# The lightweight rcx:groundedIn dependency layer in nav-sec-2a4.ttl, reified
+# into the aion-rfc proof vocabulary (derivations.ttl): each non-axiom NAV
+# claim gets a :Derivation whose :premise edges are its groundedIn targets, so
+# the proof tree is walkable by (rfc:derivedVia/rfc:premise)+. The dataset
+# carries the NAV standard + its derivations alongside the corpus.
+rdf_dataset(
+    name = "nav_grounded",
+    srcs = [
+        "nav-sec-2a4.ttl",
+        "derivations.ttl",
+        "motifs.ttl",
+        "ratio-corpus.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:vocab"],
+)
+
+# Readable form: the ungrounded NAV claims, if any (header-only = all grounded).
+#
+#   bazel build //corpus:nav_grounding
+#   cat bazel-bin/corpus/nav_grounding.tsv
+sparql_query(
+    name = "nav_grounding",
+    dataset = ":nav_grounded",
+    query = "nav-grounding.rq",
+    out_format = "tsv",
+)
+
+# Zero-row gate: fails if any NAV claim is neither an axiom nor derives to one.
+sparql_query_test(
+    name = "nav_grounding_test",
+    dataset = ":nav_grounded",
+    query = "nav-grounding.rq",
+)
+
+# Source TTLs exported so //crank can build a corpus+delta dataset for a crank step.
+exports_files(glob(["*.ttl"]))

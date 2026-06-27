@@ -1,0 +1,19 @@
+# normative-is-theorem.rule — the RFC-001 §6 materialization (Jena RETE rule).
+#
+# Every NormativeStatement that is not itself an axiom is a Theorem: a claim that
+# must be grounded (its premises chase back to axioms). Applied via rdf_reason
+# over //corpus:corpus_standards, this types the 19 SEC NAV claims (and the ratio
+# corpus claims) as :Theorem, so the grounding check can ask "does every
+# assertion derive from axioms?" The regulatory root claims are marked
+# :isAxiom true and stay axioms (excluded by the noValue guard).
+
+@prefix rfc: <https://aion.savvi.io/ontology/rfc#>.
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+
+[normative-is-theorem:
+    (?s rdf:type rfc:NormativeStatement)
+    noValue(?s rfc:isAxiom 'true'^^xsd:boolean)
+    ->
+    (?s rdf:type rfc:Theorem)
+]

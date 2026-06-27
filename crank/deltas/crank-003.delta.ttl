@@ -1,0 +1,15 @@
+# crank-003.delta.ttl — the APPLIED form of a fleet worker's predicted GraphDelta
+# (deltas/crank-003.delta.textproto, a fastverk.crank.v1.PredictResponse). The
+# predict step proposed densifying the under-specified ai-insights leaf
+# (RFC-0914); these are GraphDelta.add as triples. The deterministic
+# project → gate → measure half then takes over (//crank:crank_003_gates green).
+@prefix :   <https://aion.savvi.io/ontology/rfc#> .
+@prefix rc: <https://ratio.dev/corpus/> .
+
+rc:RFC-0914-s1 :containsRule rc:ai-2, rc:ai-3 .
+
+rc:ai-2 a :NormativeStatement ; :modality :MUST ;
+    :predicate "AI-generated explanations MUST cite the read-only projections (M3) they summarize." .
+
+rc:ai-3 a :NormativeStatement ; :modality :MUST_NOT ;
+    :predicate "An AI explanation MUST NOT assert a figure absent from a read-only projection." .

@@ -1,0 +1,47 @@
+load("@rules_graphviz//graphviz:defs.bzl", "dot_pdf", "dot_diagram", "svg_pdf")
+
+package(default_visibility = ["//visibility:public"])
+
+# The hero graph, rendered FROM the materialized spec graph — closing the
+# "the deck is an output of the pipeline" loop. //corpus:corpus_edges reads the
+# topology out of the Jena store via SPARQL (one row per typed edge); the
+# genrule below turns that TSV into a Graphviz .dot, and rules_graphviz renders
+# it hermetically (WASM graphviz under bun — no host `dot`) to SVG + vector PDF.
+# Nothing here is hand-authored: the figure's shape is whatever the graph says.
+#
+#   bazel build //corpus/render:hero_pdf //corpus/render:hero_svg
+#     -> bazel-bin/corpus/render/hero_pdf.pdf
+#     -> bazel-bin/corpus/render/hero_svg.svg
+
+# ── tsv -> dot ─────────────────────────────────────────────────────────────
+# tsv2dot.awk strips the surrounding quotes off every TSV value, skips the
+# header, collects the node set (declared exactly once, role-bucketed for the
+# ratio palette: kernel / hub / standard / component) and the edges (styled by
+# rel: dependsOn solid, references dotted, refines dashed), then emits a twopi
+# digraph rooted at RFC-0900. Keeping the awk in its own file dodges Bazel's
+# `$`-in-cmd Make-variable escaping. awk + sh are available to genrules.
+genrule(
+    name = "hero_dot",
+    srcs = ["//corpus:corpus_edges"],
+    outs = ["hero.dot"],
+    tools = ["tsv2dot.awk"],
+    cmd = "awk -F'\t' -f $(location tsv2dot.awk) $(location //corpus:corpus_edges) > $@",
+)
+
+# ── dot -> SVG (canonical render) ──────────────────────────────────────────
+# twopi rooted at RFC-0900 reads as a radial near-star: kernel center, the two
+# hubs and the standard prominent, components fanned around.
+dot_diagram(
+    name = "hero_svg",
+    src = ":hero_dot",
+    engine = "twopi",
+)
+
+# ── dot -> vector PDF (for the deck / tectonic) ────────────────────────────
+# Same twopi render, straight to vector PDF via rules_graphviz (dot -> svg ->
+# pdf, all hermetic).
+dot_pdf(
+    name = "hero_pdf",
+    src = ":hero_dot",
+    engine = "twopi",
+)

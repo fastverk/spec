@@ -1,0 +1,12 @@
+# Symmetry detection: the orbit structure of the corpus under the motif relation.
+# Each motif is a template; its members are the components that realize it. The
+# 16 components collapse onto these orbits (the recoverable symmetry S).
+PREFIX rcx:  <https://ratio.dev/corpus/ext#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+SELECT ?motif (COUNT(DISTINCT ?c) AS ?members) WHERE {
+  ?c rcx:realizesMotif ?m .
+  ?m rdfs:label ?motif .
+}
+GROUP BY ?motif
+ORDER BY DESC(?members) ?motif

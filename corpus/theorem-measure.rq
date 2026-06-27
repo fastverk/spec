@@ -1,0 +1,23 @@
+# Measure the §6 materialization over the reasoned graph (normative-is-theorem
+# applied): how many claims are now theorems, how many regulatory axioms ground
+# them, and whether every grounding edge resolves (no dangling premise).
+PREFIX :    <https://aion.savvi.io/ontology/rfc#>
+PREFIX rcx: <https://ratio.dev/corpus/ext#>
+
+SELECT ?metric ?value WHERE {
+  { SELECT ("theorems (materialized)" AS ?metric) (COUNT(DISTINCT ?t) AS ?value)
+    WHERE { ?t a :Theorem } }
+  UNION
+  { SELECT ("axioms (regulatory roots)" AS ?metric) (COUNT(DISTINCT ?a) AS ?value)
+    WHERE { ?a a :NormativeStatement ; :isAxiom true } }
+  UNION
+  { SELECT ("NAV claims now theorems" AS ?metric) (COUNT(DISTINCT ?t) AS ?value)
+    WHERE { <https://ratio.dev/corpus/RFC-0950> :hasSection ?s . ?s :containsRule ?t . ?t a :Theorem } }
+  UNION
+  { SELECT ("grounding edges" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?x rcx:groundedIn ?y } }
+  UNION
+  { SELECT ("dangling grounding (must be 0)" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?x rcx:groundedIn ?y . FILTER NOT EXISTS { ?y a :NormativeStatement } } }
+}
+ORDER BY DESC(?value)

@@ -1,0 +1,20 @@
+# Measure the frontier internalization over the combined corpus+standards graph.
+PREFIX : <https://aion.savvi.io/ontology/rfc#>
+
+SELECT ?metric ?value WHERE {
+  { SELECT ("total documents" AS ?metric) (COUNT(DISTINCT ?d) AS ?value)
+    WHERE { ?d a :Document } }
+  UNION
+  { SELECT ("total claims (NormativeStatements)" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { ?n a :NormativeStatement } }
+  UNION
+  { SELECT ("NAV-standard claims" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { <https://ratio.dev/corpus/RFC-0950> :hasSection ?s . ?s :containsRule ?n } }
+  UNION
+  { SELECT ("claims with verbatim evidence" AS ?metric) (COUNT(DISTINCT ?n) AS ?value)
+    WHERE { ?n :evidence ?e } }
+  UNION
+  { SELECT ("corpus components grounding the standard" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c :references <https://ratio.dev/corpus/RFC-0950> } }
+}
+ORDER BY DESC(?value)

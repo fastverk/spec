@@ -1,0 +1,173 @@
+# nav-sec-2a4.ttl — the first internalized frontier standard (RFC-001 §6/§7 track).
+#
+# SEC mutual-fund NAV rules (17 CFR 270.2a-4 / 22c-1 / 2a-5; 15 U.S.C. 80a-2(a)(41))
+# expressed as a :Document of :NormativeStatements in the shared spec vocabulary.
+# Source: docs/frontier/nav-sec-2a4.claims.json (public-domain; LII mirror of
+# eCFR/USC). Modality maps RFC-2119-style: SHALL/MUST -> :MUST, MAY -> :MAY,
+# prohibition -> :MUST_NOT. :evidence carries the verbatim operative phrase;
+# :rationale carries the citation.
+#
+# Internalization edges link the standard into the ratio corpus: the components
+# whose claims it grounds (:references). The next step (RFC-001 §6) materializes
+# each NormativeStatement as a :Theorem (normative-is-theorem.rule) and turns the
+# JSON depends_on into :premise/:derivedVia so grounding is checkable.
+#
+# This file is gated as part of the //corpus:corpus_standards dataset (so the
+# :references targets resolve against the corpus).
+
+@prefix :     <https://aion.savvi.io/ontology/rfc#> .
+@prefix rc:   <https://ratio.dev/corpus/> .
+@prefix rcx:  <https://ratio.dev/corpus/ext#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+rc:RFC-0950 a :Document ;
+    :rfcId "RFC-0950" ;
+    :title "SEC Mutual-Fund NAV (17 CFR 270.2a-4 / 22c-1 / 2a-5)" ;
+    :status "stable" ;
+    :hasSection rc:RFC-0950-s1, rc:RFC-0950-s2, rc:RFC-0950-s3 .
+
+# Internalization: the corpus components this standard grounds.
+rc:RFC-0901 :references rc:RFC-0950 .   # portfolio-accounting valuation / P&L
+rc:RFC-0912 :references rc:RFC-0950 .   # alternative-investments fair value
+
+# -- Section 1: NAV computation (Rule 2a-4) ----------------------------------
+rc:RFC-0950-s1 a :Section ; :sectionNumber "1" ;
+    :title "Net Asset Value Computation (Rule 2a-4)" ; :sectionKind :Normative ;
+    :containsRule rc:nav-2a4-current-value-method, rc:nav-2a4-assets-minus-liabilities,
+        rc:nav-2a4-securities-valuation, rc:nav-2a4-holdings-changes-timing,
+        rc:nav-2a4-shares-outstanding-timing, rc:nav-2a4-expense-accrual,
+        rc:nav-2a4-dividends-receivable, rc:nav-2a4-interest-income-accrual,
+        rc:nav-2a4-de-minimis-exception .
+
+rc:nav-2a4-current-value-method a :NormativeStatement ; :modality :MUST ;
+    :isAxiom true ; :axiomKind "substantive" ;
+    :predicate "Current net asset value MUST be computed substantially in accordance with the valuation, accrual, and timing rules of Rule 2a-4, with estimates where necessary or appropriate." ;
+    :rationale "17 CFR 270.2a-4(a)" ;
+    :evidence "an amount which reflects calculations ... made substantially in accordance with the following, with estimates used where necessary or appropriate" .
+
+rc:nav-2a4-assets-minus-liabilities a :NormativeStatement ; :modality :MUST ;
+    :predicate "Current NAV MUST be, in substance, aggregate asset value reduced by accrued liabilities, per share." ;
+    :rationale "17 CFR 270.2a-4(a) (composite of (a)(1),(a)(4),(a)(5)-(6))" .
+
+rc:nav-2a4-securities-valuation a :NormativeStatement ; :modality :MUST ;
+    :predicate "Portfolio securities with readily available market quotations MUST be valued at current market value; other securities and assets MUST be valued at fair value." ;
+    :rationale "17 CFR 270.2a-4(a)(1)" ;
+    :evidence "Portfolio securities with respect to which market quotations are readily available shall be valued at current market value, and other securities and assets shall be valued at fair value" .
+
+rc:nav-2a4-holdings-changes-timing a :NormativeStatement ; :modality :MUST ;
+    :predicate "Changes in holdings of portfolio securities MUST be reflected no later than the first calculation on the first business day following the trade date." ;
+    :rationale "17 CFR 270.2a-4(a)(2)" .
+
+rc:nav-2a4-shares-outstanding-timing a :NormativeStatement ; :modality :MUST ;
+    :predicate "Changes in outstanding shares from distributions, redemptions, and repurchases MUST be reflected no later than the first calculation on the first business day following the change." ;
+    :rationale "17 CFR 270.2a-4(a)(3)" .
+
+rc:nav-2a4-expense-accrual a :NormativeStatement ; :modality :MUST ;
+    :predicate "Expenses, including investment advisory fees, MUST be included accrued to the date of calculation." ;
+    :rationale "17 CFR 270.2a-4(a)(4)" ;
+    :evidence "Expenses, including any investment advisory fees, shall be included to date of calculation" .
+
+rc:nav-2a4-dividends-receivable a :NormativeStatement ; :modality :MUST ;
+    :predicate "Dividends receivable MUST be included to the date of calculation, at ex-dividend or record dates as appropriate." ;
+    :rationale "17 CFR 270.2a-4(a)(5)" .
+
+rc:nav-2a4-interest-income-accrual a :NormativeStatement ; :modality :MUST ;
+    :predicate "Interest income and other income MUST be included accrued to the date of calculation." ;
+    :rationale "17 CFR 270.2a-4(a)(6)" .
+
+rc:nav-2a4-de-minimis-exception a :NormativeStatement ; :modality :MAY ;
+    :predicate "The (a)(4) expense and (a)(6) income items MAY be omitted if, netted, they do not amount to as much as one cent per outstanding share." ;
+    :rationale "17 CFR 270.2a-4(b)" ;
+    :evidence "need not be so reflected if cumulatively, when netted, they do not amount to as much as one cent per outstanding share" .
+
+# -- Section 2: Fair value (Rule 2a-5; statutory value) ----------------------
+rc:RFC-0950-s2 a :Section ; :sectionNumber "2" ;
+    :title "Fair Value Determinations (Rule 2a-5; §2(a)(41))" ; :sectionKind :Normative ;
+    :containsRule rc:nav-2a41-statutory-value, rc:nav-2a5-fair-value-good-faith,
+        rc:nav-2a5-readily-available-quotation, rc:nav-2a5-board-or-designee,
+        rc:nav-2a5-designee-reporting .
+
+rc:nav-2a41-statutory-value a :NormativeStatement ; :modality :MUST ;
+    :isAxiom true ; :axiomKind "substantive" ;
+    :predicate "For pricing, value MUST be market value where quotations are readily available, otherwise fair value as determined in good faith by the board." ;
+    :rationale "15 U.S.C. 80a-2(a)(41)(B)" ;
+    :evidence "(i) ... the market value of such securities; and (ii) ... fair value as determined in good faith by the board of directors" .
+
+rc:nav-2a5-fair-value-good-faith a :NormativeStatement ; :modality :MUST ;
+    :predicate "A good-faith fair-value determination MUST assess and manage valuation risks, select and consistently apply methodologies, test them, and oversee pricing-service providers." ;
+    :rationale "17 CFR 270.2a-5(a)" .
+
+rc:nav-2a5-readily-available-quotation a :NormativeStatement ; :modality :MUST ;
+    :predicate "A market quotation is readily available only when it is an unadjusted quoted price in active markets for identical investments accessible at the measurement date; otherwise the investment MUST be fair-valued." ;
+    :rationale "17 CFR 270.2a-5(c)" ;
+    :evidence "a market quotation is readily available only when that quotation is a quoted price (unadjusted) in active markets for identical investments that the fund can access at the measurement date" .
+
+rc:nav-2a5-board-or-designee a :NormativeStatement ; :modality :MUST ;
+    :predicate "Good-faith fair-value determinations MUST be performed by the board or by a designated valuation designee under board oversight." ;
+    :rationale "17 CFR 270.2a-5(b)" .
+
+rc:nav-2a5-designee-reporting a :NormativeStatement ; :modality :MUST ;
+    :predicate "A valuation designee MUST report to the board, segregate fair-value determinations from portfolio management, and notify the board of material matters within a board-set period not later than five business days." ;
+    :rationale "17 CFR 270.2a-5(b)(1)" .
+
+# -- Section 3: Pricing & cadence (Rule 22c-1) -------------------------------
+rc:RFC-0950-s3 a :Section ; :sectionNumber "3" ;
+    :title "Pricing and Cadence (Rule 22c-1)" ; :sectionKind :Normative ;
+    :containsRule rc:nav-22c1-forward-pricing, rc:nav-22c1-daily-cadence,
+        rc:nav-22c1-board-sets-time, rc:nav-22c1-swing-pricing,
+        rc:nav-22c1-variable-annuity .
+
+rc:nav-22c1-forward-pricing a :NormativeStatement ; :modality :MUST_NOT ;
+    :predicate "A fund, its principal underwriter, and dealers MUST NOT sell, redeem, or repurchase a redeemable security except at a price based on the current NAV next computed after receipt of the order or tender." ;
+    :rationale "17 CFR 270.22c-1(a)" ;
+    :evidence "No registered investment company ... shall sell, redeem, or repurchase any such security except at a price based on the current net asset value ... which is next computed after receipt" .
+
+rc:nav-22c1-daily-cadence a :NormativeStatement ; :modality :MUST ;
+    :predicate "Current NAV MUST be computed no less frequently than once daily, Monday through Friday (subject to holiday/no-activity exceptions)." ;
+    :rationale "17 CFR 270.22c-1(b)(1)" ;
+    :evidence "The current net asset value of any such security shall be computed no less frequently than once daily, Monday through Friday" .
+
+rc:nav-22c1-board-sets-time a :NormativeStatement ; :modality :MUST ;
+    :predicate "The specific time(s) of day at which NAV is computed MUST be set by the board of directors." ;
+    :rationale "17 CFR 270.22c-1(b)(1), (d)" .
+
+rc:nav-22c1-swing-pricing a :NormativeStatement ; :modality :MAY ;
+    :predicate "An open-end fund (other than a money-market fund or ETF) MAY adjust NAV per share by a swing factor when net flows exceed a board-approved threshold, under a board-approved policy." ;
+    :rationale "17 CFR 270.22c-1(a)(3)" .
+
+rc:nav-22c1-variable-annuity a :NormativeStatement ; :modality :MAY ;
+    :predicate "A separate account funding variable annuities MAY apply a purchase payment at the NAV computed within a limited number of business days after order receipt." ;
+    :rationale "17 CFR 270.22c-1(c)" .
+
+# -- Grounding: each claim's regulatory premises (from the research depends_on) --
+# rcx:groundedIn points a claim at the claims it presupposes. The two roots
+# (current-value-method, statutory-value) are axioms; every other claim chases
+# back to them, so the normative-is-theorem materialization yields a grounded
+# theorem graph. (The full §6 form reifies these as :Derivation/:premise; this
+# is the dependency layer that drives that.)
+rcx:groundedIn a rdf:Property ; rdfs:label "grounded in (regulatory premise)" .
+
+rc:nav-2a4-assets-minus-liabilities rcx:groundedIn
+    rc:nav-2a4-current-value-method, rc:nav-2a4-securities-valuation, rc:nav-2a4-expense-accrual .
+rc:nav-2a4-securities-valuation rcx:groundedIn rc:nav-2a4-current-value-method .
+rc:nav-2a5-fair-value-good-faith rcx:groundedIn rc:nav-2a41-statutory-value .
+rc:nav-2a5-readily-available-quotation rcx:groundedIn
+    rc:nav-2a4-securities-valuation, rc:nav-2a41-statutory-value .
+rc:nav-2a5-board-or-designee rcx:groundedIn
+    rc:nav-2a5-fair-value-good-faith, rc:nav-2a41-statutory-value .
+rc:nav-2a5-designee-reporting rcx:groundedIn rc:nav-2a5-board-or-designee .
+rc:nav-2a4-holdings-changes-timing rcx:groundedIn rc:nav-2a4-securities-valuation .
+rc:nav-2a4-shares-outstanding-timing rcx:groundedIn rc:nav-2a4-current-value-method .
+rc:nav-2a4-expense-accrual rcx:groundedIn rc:nav-2a4-current-value-method .
+rc:nav-2a4-dividends-receivable rcx:groundedIn rc:nav-2a4-current-value-method .
+rc:nav-2a4-interest-income-accrual rcx:groundedIn rc:nav-2a4-current-value-method .
+rc:nav-2a4-de-minimis-exception rcx:groundedIn
+    rc:nav-2a4-expense-accrual, rc:nav-2a4-interest-income-accrual .
+rc:nav-22c1-forward-pricing rcx:groundedIn rc:nav-2a4-current-value-method .
+rc:nav-22c1-daily-cadence rcx:groundedIn
+    rc:nav-22c1-forward-pricing, rc:nav-2a4-current-value-method .
+rc:nav-22c1-board-sets-time rcx:groundedIn rc:nav-22c1-daily-cadence .
+rc:nav-22c1-swing-pricing rcx:groundedIn
+    rc:nav-22c1-forward-pricing, rc:nav-2a4-current-value-method .
+rc:nav-22c1-variable-annuity rcx:groundedIn rc:nav-22c1-forward-pricing .
