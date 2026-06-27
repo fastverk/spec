@@ -81,3 +81,53 @@ DOCS=$$(val "$$EG" "documents")
 } > $@
 """,
 )
+
+# The net Spec Score ∈ [0,100] (higher = better) — the human-facing dual of the
+# crank energy E(G): the agent fleet drives E(G) DOWN, which is exactly driving
+# this score UP. It normalizes the live graph measurements into one tracked
+# number so the spec's crystallization can be watched (and pushed) over time.
+#
+#   Score = 100 · (0.45·grounding + 0.35·density + 0.10·parsimony + 0.10·structure)
+#     grounding = proven / claims              (claims with a provenBy)
+#     density   = mean(claims/73, edges/64)    (vs the crank-002 target sizes)
+#     parsimony = 1 − redundant / dependsOn    (transitive-reduction headroom)
+#     structure = motif-covered / documents    (MDL: recoverable symmetry)
+#   (Soundness is a gate, not points: the score is meaningful only when
+#   spec_corpus_gates are green — a failing gate means the score is void, not low.)
+#
+#   bazel build //crank:spec_score && cat bazel-bin/crank/spec-score.snapshot.tsv
+genrule(
+    name = "spec_score",
+    srcs = [
+        "//corpus:eg_measure",
+        "//corpus:compaction_measure",
+    ],
+    outs = ["spec-score.snapshot.tsv"],
+    cmd = """
+EG=$(location //corpus:eg_measure)
+CM=$(location //corpus:compaction_measure)
+val() { awk -F '\\t' -v k="$$2" 'index($$1,k)>0{v=$$2;gsub(/"/,"",v);gsub(/[ \\t\\r]/,"",v);print v;exit}' "$$1"; }
+PROVEN=$$(val "$$EG" "proven claims")
+CLAIMS=$$(val "$$EG" "claims (NormativeStatements)")
+DEP=$$(val "$$EG" "dependsOn edges")
+REF=$$(val "$$EG" "refines edges")
+DOCS=$$(val "$$EG" "documents")
+RED=$$(val "$$CM" "redundant edges")
+COV=$$(val "$$CM" "components covered")
+awk -v proven="$$PROVEN" -v claims="$$CLAIMS" -v dep="$$DEP" -v ref="$$REF" \
+    -v docs="$$DOCS" -v red="$$RED" -v cov="$$COV" 'BEGIN {
+  tc = 73; te = 64;                          # crank-002 target sizes
+  g = proven / claims;
+  d = ((claims / tc) + ((dep + ref) / te)) / 2;
+  p = 1 - (red / dep);
+  s = cov / docs;
+  score = 100 * (0.45*g + 0.35*d + 0.10*p + 0.10*s);
+  printf "metric\\tvalue\\n";
+  printf "score\\t%.1f\\n", score;
+  printf "grounding\\t%.3f\\n", g;
+  printf "density\\t%.3f\\n", d;
+  printf "parsimony\\t%.3f\\n", p;
+  printf "structure\\t%.3f\\n", s;
+}' > $@
+""",
+)

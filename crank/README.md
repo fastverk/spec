@@ -85,3 +85,32 @@ cat bazel-bin/crank/eg-snapshot.tsv
 > Note: the in-build target is a native `genrule` (named `record_eg`) rather than
 > an `sh_binary` because `rules_shell` is not a direct dependency of this module.
 > The committed series is written by the `record-eg.sh` script above.
+
+## The net Spec Score — `crank/spec-score.tsv`
+
+A single number in **[0, 100], higher = better** — the human-facing **dual of
+E(G)**. The agent fleet's north star is to **push this up** (which is exactly
+driving E(G) down):
+
+```
+Score = 100 · (0.45·grounding + 0.35·density + 0.10·parsimony + 0.10·structure)
+  grounding = proven / claims           (claims carrying a provenBy)
+  density   = mean(claims/73, edges/64) (vs the crank-002 target sizes)
+  parsimony = 1 − redundant / dependsOn (transitive-reduction headroom)
+  structure = motif-covered / documents (recoverable symmetry, MDL)
+```
+
+Soundness is a **gate, not points**: the score is only meaningful when
+`//corpus:ratio_corpus_gates_*` are green. A failing gate means the score is
+**void**, not merely low — you can't bank maturity on an unsound graph.
+
+Current (Phase-0 seed): **score ≈ 32** — sound but early; grounding is only ~11%
+(2/19 claims proven) and density ~29% of target. That is the gap the fleet closes.
+
+```sh
+bazel build //crank:spec_score && cat bazel-bin/crank/spec-score.snapshot.tsv  # current
+sh crank/record-score.sh N                                                     # record crank N
+```
+
+`record-score.sh` is idempotent (upsert by crank index), same as `record-eg.sh`.
+Watch `score` climb as the fleet grounds claims and densifies the graph.
