@@ -67,13 +67,18 @@ transport is now wired (gRPC, both ends; see below).
   (`//crank/orchestrator:grpc_transport`) adds `GrpcPredictor` (the blocking
   stub as that interface) + `CrankPredictorService` (the server base over any
   `CrankPredictor`); the loop library itself has **zero** transport deps.
-- **proof** — `//crank/orchestrator:grpc_round_trip` runs the whole loop over an
-  in-process gRPC channel (real `PredictRequest`/`PredictResponse` marshalling
-  each crank); E(G) descends −4 → −8 → −12, identical to the in-process run.
+- **proof (hermetic)** — `//crank/orchestrator:grpc_round_trip` runs the whole
+  loop over an in-process gRPC channel (real `PredictRequest`/`PredictResponse`
+  marshalling each crank); E(G) descends −4 → −8 → −12.
 - **fleet** — `agora` `crates/agora_crank` is the `CrankPredictor` *server*: a
   tonic service whose predict step is `agora_core::vickrey` over a worker fleet,
-  mapping the winning tool's `agora.v1.Graph` → `crank.v1.GraphDelta`
-  (`cargo test -p agora_crank`, 3 pass). See agora `docs/crank-bidder-shim.md`.
+  mapping the winning tool's `agora.v1.Graph` → `crank.v1.GraphDelta`. It is
+  runnable (`cargo run -p agora_crank --bin crank-server`) and proven over real
+  TCP (`tests/wire.rs`). See agora `docs/crank-bidder-shim.md`.
+- **proof (cross-language, live)** — `//crank/orchestrator:grpc_dial` (a netty
+  client) dialing a running `crank-server` cranks **Java ⇄ Rust over real TCP**;
+  the frontier converges and E(G) descends −5 → −9 → −13. This is the whole
+  contract end to end: a JVM orchestrator predicting via a Rust fleet server.
 
 ## What each repo owns
 
@@ -84,9 +89,10 @@ transport is now wired (gRPC, both ends; see below).
 
 ## Next (to a live fleet)
 
-1. Point the orchestrator's `GrpcPredictor` channel at an `agora_crank` endpoint
-   (in-process → netty/RunPod is a `ManagedChannelBuilder` swap, no code change).
+1. ~~Point the orchestrator's channel at an `agora_crank` endpoint.~~ **Done** —
+   `grpc_dial` dials a live `crank-server` over netty; cranks Java ⇄ Rust. The
+   only swap left is the address (loopback → RunPod), no code change.
 2. Bind `agora_crank`'s `CrankWorker::execute` to agora's real
-   propose→Jena-validate→repair tool (today a mock emits the graph).
+   propose→Jena-validate→repair tool (today `DemoWorker` emits the graph).
 3. Replace the loop's toy energy/gate with the Jena SPARQL `//corpus` targets
    so the orchestrator measures real E(G) on the live corpus.

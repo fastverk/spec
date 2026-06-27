@@ -1,4 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_library", "java_test")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library", "java_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -69,5 +69,22 @@ java_test(
         "//crank/proto:crank_java_proto",
         "@io_grpc_grpc_java//api",
         "@io_grpc_grpc_java//inprocess",
+    ],
+)
+
+# Dials a LIVE agora_crank endpoint over netty (cross-language: JVM orchestrator
+# ⇄ Rust tonic fleet server). Needs an external server, so it is a binary, not a
+# test. Start the server first, then:
+#   bazel run //crank/orchestrator:grpc_dial -- 127.0.0.1:50051
+java_binary(
+    name = "grpc_dial",
+    srcs = ["GrpcDial.java"],
+    main_class = "dev.fastverk.crank.orchestrator.GrpcDial",
+    runtime_deps = ["@io_grpc_grpc_java//netty"],
+    deps = [
+        ":grpc_transport",
+        ":orchestrator",
+        "//crank/proto:crank_java_proto",
+        "@io_grpc_grpc_java//api",
     ],
 )
