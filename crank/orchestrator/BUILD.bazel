@@ -2,18 +2,47 @@ load("@rules_java//java:defs.bzl", "java_binary", "java_library", "java_test")
 
 package(default_visibility = ["//visibility:public"])
 
+JENA_DEPS = [
+    "@maven//:org_apache_jena_jena_arq",
+    "@maven//:org_apache_jena_jena_core",
+    "@maven//:org_apache_jena_jena_base",
+    "@maven//:org_apache_jena_jena_iri",
+    "@maven//:org_slf4j_slf4j_simple",
+]
+
 # The crank loop driver (predict → project → gate → measure, τ↓), compiling
 # against the contract's Java bindings (//crank/proto:crank_java_proto). The
-# predictor is the CrankPredictor interface; swap MockPredictor for the gRPC stub
-# to the agora fleet and the loop is unchanged.
+# predictor is the CrankPredictor interface; the measure + gate are the
+# EnergyModel / Gate interfaces (HeuristicEnergy is the dependency-free default).
+# Swap MockPredictor for the gRPC stub, or the heuristic for JenaEnergy/JenaGate,
+# and the loop is unchanged. No Jena dep here — that lives in :jena_measure.
 java_library(
     name = "orchestrator",
     srcs = [
         "CrankOrchestrator.java",
         "CrankPredictor.java",
+        "EnergyModel.java",
+        "Gate.java",
+        "HeuristicEnergy.java",
         "MockPredictor.java",
     ],
     deps = ["//crank/proto:crank_java_proto"],
+)
+
+# The REAL measure + gate: ARQ SPARQL over a Jena model of the crank graph, the
+# same queries the //corpus energy/consistency targets use. Kept separate so the
+# loop library stays Jena-free; the orchestrator takes these via its 4-arg ctor.
+java_library(
+    name = "jena_measure",
+    srcs = [
+        "JenaEnergy.java",
+        "JenaGate.java",
+        "JenaGraph.java",
+    ],
+    deps = [
+        ":orchestrator",
+        "//crank/proto:crank_java_proto",
+    ] + JENA_DEPS,
 )
 
 # Runs the loop with the in-process mock fleet and asserts it converges + E(G)
@@ -27,6 +56,21 @@ java_test(
         ":orchestrator",
         "//crank/proto:crank_java_proto",
     ],
+)
+
+# Runs the loop with the REAL Jena measure + gate and asserts: the SPARQL-measured
+# E(G) descends to convergence, redundancy is structural (a transitively-implied
+# edge is counted and its reduction lowers E), and the gate rejects a cycle.
+java_test(
+    name = "jena_energy_check",
+    srcs = ["JenaEnergyCheck.java"],
+    main_class = "dev.fastverk.crank.orchestrator.JenaEnergyCheck",
+    use_testrunner = False,
+    deps = [
+        ":jena_measure",
+        ":orchestrator",
+        "//crank/proto:crank_java_proto",
+    ] + JENA_DEPS,
 )
 
 # The gRPC transport: GrpcPredictor (client — wraps the CrankPredictorGrpc

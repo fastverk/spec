@@ -92,7 +92,18 @@ transport is now wired (gRPC, both ends; see below).
 1. ~~Point the orchestrator's channel at an `agora_crank` endpoint.~~ **Done** —
    `grpc_dial` dials a live `crank-server` over netty; cranks Java ⇄ Rust. The
    only swap left is the address (loopback → RunPod), no code change.
-2. Bind `agora_crank`'s `CrankWorker::execute` to agora's real
-   propose→Jena-validate→repair tool (today `DemoWorker` emits the graph).
-3. Replace the loop's toy energy/gate with the Jena SPARQL `//corpus` targets
-   so the orchestrator measures real E(G) on the live corpus.
+2. ~~Bind `CrankWorker::execute` to a real propose→validate→repair.~~ **Done** —
+   agora `RepairingWorker` validates each proposal with agora's own
+   `agora_bgp::well_formed` and repairs until it passes (`repair_iters` is the
+   real round count). The only swap left is the *proposer* (deterministic →
+   Claude/RunPod LLM bidder); the validate→repair scaffold is real.
+3. ~~Replace the loop's toy energy/gate with the Jena SPARQL `//corpus`
+   targets.~~ **Done** — `JenaEnergy` measures E(G) with ARQ SPARQL over a Jena
+   model of the crank graph (the eg-measure / compaction-measure patterns), and
+   `JenaGate` rejects unsound deltas (a `dependsOn` cycle) via SPARQL.
+   `//crank/orchestrator:jena_energy_check` proves the real E(G) descends.
+
+The contract, both wire ends, the deterministic+gated loop with real SPARQL
+measurement, and a real validate→repair fleet worker are all in place. What
+remains is purely the live LLM proposer + running the loop against the full
+materialized ratio corpus rather than the synthetic demo graph.

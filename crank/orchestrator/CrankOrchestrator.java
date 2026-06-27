@@ -7,10 +7,8 @@ import dev.fastverk.crank.v1.PredictResponse;
 import dev.fastverk.crank.v1.Triple;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * The crank loop driver: {@code predict → project → gate → measure}, annealing
@@ -26,10 +24,25 @@ public final class CrankOrchestrator {
   private final LinkedHashSet<Triple> graph = new LinkedHashSet<>();
   private final List<String> frontier = new ArrayList<>();
   private final List<EnergySnapshot> series = new ArrayList<>();
+  private final EnergyModel energyModel;
+  private final Gate gate;
 
+  /** Loop with the fast in-Java heuristic measure and no gate (the demo path). */
   public CrankOrchestrator(Collection<Triple> initial, List<String> frontierLeaves) {
+    this(initial, frontierLeaves, new HeuristicEnergy(), null);
+  }
+
+  /**
+   * Loop with an explicit measure + gate — e.g. {@link JenaEnergy} + {@link
+   * JenaGate} to measure real E(G) and reject unsound deltas via ARQ SPARQL.
+   * A null gate admits every (corrector-projected) delta.
+   */
+  public CrankOrchestrator(
+      Collection<Triple> initial, List<String> frontierLeaves, EnergyModel energyModel, Gate gate) {
     graph.addAll(initial);
     frontier.addAll(frontierLeaves);
+    this.energyModel = energyModel;
+    this.gate = gate;
   }
 
   public List<EnergySnapshot> series() {
@@ -48,7 +61,7 @@ public final class CrankOrchestrator {
   public EnergySnapshot crank(CrankPredictor predictor, double tau) {
     PredictRequest req = PredictRequest.newBuilder()
         .addAllContext(graph)
-        .setEnergy(measure(tau, 0))
+        .setEnergy(energyModel.measure(graph, frontier.size(), 0, tau))
         .addAllFrontier(frontier)
         .addAllowedPrefixes("rfc")
         .addAllowedPrefixes("rc")
@@ -69,13 +82,23 @@ public final class CrankOrchestrator {
         redundant++;
       }
     }
-    graph.addAll(d.getAddList());
-    d.getRemoveList().forEach(graph::remove);
+    LinkedHashSet<Triple> candidate = new LinkedHashSet<>(graph);
+    candidate.addAll(d.getAddList());
+    d.getRemoveList().forEach(candidate::remove);
+
+    // Gate: an unsound delta is rejected (the corrector guarantees the worst
+    // case is a thrown-away delta — RFC-002 §the corrector can only lower E).
+    if (gate != null && !gate.passes(candidate)) {
+      return null;
+    }
+
+    graph.clear();
+    graph.addAll(candidate);
 
     // Any frontier leaf now specified (appears as a subject) leaves the frontier.
     frontier.removeIf(leaf -> graph.stream().anyMatch(t -> t.getSubject().getIri().equals(leaf)));
 
-    EnergySnapshot snap = measure(tau, redundant);
+    EnergySnapshot snap = energyModel.measure(graph, frontier.size(), redundant, tau);
     series.add(snap);
     return snap;
   }
@@ -89,27 +112,6 @@ public final class CrankOrchestrator {
       }
       tau *= decay;
     }
-  }
-
-  private EnergySnapshot measure(double tau, int redundant) {
-    int edges = 0;
-    Set<String> predicates = new HashSet<>();
-    for (Triple t : graph) {
-      String p = t.getPredicate().getIri();
-      predicates.add(p);
-      if (p.contains("depends") || p.contains("refines") || p.contains("hasClaim")) {
-        edges++;
-      }
-    }
-    return EnergySnapshot.newBuilder()
-        .setRedundancy(redundant)
-        .setContradictions(0)
-        .setDangling(0)
-        .setUnderSpec(frontier.size())
-        .setConnectivity(edges)
-        .setSymmetry(predicates.size())
-        .setTemperature(tau)
-        .build();
   }
 
   /** The spec energy E(G) (toy weights) — what the crank drives down. */
