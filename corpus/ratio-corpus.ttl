@@ -80,7 +80,9 @@ rc:RFC-0903 a :Document ;
 rc:RFC-0903-s1 a :Section ; :sectionNumber "1" ; :title "Normative" ;
     :sectionKind :Normative ; :containsRule rc:trading-1 .
 rc:trading-1 a :NormativeStatement ; :modality :MUST ;
-    :predicate "Every proposed trade MUST be admitted through the kernel write-door (M1)." .
+    :predicate "Every proposed trade MUST be admitted through the kernel write-door (M1)." ;
+    :provenBy "Spec.Grounding.WriteDoor.trades_compose_conserving" ;
+    :rationale "A rebalance is a batch of conserving trades; conservation composes (0+0=0), so the batch is admitted by the write-door. Machine-checked: //lean:grounding_test." .
 
 rc:RFC-0904 a :Document ;
     :rfcId "RFC-0904" ; :title "Models & Managed Accounts" ;

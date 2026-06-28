@@ -21,6 +21,7 @@ exports_files([
     "Spec/Logic/Core.lean",
     "Spec/Logic/InferenceRulesProofs.lean",
     "Spec/Compaction/Projection.lean",
+    "Spec/Grounding/WriteDoor.lean",
 ])
 
 # The deterministic corrector core: proves the compaction (reverse-diffusion
@@ -30,6 +31,16 @@ lean_test(
     name = "compaction_test",
     srcs = ["Spec/Compaction/Projection.lean"],
     entry = "Spec/Compaction/Projection.lean",
+)
+
+# The machine-checked grounding for the ratio corpus's write-door / conservation
+# claims — the proof object //corpus claims point at via :provenBy. Compiling
+# (sorry-free) IS the verification that the grounding is real; the
+# //corpus:grounding_verified gate ties the corpus's :provenBy to it.
+lean_test(
+    name = "grounding_test",
+    srcs = ["Spec/Grounding/WriteDoor.lean"],
+    entry = "Spec/Grounding/WriteDoor.lean",
 )
 
 # Compile the whole framework here (no external deps — pure Lean 4 core).

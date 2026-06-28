@@ -1,0 +1,38 @@
+load("@rules_java//java:defs.bzl", "java_test")
+
+package(default_visibility = ["//visibility:public"])
+
+JENA_DEPS = [
+    "@maven//:org_apache_jena_jena_arq",
+    "@maven//:org_apache_jena_jena_core",
+    "@maven//:org_apache_jena_jena_base",
+    "@maven//:org_apache_jena_jena_iri",
+    "@maven//:org_slf4j_slf4j_simple",
+]
+
+# The adversarial control: the consistency gates must DETECT a planted cycle /
+# dangling reference / contradiction (and a clean DAG must trip none). A gate
+# that never rejects proves nothing — this proves they reject.
+java_test(
+    name = "adversarial_gate",
+    srcs = ["AdversarialGateCheck.java"],
+    main_class = "grounding.AdversarialGateCheck",
+    use_testrunner = False,
+    deps = JENA_DEPS,
+)
+
+# The grounding gate: every in-repo :provenBy in the ratio corpus must resolve to
+# a sorry-free Lean theorem (whose compilation is proven by //lean:grounding_test).
+# A fabricated :provenBy is rejected — this is what makes the Spec Score's
+# "grounding" term un-gameable. Pure file-read (no Jena); the corpus + the
+# grounding Lean module ride in as data.
+java_test(
+    name = "grounding_verified",
+    srcs = ["GroundingCheck.java"],
+    data = [
+        "//corpus:ratio-corpus.ttl",
+        "//lean:Spec/Grounding/WriteDoor.lean",
+    ],
+    main_class = "grounding.GroundingCheck",
+    use_testrunner = False,
+)
