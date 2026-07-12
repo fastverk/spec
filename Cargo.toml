@@ -1,0 +1,34 @@
+# spec — Cargo workspace for the console-plugin BFF (services/spec).
+#
+# repos/spec is primarily a JVM/Lean/RDF substrate (see MODULE.bazel); this Cargo
+# workspace adds the Rust/axum plugin backend that surfaces the estate's formal
+# specs in the fastverk console. Mirrors the compliance repo's Cargo+Bazel setup:
+# crate_universe (MODULE.bazel) consumes this workspace, and plain `cargo` builds
+# it too (for local iteration against a source tree via $SPEC_SOURCE_ROOT).
+[workspace]
+members = ["services/spec"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.95.0"
+version = "0.0.1"
+license = "MIT"
+repository = "https://github.com/fastverk/spec"
+
+[workspace.dependencies]
+# HTTP facade (the surface the fastverk-web shell forwards to at /api/gw/spec/*).
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "signal"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+clap = { version = "4", features = ["derive", "env"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# The DTO contract (proto/spec/v1) compiled to prost message types. v1 is
+# HTTP-only, so message types only — no tonic/gRPC server (deferred with the
+# fastverk-layout nav plane).
+prost = "0.13"
+prost-types = "0.13"
+prost-build = "0.13"

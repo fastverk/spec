@@ -1,0 +1,202 @@
+syntax = "proto3";
+
+// spec.v1 SpecIndex — an estate-wide, live-query index of formal
+// specifications across every repo in the platform.
+//
+// Mirrors the forge plugin's shape: the gRPC `SpecIndex` service is the
+// canonical contract; the plugin's HTTP/JSON facade is the web projection the
+// fastverk-web shell forwards to (/api/gw/spec/*). The shell maps a panel's
+// populate (service, method) to a REST path via the web_routes in /describe:
+//   spec.v1.SpecIndex/ListSpecs        -> GET specs
+//   spec.v1.SpecIndex/ListContracts    -> GET contracts
+//   spec.v1.SpecIndex/ListModuleStatus -> GET status
+//   spec.v1.SpecIndex/GetSpec          -> GET spec
+//   spec.v1.SpecIndex/GetContract      -> GET contract
+//
+// Reality (see the estate inventory): Lean is the only formal-spec language
+// present today (~256 .lean files across ~7 repos; 0 TLA+/Alloy/Dafny/SMT/Coq).
+// The SpecLang cases below the first are RESERVED so a second language is a data
+// change, not a schema change. v1 indexes LEAN only.
+//
+// House rule: every DTO that crosses a process/stage boundary is a protobuf
+// message. These types are compiled by services/spec/build.rs (prost). v1 is
+// HTTP-only, so no gRPC server is generated — the service block is the canonical
+// contract for when the gRPC/nav plane lands (deferred; needs fastverk-layout).
+
+package spec.v1;
+
+// ============================================================
+// Enums
+// ============================================================
+
+// The formal-spec language a Spec is written in.
+enum SpecLang {
+  SPEC_LANG_UNSPECIFIED = 0;
+  SPEC_LANG_LEAN = 1;
+  // Reserved — no files exist estate-wide yet (v1 indexes none of these).
+  SPEC_LANG_TLA = 2;
+  SPEC_LANG_ALLOY = 3;
+  SPEC_LANG_DAFNY = 4;
+  SPEC_LANG_SMT = 5;
+  SPEC_LANG_COQ = 6;
+}
+
+// Proof/typecheck status of a spec or a module.
+enum SpecStatus {
+  SPEC_STATUS_UNSPECIFIED = 0;
+  // Typechecks with no open obligations (no `sorry` / `admit`).
+  SPEC_STATUS_GREEN = 1;
+  // Elaborates but carries at least one `sorry` (a statement without a proof).
+  SPEC_STATUS_SORRY = 2;
+  // Fails to typecheck / build.
+  SPEC_STATUS_BROKEN = 3;
+  // Repo unreachable / not in the synced set — the result is partial.
+  SPEC_STATUS_UNKNOWN = 4;
+}
+
+// ============================================================
+// Core types
+// ============================================================
+
+// One formal specification unit: a spec source file paired with the Bazel
+// target that verifies it, located in some repo.
+message Spec {
+  // Repo the spec lives in, e.g. "botnoc" or "agora".
+  string repo = 1;
+  // Path within the repo, e.g. "lean/Botnoc/Queries.lean".
+  string path = 2;
+  // The formal-spec language (LEAN in v1).
+  SpecLang lang = 3;
+  // Bazel rule kind that verifies/consumes it, e.g. "lean_test" or "lean_emit"
+  // ("" for a bare source file with no verifying target).
+  string kind = 4;
+  // Fully-qualified Bazel label, e.g. "//lean:queries_test" ("" if none).
+  string target = 5;
+  // Language-native module identifier, e.g. "Botnoc.Queries" (Lean).
+  string module = 6;
+  // Proof/typecheck status.
+  SpecStatus status = 7;
+  // Count of open obligations (`sorry`) in this spec (0 when GREEN).
+  uint32 sorry_count = 8;
+}
+
+// One row in a repo's contract catalog — a promise made by an implementation
+// and backed by a formal theorem. In v1 only botnoc populates a catalog; `repo`
+// lets other repos adopt the pattern later without a schema change.
+message Contract {
+  // Repo the catalog + theorem live in (e.g. "botnoc").
+  string repo = 1;
+  // Short cross-reference id, e.g. "Q1", "L2", "S1".
+  string id = 2;
+  // Theorem identifier, e.g. "inbox_all_open".
+  string name = 3;
+  // One-line human statement of the promise.
+  string promise = 4;
+  // Module the theorem lives in, e.g. "Botnoc.Queries".
+  string module = 5;
+  // Handler that discharges this contract at runtime, e.g.
+  // "services/org/src/backend.rs::inbox" ("" for system-level invariants).
+  string discharger = 6;
+  // Whether a `Discharges: <id>` citation was found in the named file (the
+  // contracts_cited linter's check). Meaningless when discharger == "".
+  bool cited = 7;
+  // Status of the theorem's module (GREEN / SORRY).
+  SpecStatus status = 8;
+}
+
+// Proof status rolled up per language module (a lean_test target).
+message ModuleStatus {
+  // Repo the module lives in.
+  string repo = 1;
+  // Module identifier, e.g. "Botnoc.Queries".
+  string module = 2;
+  // The verifying Bazel target, e.g. "//lean:queries_test".
+  string target = 3;
+  // GREEN / SORRY / BROKEN / UNKNOWN.
+  SpecStatus status = 4;
+  // Number of open `sorry` obligations across the module's files.
+  uint32 sorry_count = 5;
+  // Number of Spec files that compose this module.
+  uint32 spec_count = 6;
+}
+
+// A single `Discharges: <id>` citation site (GetContract detail).
+message Citation {
+  // File that carries the citation, repo-relative.
+  string path = 1;
+  // 1-based line number.
+  uint32 line = 2;
+}
+
+// ============================================================
+// Service: SpecIndex (all read-only)
+// ============================================================
+
+service SpecIndex {
+  // List spec units across the estate, filtered by repo / language / kind.
+  rpc ListSpecs(ListSpecsRequest) returns (ListSpecsResponse);
+  // List contract-catalog rows across the estate (botnoc-only in v1).
+  rpc ListContracts(ListContractsRequest) returns (ListContractsResponse);
+  // List per-module proof status across the estate.
+  rpc ListModuleStatus(ListModuleStatusRequest) returns (ListModuleStatusResponse);
+  // Fetch one spec with its source + the exact `sorry` lines (detail view).
+  rpc GetSpec(GetSpecRequest) returns (GetSpecResponse);
+  // Fetch one contract with its theorem source + citation sites (detail view).
+  rpc GetContract(GetContractRequest) returns (GetContractResponse);
+}
+
+message ListSpecsRequest {
+  // Restrict to these repos. Empty = all indexed repos.
+  repeated string repos = 1;
+  // Restrict to these languages. Empty = all (LEAN in v1).
+  repeated SpecLang langs = 2;
+  // Restrict to these rule kinds ("lean_test" / "lean_emit"). Empty = all.
+  repeated string kinds = 3;
+}
+message ListSpecsResponse {
+  repeated Spec specs = 1;
+  // Repos that could not be scanned (partial-result signal).
+  repeated string unreachable_repos = 2;
+}
+
+message ListContractsRequest {
+  repeated string repos = 1;
+  // When true, return only contracts whose discharger is set but uncited.
+  bool only_uncited = 2;
+}
+message ListContractsResponse {
+  repeated Contract contracts = 1;
+  repeated string unreachable_repos = 2;
+}
+
+message ListModuleStatusRequest {
+  repeated string repos = 1;
+}
+message ListModuleStatusResponse {
+  repeated ModuleStatus modules = 1;
+  repeated string unreachable_repos = 2;
+}
+
+message GetSpecRequest {
+  string repo = 1;
+  string path = 2;
+}
+message GetSpecResponse {
+  Spec spec = 1;
+  // The spec source (may be truncated for very large files).
+  string source = 2;
+  // 1-based line numbers carrying an open `sorry`.
+  repeated uint32 sorry_lines = 3;
+}
+
+message GetContractRequest {
+  string repo = 1;
+  string id = 2;
+}
+message GetContractResponse {
+  Contract contract = 1;
+  // Source of the discharging theorem's module (may be truncated).
+  string theorem_source = 2;
+  // Every `Discharges: <id>` site found for this contract.
+  repeated Citation citations = 3;
+}

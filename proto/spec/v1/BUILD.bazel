@@ -1,0 +1,8 @@
+# spec.v1 — the plugin's DTO contract (proto/spec/v1/spec.proto).
+#
+# services/spec's build.rs compiles it via prost. Exported so the plugin's
+# cargo_build_script can `data`-dep the .proto label (the macro stages it at its
+# exec-root-relative path, where build.rs's `../../proto/...` resolves it).
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["spec.proto"])

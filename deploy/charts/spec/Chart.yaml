@@ -1,0 +1,13 @@
+apiVersion: v2
+name: spec
+description: >-
+  The fastverk `spec` plugin — an estate-wide, live index of formal
+  specifications (Lean today) surfaced in the fastverk-web console at
+  /api/gw/spec/*. It scans a git-synced source tree ($SPEC_SOURCE_ROOT) whose
+  immediate subdirs are the estate's repos; a git-sync sidecar keeps that tree
+  fresh. ClusterIP — the in-cluster console discovers it via the
+  fastverk.dev/plugin=spec Service label and reaches it over Service DNS.
+type: application
+# Chart version (bump on chart changes); appVersion tracks the shipped image tag.
+version: 0.1.0
+appVersion: "0.6.0"

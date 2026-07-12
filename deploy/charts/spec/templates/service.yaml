@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "spec.fullname" . }}
+  labels:
+    {{- include "spec.labels" . | nindent 4 }}
+    # How botnoc-web's discovery.rs finds + registers this plugin.
+    fastverk.dev/plugin: spec
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "spec.selectorLabels" . | nindent 4 }}
+  ports:
+    # v1 is HTTP-only (no gRPC nav plane); the shell falls back to a flat nav leaf
+    # and renders the served panels.binpb. Add a `grpc` port when the LayoutService
+    # nav plane lands (fastverk-layout).
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP

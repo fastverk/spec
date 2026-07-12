@@ -1,0 +1,26 @@
+"""spec plugin backend — built with the portable `fastverk_plugin` macro.
+
+One call emits: the `spec` rust_library, the `spec-server` rust_binary (shipping
+the meridian PanelBundle as runfiles), a `spec_test`, and the `spec-image` OCI
+service image (+ `:spec-image_push`). The macro takes this repo's OWN crate deps
+(`all_crate_deps` from spec's isolated crate_universe) as arguments, so nothing
+binds to botnoc's `@crates`. v1 replicates the small HTTP facade inline (see
+src/http.rs), so there is no fastverk-plugin-server dep to resolve.
+"""
+
+load("@crates//:defs.bzl", "all_crate_deps")
+load("@rules_fastverk_plugin//plugin:defs.bzl", "fastverk_plugin")
+
+package(default_visibility = ["//visibility:public"])
+
+fastverk_plugin(
+    name = "spec",
+    # spec's own crate universe — includes axum/tokio/prost/serde/… (no
+    # crate_prefix, so the lib target is `spec`, matching `[lib] name = "spec"`).
+    build_deps = all_crate_deps(build = True),
+    exposed_ports = ["8080/tcp"],
+    image_repository = "ghcr.io/fastverk/spec-server",
+    panels = "//services/spec/ui:panels",
+    proto_data = ["//proto/spec/v1:spec.proto"],
+    deps = all_crate_deps(normal = True),
+)

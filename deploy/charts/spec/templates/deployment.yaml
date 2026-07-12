@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spec.fullname" . }}
+  labels:
+    {{- include "spec.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "spec.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "spec.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        # Shared source tree: the git-sync sidecar writes it, the plugin reads it.
+        - name: estate
+          emptyDir: {}
+      containers:
+        - name: spec-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.port }}
+          env:
+            - name: RUST_LOG
+              value: {{ .Values.logLevel | quote }}
+            - name: PORT_ADDR
+              value: {{ printf "0.0.0.0:%v" .Values.port | quote }}
+            # The git-synced tree the index scans (immediate subdirs = repos).
+            - name: SPEC_SOURCE_ROOT
+              value: {{ .Values.sourceSync.mountPath | quote }}
+            {{- with .Values.specRepos }}
+            - name: SPEC_REPOS
+              value: {{ . | quote }}
+            {{- end }}
+            - name: SPEC_INDEX_TTL_SECS
+              value: {{ .Values.indexTtlSeconds | quote }}
+            {{- with .Values.pluginToken.existingSecret }}
+            - name: FASTVERK_PLUGIN_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ . | quote }}
+                  key: {{ $.Values.pluginToken.secretKey | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: estate
+              mountPath: {{ .Values.sourceSync.mountPath }}
+              readOnly: true
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- if .Values.sourceSync.enabled }}
+        # Multi-repo git-sync sidecar: shallow-clones/refreshes each sourceSync.repos
+        # entry into <mountPath>/<name>, so the plugin's scan sees them as repos.
+        # (Single-forge token: a second forge — e.g. gitlab — needs a per-repo cred
+        # or a second sidecar. See values.yaml sourceSync.)
+        - name: git-sync
+          image: {{ .Values.sourceSync.image | quote }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -u
+              {{- if .Values.sourceSync.token.existingSecret }}
+              AUTH="oauth2:${GIT_TOKEN}@"
+              {{- else }}
+              AUTH=""
+              {{- end }}
+              root="{{ .Values.sourceSync.mountPath }}"
+              while true; do
+              {{- range .Values.sourceSync.repos }}
+                u="{{ .url }}"; d="$root/{{ .name }}"
+                case "$u" in https://*) u="https://${AUTH}${u#https://}" ;; esac
+                if [ -d "$d/.git" ]; then
+                  git -C "$d" fetch --depth {{ $.Values.sourceSync.depth }} origin HEAD 2>/dev/null \
+                    && git -C "$d" reset --hard FETCH_HEAD >/dev/null 2>&1 || true
+                else
+                  git clone --depth {{ $.Values.sourceSync.depth }} "$u" "$d" || true
+                fi
+              {{- end }}
+                sleep {{ .Values.sourceSync.periodSeconds }}
+              done
+          {{- if .Values.sourceSync.token.existingSecret }}
+          env:
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.sourceSync.token.existingSecret | quote }}
+                  key: {{ .Values.sourceSync.token.secretKey | quote }}
+          {{- end }}
+          volumeMounts:
+            - name: estate
+              mountPath: {{ .Values.sourceSync.mountPath }}
+        {{- end }}

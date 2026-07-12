@@ -1,0 +1,21 @@
+"""spec plugin UI — meridian PanelBundle.
+
+Compiled to .binpb by meridian's `meridian_panel_bundle` rule and served at
+/panels.binpb on the plugin's HTTP facade; the fastverk-web shell forwards to it
+via /api/gw/spec/panels.binpb, decodes the bundle, and renders each panel with the
+meridian web/TUI renderers. The rust_binary ships this at
+_main/services/spec/ui/panels.binpb in its runfiles (where default_panel_bundle()
+probes). Same wiring as botnoc's services/*/ui.
+"""
+
+load("@meridian_web//bazel:panel_bundle.bzl", "meridian_panel_bundle")
+
+package(default_visibility = ["//visibility:public"])
+
+meridian_panel_bundle(
+    name = "panels",
+    src = "panels.textproto",
+    proto = "@meridian_schemas//proto:uiview_proto",
+)
+
+exports_files(["panels.textproto"])

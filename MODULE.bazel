@@ -14,7 +14,7 @@ the narrative-site builder land here too as the kg retirement completes.
 
 module(
     name = "spec",
-    version = "0.5.2",
+    version = "0.6.0",
 )
 
 bazel_dep(name = "rules_java", version = "8.6.1")
@@ -32,10 +32,10 @@ maven.install(
         "org.slf4j:slf4j-simple:2.0.13",
         "dev.dirs:directories:26",
     ],
+    fetch_sources = False,
     repositories = [
         "https://repo1.maven.org/maven2",
     ],
-    fetch_sources = False,
 )
 use_repo(maven, "maven")
 
@@ -52,8 +52,8 @@ bazel_dep(name = "rules_lean", version = "0.3.6")
 lake = use_extension("@rules_lean//lean:lake.bzl", "lake")
 lake.workspace(
     name = "spec_lake",
-    lakefile = "//lean/lake:lakefile.lean",
     lake_manifest = "//lean/lake:lake-manifest.json",
+    lakefile = "//lean/lake:lakefile.lean",
     lean_toolchain = "//lean/lake:lean-toolchain",
 )
 use_repo(lake, "spec_lake")
@@ -76,6 +76,7 @@ bazel_dep(name = "rules_tectonic", version = "0.2.0")
 
 tectonic = use_extension("@rules_tectonic//tectonic:extensions.bzl", "tectonic")
 use_repo(tectonic, "tectonic")
+
 register_toolchains("@tectonic//:tectonic_toolchain_def")
 
 # Graph rendering: rules_graphviz renders the authored .dot spec-graph figures
@@ -100,3 +101,55 @@ local_path_override(
 # (lean/Spec/Compaction), the RDF corpus toolkit + gates, and the RFC vocabulary.
 # What remains here is the RDF-gate-side worked crank (//crank: crank_003 gates +
 # measure over the materialized ratio corpus), which needs only rules_rdf.
+
+# ── Rust console plugin: services/spec (the fastverk `spec` plugin) ────────────
+# repos/spec also hosts the Rust/axum plugin backend that surfaces the estate's
+# formal specs in the fastverk console (Specs / Contracts / Proof-Status). It
+# builds with the promoted `fastverk_plugin` macro (rules_fastverk_plugin) and its
+# own isolated crate_universe; plain `cargo` builds the same workspace for local
+# iteration against a source tree ($SPEC_SOURCE_ROOT).
+#
+# NOTE: these deps enlarge the module graph for spec's consumers (Aion, mycelium).
+# Publishing spec@0.6.x with the plugin requires rules_fastverk_plugin to be
+# published to the registry first — the local_path_override below is root-only, so
+# consumers ignore it (same caveat the rules_graphviz override above carries).
+bazel_dep(name = "rules_rust", version = "0.70.0")
+bazel_dep(name = "protobuf", version = "33.4")
+bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "rules_pkg", version = "1.0.1")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+
+# The meridian PanelBundle rule + the uiview schema the bundle compiles against.
+bazel_dep(name = "meridian_web", version = "0.5.0")
+bazel_dep(name = "meridian_schemas", version = "0.5.0")
+
+# The portable fastverk_plugin macro + rust_service_image. Published to the
+# fastverk bazel-registry (github:tomato-bazel/rules_fastverk_plugin @ 0.0.1), so
+# it resolves from the registry like every other module — no override needed.
+bazel_dep(name = "rules_fastverk_plugin", version = "0.0.1")
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    versions = ["1.95.0"],
+)
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+# crate_universe over the plugin's Cargo workspace. isolate = True keeps spec's
+# universe from colliding with a consumer's.
+crate = use_extension(
+    "@rules_rust//crate_universe:extension.bzl",
+    "crate",
+    isolate = True,
+)
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = [
+        "//:Cargo.toml",
+        "//services/spec:Cargo.toml",
+    ],
+)
+use_repo(crate, "crates")
