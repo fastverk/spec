@@ -1,2 +1,6 @@
 /bazel-*
 /MODULE.bazel.lock
+
+# Rust plugin (services/spec) cargo build artifacts. Cargo.lock IS tracked
+# (crate_universe reads it); the target dir is not.
+/target

@@ -1,0 +1,164 @@
+# spec plugin — meridian PanelBundle.
+#
+# The fastverk-web shell fetches this via the gateway (/api/gw/spec/panels.binpb),
+# decodes it, and composes it into the "Specs" section. populate.service/.method
+# are the proto coordinates the shell routes through /api/gw/spec/* via the
+# web_routes in /describe (ListSpecs -> specs, ListContracts -> contracts,
+# ListModuleStatus -> status). Field names match spec.proto (snake_case), and the
+# backend renders enums as short strings ("GREEN"/"LEAN"), so no column format is
+# needed. Compiled to .binpb by the `meridian_panel_bundle` Bazel rule.
+
+# ============================================================
+# SPECS — every formal-spec file across the estate, with its
+# verifying target + green/sorry status.
+# ============================================================
+panels {
+  panel_id: "specs"
+  title: "Specs"
+  table {
+    populate {
+      service: "spec.v1.SpecIndex"
+      method: "ListSpecs"
+    }
+    rows_field: "specs"
+    item_noun: "specs"
+    placeholder: "No specifications indexed."
+    columns {
+      header: "Repo"
+      field_path: "repo"
+      pref_width: 16
+    }
+    columns {
+      header: "Module"
+      field_path: "module"
+      pref_width: 28
+    }
+    columns {
+      header: "Path"
+      field_path: "path"
+      pref_width: 34
+    }
+    columns {
+      header: "Lang"
+      field_path: "lang"
+      pref_width: 8
+    }
+    columns {
+      header: "Kind"
+      field_path: "kind"
+      pref_width: 12
+    }
+    columns {
+      header: "Status"
+      field_path: "status"
+      pref_width: 10
+    }
+    columns {
+      header: "Sorries"
+      field_path: "sorry_count"
+      pref_width: 8
+    }
+  }
+}
+
+# ============================================================
+# CONTRACTS — catalog rows (theorem-backed promises) with live
+# discharge + citation status. botnoc-only in v1; the repo
+# column future-proofs adoption by other repos.
+# ============================================================
+panels {
+  panel_id: "contracts"
+  title: "Contracts"
+  table {
+    populate {
+      service: "spec.v1.SpecIndex"
+      method: "ListContracts"
+    }
+    rows_field: "contracts"
+    item_noun: "contracts"
+    placeholder: "No contract catalog found."
+    columns {
+      header: "Repo"
+      field_path: "repo"
+      pref_width: 12
+    }
+    columns {
+      header: "ID"
+      field_path: "id"
+      pref_width: 6
+    }
+    columns {
+      header: "Theorem"
+      field_path: "name"
+      pref_width: 30
+    }
+    columns {
+      header: "Promise"
+      field_path: "promise"
+      pref_width: 48
+    }
+    columns {
+      header: "Discharger"
+      field_path: "discharger"
+      pref_width: 40
+    }
+    columns {
+      header: "Cited"
+      field_path: "cited"
+      pref_width: 7
+    }
+    columns {
+      header: "Status"
+      field_path: "status"
+      pref_width: 10
+    }
+  }
+}
+
+# ============================================================
+# PROOF STATUS — per-module rollup (green / sorry) across the
+# estate, with the verifying lean_test target.
+# ============================================================
+panels {
+  panel_id: "status"
+  title: "Proof Status"
+  table {
+    populate {
+      service: "spec.v1.SpecIndex"
+      method: "ListModuleStatus"
+    }
+    rows_field: "modules"
+    item_noun: "modules"
+    placeholder: "No modules indexed."
+    columns {
+      header: "Repo"
+      field_path: "repo"
+      pref_width: 16
+    }
+    columns {
+      header: "Module"
+      field_path: "module"
+      pref_width: 30
+    }
+    columns {
+      header: "Target"
+      field_path: "target"
+      pref_width: 28
+    }
+    columns {
+      header: "Status"
+      field_path: "status"
+      pref_width: 10
+    }
+    columns {
+      header: "Sorries"
+      field_path: "sorry_count"
+      pref_width: 8
+    }
+    columns {
+      header: "Specs"
+      field_path: "spec_count"
+      pref_width: 8
+    }
+  }
+}

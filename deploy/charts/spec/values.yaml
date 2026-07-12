@@ -1,0 +1,73 @@
+replicaCount: 1
+
+# The aion-dev EKS cluster pulls plugin images from the aion-dev PRIVATE ECR (CI
+# cross-compiles linux/amd64 and mirrors ghcr.io/fastverk/spec-server -> here).
+image:
+  repository: 042825952740.dkr.ecr.us-east-1.amazonaws.com/spec-server
+  tag: "0.6.0"
+  pullPolicy: IfNotPresent
+
+# The plugin's HTTP/JSON facade (/healthz, /describe, /panels.binpb, + the
+# spec.v1.SpecIndex REST plane: specs, contracts, status, spec, contract).
+port: 8080
+
+# Shared gateway token the console presents as `Authorization: Bearer <token>`;
+# the plugin validates it (require_gateway_token -> E_GATEWAY_AUTH). Same value
+# botnoc-web sends to every plugin.
+pluginToken:
+  existingSecret: builds-secrets
+  secretKey: plugin-token
+
+# ── Source tree (the one real deploy dependency) ───────────────────────────────
+# The index is a filesystem scan of $SPEC_SOURCE_ROOT, whose immediate subdirs
+# MUST be the estate's repos. The git-sync sidecar clones/pulls `sourceSync.repos`
+# into an emptyDir shared with the plugin. Absent/empty -> the index serves 0
+# specs (the honest pre-sync posture).
+#
+# NOTE (hand-off to deploy authority): the default list is the github-hosted
+# Lean-bearing repos. Add the gitlab.savvifi.com (aion/*) Lean repos + a gitlab
+# token to index them — the sidecar's single `token` covers ONE forge; a second
+# forge needs a per-repo cred or a second sidecar (see templates/deployment.yaml).
+sourceSync:
+  enabled: true
+  image: alpine/git:latest
+  mountPath: /estate # -> SPEC_SOURCE_ROOT
+  periodSeconds: 60
+  depth: 1
+  # Git token for PRIVATE repos (https clones as https://oauth2:<token>@host/...).
+  # Point existingSecret at a Secret with the token; leave empty for public-only.
+  token:
+    existingSecret: "" # e.g. spec-git-token
+    secretKey: token
+  # name -> clone URL. `name` becomes the repo dir under mountPath (== the `repo`
+  # column in the index).
+  repos:
+    - {name: botnoc, url: "https://github.com/fastverk/botnoc.git"}
+    - {name: spec, url: "https://github.com/fastverk/spec.git"}
+    - {name: rules_lean, url: "https://github.com/tomato-bazel/rules_lean.git"}
+    - {name: rules_postgres, url: "https://github.com/tomato-bazel/rules_postgres.git"}
+    # gitlab-hosted (need a gitlab token — see the NOTE above):
+    # - {name: agora, url: "https://gitlab.savvifi.com/aion/agora.git"}
+    # - {name: agentic_ide_runtime, url: "https://gitlab.savvifi.com/aion/agentic_ide_runtime.git"}
+
+# Restrict the scan to these repo dir names (CSV); empty = all synced dirs.
+specRepos: ""
+# Index cache TTL (seconds); "live" is bounded by this + sourceSync.periodSeconds.
+indexTtlSeconds: 30
+
+logLevel: "spec=info,info"
+
+# ClusterIP: the console reaches the facade over Service DNS
+# (http://spec.<ns>.svc:<port>). The fastverk.dev/plugin=spec label (service.yaml)
+# is how botnoc-web's discovery.rs finds + registers it.
+service:
+  type: ClusterIP
+  port: 8080
+  annotations: {}
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    memory: 256Mi

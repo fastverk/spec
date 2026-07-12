@@ -1,0 +1,33 @@
+[package]
+name = "spec-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "spec plugin — an estate-wide live index of formal specifications (Lean today) for the fastverk console."
+
+[[bin]]
+name = "spec-server"
+path = "src/main.rs"
+
+# The macro derives the crate target from `name` (no crate_prefix), so the lib
+# name must be a bare "spec".
+[lib]
+name = "spec"
+path = "src/lib.rs"
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+prost.workspace = true
+prost-types.workspace = true
+
+[build-dependencies]
+prost-build.workspace = true

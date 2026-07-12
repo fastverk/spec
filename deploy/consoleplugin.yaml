@@ -1,0 +1,49 @@
+# The spec plugin as a first-class console plugin (fastverk.savvifi.com/v1).
+# The fastverk-deploy operator reconciles this into a Deployment + Service; the
+# console discovers it via the `fastverk.dev/plugin` Service label (or a
+# FASTVERK_BACKEND_SPEC env on botnoc-web) and forwards /api/gw/spec/* here.
+#
+# SOURCE TREE: the spec index is a scan of a git-synced source tree at
+# $SPEC_SOURCE_ROOT (a directory whose immediate subdirs are the estate's repos).
+# The ConsolePlugin CRD models `env` but NOT volumes / a git-sync sidecar, so the
+# tree must be provided out-of-band — point SPEC_SOURCE_ROOT at a shared mount kept
+# fresh by a git-sync sidecar (as modgraph-operator does) or an existing synced
+# PVC. Until that mount exists the plugin serves an empty index (0 specs), which is
+# the honest pre-sync posture. See deploy/README.md.
+apiVersion: fastverk.savvifi.com/v1
+kind: ConsolePlugin
+metadata:
+  name: spec
+  namespace: fastverk
+  labels:
+    app.kubernetes.io/part-of: fastverk-console
+spec:
+  # Mounted at /api/gw/spec — must match the panels' populate coordinates.
+  gatewayPath: spec
+  # CI publishes this (bazel run //services/spec:spec-image_push -- --tag <sha>).
+  # Pin by digest in prod (semver-<sha>), the platform's OCI-chart convention.
+  image: ghcr.io/fastverk/spec-server:0.0.1
+  port: 8080
+  replicas: 1
+  # Read-only filesystem scan; no cloud reads, so no scopes.
+  scopes: []
+  env:
+    # The shared gateway token the botnoc-web gateway injects and this backend
+    # verifies (require_gateway_token → E_GATEWAY_AUTH). Same secret the other
+    # plugin backends consume.
+    - name: FASTVERK_PLUGIN_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: fastverk-plugin-token
+          key: token
+    # The git-synced estate source tree (immediate subdirs = repos). Point at the
+    # shared git-sync mount. Absent/empty → the index is empty (0 specs).
+    - name: SPEC_SOURCE_ROOT
+      value: /workspace/repos
+    # Optional: restrict the scan to specific repo dir names (CSV) for perf.
+    # - name: SPEC_REPOS
+    #   value: botnoc,agora,rules_postgres,rules_texlive,agentic_ide_runtime,spec,rules_lean
+    # Optional: index cache TTL in seconds (default 30). "Live" is bounded by this
+    # plus the git-sync period.
+    - name: SPEC_INDEX_TTL_SECS
+      value: "30"

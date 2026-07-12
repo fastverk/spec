@@ -1,0 +1,9 @@
+# Root package — exports the Cargo workspace manifest + lock so the services/spec
+# plugin's crate_universe (`crate.from_cargo(cargo_lockfile = "//:Cargo.lock", …)`
+# in MODULE.bazel) can reference them as labels.
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Cargo.toml",
+    "Cargo.lock",
+])

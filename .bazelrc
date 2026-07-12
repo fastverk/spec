@@ -1,6 +1,13 @@
 # Bazel module registries: fastverk public + premium, then BCR. rules_lean
 # (the Lean toolchain backing the spec-framework modules) resolves from the
-# public fastverk registry.
+# public fastverk registry. Made explicit here so the build is self-contained
+# (previously relied on a global/user.bazelrc).
+common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://bcr.bazel.build/
+
+# The services/spec plugin's crate_universe `crate` extension uses isolate = True;
+# isolated usages are flag-gated in Bazel 9.x — enable so CI matches local.
+common --experimental_isolated_extension_usages
 
 # Apache Jena 5.x is compiled for Java 17+. Pin a remote 21 JDK for both
 # target and tool builds (same pin as the Aion + mycelium repos).
