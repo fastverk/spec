@@ -20,6 +20,7 @@
 pub mod backend;
 pub mod http;
 pub mod json;
+pub mod mcp;
 
 /// prost-generated `spec.v1` message types (messages only; v1 is HTTP-only).
 pub mod proto {

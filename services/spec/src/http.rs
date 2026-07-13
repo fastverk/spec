@@ -76,6 +76,9 @@ fn describe_json() -> Value {
 /// shell prefixes `/api/gw/spec`). `/healthz` is open; everything else is behind
 /// the gateway-token guard when `$FASTVERK_PLUGIN_TOKEN` is set.
 pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
+    // The MCP tool surface (POST /mcp) — the same index, exposed as tools for the
+    // console chat host. Gated by the same gateway token as the data routes.
+    let mcp = crate::mcp::router(state.backend.clone());
     let guarded = Router::new()
         .route("/describe", get(describe))
         .route("/panels.binpb", get(panels))
@@ -84,7 +87,8 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/status", get(list_module_status))
         .route("/spec", get(get_spec))
         .route("/contract", get(get_contract))
-        .with_state(state);
+        .with_state(state)
+        .merge(mcp);
     let guarded = match gateway_token.filter(|t| !t.is_empty()) {
         Some(token) => guarded.layer(from_fn_with_state(Arc::new(token), require_gateway_token)),
         None => guarded,
