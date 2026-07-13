@@ -1,5 +1,5 @@
 apiVersion: v2
-name: spec
+name: plugin-spec
 description: >-
   The fastverk `spec` plugin — an estate-wide, live index of formal
   specifications (Lean today) surfaced in the fastverk-web console at
