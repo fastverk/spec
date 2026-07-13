@@ -4,12 +4,16 @@ replicaCount: 1
 # cross-compiles linux/amd64 and mirrors ghcr.io/fastverk/spec-server -> here).
 image:
   repository: 042825952740.dkr.ecr.us-east-1.amazonaws.com/spec-server
-  tag: "0.6.1"
+  tag: "0.6.2"
   pullPolicy: IfNotPresent
 
-# The plugin's HTTP/JSON facade (/healthz, /describe, /panels.binpb, + the
+# The plugin's HTTP/JSON facade (/healthz, /describe, /panels.binpb, /mcp, + the
 # spec.v1.SpecIndex REST plane: specs, contracts, status, spec, contract).
 port: 8080
+
+# gRPC meridian LayoutService port (the nav plane). The shell's discovery reads
+# the Service's named `grpc` port and dials GetNavTree for spec's nested nav.
+grpcPort: 50056
 
 # Shared gateway token the console presents as `Authorization: Bearer <token>`;
 # the plugin validates it (require_gateway_token -> E_GATEWAY_AUTH). Same value

@@ -25,11 +25,15 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.port }}
+            - name: grpc
+              containerPort: {{ .Values.grpcPort }}
           env:
             - name: RUST_LOG
               value: {{ .Values.logLevel | quote }}
             - name: PORT_ADDR
               value: {{ printf "0.0.0.0:%v" .Values.port | quote }}
+            - name: SPEC_GRPC_ADDR
+              value: {{ printf "0.0.0.0:%v" .Values.grpcPort | quote }}
             # The git-synced tree the index scans (immediate subdirs = repos).
             - name: SPEC_SOURCE_ROOT
               value: {{ .Values.sourceSync.mountPath | quote }}
