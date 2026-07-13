@@ -32,6 +32,12 @@ prost-types.workspace = true
 # console chat host. Consumed from the private plugin-crate home (cargo fetch needs
 # CARGO_NET_GIT_FETCH_WITH_CLI=true + gh/ssh auth).
 fastverk-mcp = { git = "https://github.com/fastverk/fastverk-plugin-crates", tag = "fastverk-mcp-v0.0.1" }
+# The shared meridian LayoutService nav server — spec's nested nav subtree
+# (Specs / Contracts / Proof-Status) over gRPC, so the shell renders a proper
+# section instead of a flat leaf. Pure-Rust (pre-generated protos) at v0.0.2.
+fastverk-layout = { git = "https://github.com/fastverk/fastverk-plugin-crates", tag = "fastverk-layout-v0.0.2" }
+# gRPC transport for the LayoutService server (the nav plane).
+tonic = "0.12"
 
 [build-dependencies]
 prost-build.workspace = true

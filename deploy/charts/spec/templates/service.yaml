@@ -15,10 +15,13 @@ spec:
   selector:
     {{- include "spec.selectorLabels" . | nindent 4 }}
   ports:
-    # v1 is HTTP-only (no gRPC nav plane); the shell falls back to a flat nav leaf
-    # and renders the served panels.binpb. Add a `grpc` port when the LayoutService
-    # nav plane lands (fastverk-layout).
     - name: http
       port: {{ .Values.service.port }}
       targetPort: http
+      protocol: TCP
+    # The gRPC meridian LayoutService — the shell's discovery reads this named
+    # `grpc` port and dials GetNavTree for spec's nested nav subtree.
+    - name: grpc
+      port: {{ .Values.grpcPort }}
+      targetPort: grpc
       protocol: TCP

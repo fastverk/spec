@@ -1,10 +1,16 @@
-//! spec-server — the spec plugin backend (HTTP-only, read-only).
+//! spec-server — the spec plugin backend (read-only).
 //!
-//! Serves `/api/gw/spec/*` for the fastverk-web shell: the meridian PanelBundle
-//! (`/panels.binpb`) + manifest (`/describe`) + the estate spec index data routes
-//! (`/specs`, `/contracts`, `/status`, …). No gRPC/nav plane in v1 (that needs the
-//! fastverk-layout crate) and no outbound network — the index is a scan of the
-//! git-synced source tree at `$SPEC_SOURCE_ROOT`.
+//! Two planes over the same estate index:
+//!   * HTTP/JSON facade on `$PORT_ADDR` (:8080) — the web plane the fastverk-web
+//!     shell forwards to (`/api/gw/spec/*`): `/healthz`, `/describe`,
+//!     `/panels.binpb`, the data routes, and the MCP tool surface (`/mcp`).
+//!   * gRPC meridian `LayoutService` on `$SPEC_GRPC_ADDR` (:50056) — the plugin's
+//!     nested nav (Specs / Contracts / Proof-Status), so the console shell renders
+//!     a proper section subtree instead of the flat-leaf fallback. The leaf ids
+//!     match the panel ids in ui/panels.textproto.
+//!
+//! Both run concurrently; if either exits, the process exits. No outbound network
+//! — the index is a scan of the git-synced source tree at `$SPEC_SOURCE_ROOT`.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -12,6 +18,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Parser;
+use tonic::transport::Server;
 use tracing_subscriber::EnvFilter;
 
 #[derive(Parser, Debug)]
@@ -22,8 +29,7 @@ struct Args {
     http_addr: String,
 
     /// Path to the compiled meridian PanelBundle (.binpb). Defaults to the bazel
-    /// runfiles location populated by `//services/spec/ui:panels`; set explicitly
-    /// for `cargo run`.
+    /// runfiles location; set explicitly (or via $SPEC_PANEL_BUNDLE) otherwise.
     #[arg(long, env = "SPEC_PANEL_BUNDLE")]
     panel_bundle: Option<PathBuf>,
 }
@@ -36,17 +42,48 @@ async fn main() -> Result<()> {
 
     let args = Args::parse();
     let http_addr: SocketAddr = args.http_addr.parse()?;
+    let grpc_addr: SocketAddr = std::env::var("SPEC_GRPC_ADDR")
+        .unwrap_or_else(|_| "0.0.0.0:50056".to_string())
+        .parse()?;
 
     let backend = Arc::new(spec::SpecBackend::from_env());
     tracing::info!(source_root = %backend.source_root().display(), "spec index source root");
 
     let panels = load_panels(args.panel_bundle);
     let gateway_token = std::env::var("FASTVERK_PLUGIN_TOKEN").ok();
-    let app = spec::http::router(spec::http::HttpState { backend, panels }, gateway_token);
+    let http = spec::http::router(
+        spec::http::HttpState {
+            backend,
+            panels: panels.clone(),
+        },
+        gateway_token,
+    );
 
-    tracing::info!(?http_addr, "starting spec-server (HTTP)");
-    let listener = tokio::net::TcpListener::bind(http_addr).await?;
-    axum::serve(listener, app).await?;
+    tracing::info!(?http_addr, ?grpc_addr, "starting spec-server (HTTP + gRPC nav)");
+
+    // The uniform plugin nav plane: spec's section subtree via
+    // meridian.ui.v1.LayoutService.GetNavTree (shared fastverk-layout crate). The
+    // leaf ids match ui/panels.textproto (specs / contracts / status).
+    let grpc = async move {
+        Server::builder()
+            .add_service(
+                fastverk_layout::StaticLayout::new(vec![
+                    fastverk_layout::leaf("specs", "Specs"),
+                    fastverk_layout::leaf("contracts", "Contracts"),
+                    fastverk_layout::leaf("status", "Proof Status"),
+                ])
+                .with_panels(panels)
+                .into_server(),
+            )
+            .serve(grpc_addr)
+            .await
+            .map_err(anyhow::Error::from)
+    };
+    let web = async move {
+        let listener = tokio::net::TcpListener::bind(http_addr).await?;
+        axum::serve(listener, http).await.map_err(anyhow::Error::from)
+    };
+    tokio::try_join!(grpc, web)?;
     Ok(())
 }
 
@@ -59,7 +96,7 @@ fn load_panels(explicit: Option<PathBuf>) -> Option<Arc<Vec<u8>>> {
         .and_then(|p| std::fs::read(p).ok())
         .map(Arc::new);
     match panels {
-        Some(_) => tracing::info!("loaded spec panel bundle; serving /panels.binpb"),
+        Some(_) => tracing::info!("loaded spec panel bundle; serving /panels.binpb + LayoutService panels"),
         None => tracing::warn!("spec panel bundle not found; /panels.binpb will 404"),
     }
     panels
