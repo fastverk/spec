@@ -1,0 +1,37 @@
+Ý
+specsSpecsÌ
+
+spec.v1.SpecIndex	ListSpecsspecsspecs"No specifications indexed.*
+Reporepo *
+Modulemodule *
+Pathpath "*
+Langlang *
+Kindkind *
+Statusstatus 
+*
+Sorriessorry_count ö
+	contracts	ContractsÝ
+"
+spec.v1.SpecIndexListContracts	contracts	contracts"No contract catalog found.*
+Reporepo *
+
+IDid *
+Theoremname *
+Promisepromise 0*
+
+Discharger
+discharger (*
+Citedcited *
+Statusstatus 
+ä
+statusProof StatusË
+%
+spec.v1.SpecIndexListModuleStatusmodulesmodules"No modules indexed.*
+Reporepo *
+Modulemodule *
+Targettarget *
+Statusstatus 
+*
+Sorriessorry_count *
+Specs
+spec_count 
