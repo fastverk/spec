@@ -28,6 +28,10 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 prost.workspace = true
 prost-types.workspace = true
+# The shared MCP tool-surface crate (POST /mcp) — spec's ops as MCP tools for the
+# console chat host. Consumed from the private plugin-crate home (cargo fetch needs
+# CARGO_NET_GIT_FETCH_WITH_CLI=true + gh/ssh auth).
+fastverk-mcp = { git = "https://github.com/fastverk/fastverk-plugin-crates", tag = "fastverk-mcp-v0.0.1" }
 
 [build-dependencies]
 prost-build.workspace = true

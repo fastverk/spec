@@ -4,7 +4,7 @@ replicaCount: 1
 # cross-compiles linux/amd64 and mirrors ghcr.io/fastverk/spec-server -> here).
 image:
   repository: 042825952740.dkr.ecr.us-east-1.amazonaws.com/spec-server
-  tag: "0.6.0"
+  tag: "0.6.1"
   pullPolicy: IfNotPresent
 
 # The plugin's HTTP/JSON facade (/healthz, /describe, /panels.binpb, + the

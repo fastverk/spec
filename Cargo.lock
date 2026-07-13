@@ -232,6 +232,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
+name = "fastverk-mcp"
+version = "0.0.1"
+source = "git+https://github.com/fastverk/fastverk-plugin-crates?tag=fastverk-mcp-v0.0.1#a64751c0cc85f50151541fd21f267d1441f5d92e"
+dependencies = [
+ "anyhow",
+ "axum",
+ "serde",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "fixedbitset"
 version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -778,6 +790,7 @@ dependencies = [
  "anyhow",
  "axum",
  "clap",
+ "fastverk-mcp",
  "prost",
  "prost-build",
  "prost-types",
