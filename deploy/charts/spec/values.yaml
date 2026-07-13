@@ -35,9 +35,13 @@ sourceSync:
   periodSeconds: 60
   depth: 1
   # Git token for PRIVATE repos (https clones as https://oauth2:<token>@host/...).
-  # Point existingSecret at a Secret with the token; leave empty for public-only.
+  # Reuse the estate's EXISTING GitHub connection: `build-runner-github` is the
+  # same token the build-runner clones the org's repos with (read access incl.
+  # private botnoc) — so spec doesn't need its own credential. (forge itself uses
+  # a GitHub App, which mints per-request tokens and isn't a static clone cred.)
+  # Override existingSecret for a different environment / a dedicated token.
   token:
-    existingSecret: "" # e.g. spec-git-token
+    existingSecret: "build-runner-github"
     secretKey: token
   # name -> clone URL. `name` becomes the repo dir under mountPath (== the `repo`
   # column in the index).
