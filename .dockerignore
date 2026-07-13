@@ -1,0 +1,6 @@
+target
+bazel-*
+.git
+.claude
+*.swp
+.DS_Store
