@@ -86,14 +86,14 @@ register_toolchains("@tectonic//:tectonic_toolchain_def")
 # the crank graph. rules_graphviz registers its own bun + graphviz toolchains at
 # module level, so a bare bazel_dep is all the consumer side needs.
 #
-# 0.2.0 adds the svg_pdf/dot_pdf vector-PDF path. Until it is tagged + published
-# to the registry, resolve it from the sibling working tree so this repo builds
-# against the local copy. (Drop the override once v0.2.0 is in the registry.)
+# 0.2.0 (the svg_pdf/dot_pdf vector-PDF path) is published to the registry, so it
+# resolves like every other module — no override. The old local_path_override
+# pointed at a sibling working tree, which made this repo build ONLY on a machine
+# that happened to have ../rules_graphviz checked out: the build runner failed with
+# `The repository's path is "../rules_graphviz" (absolute: "/work/rules_graphviz")
+# but it does not exist`, which is why the spec plugin image could not be built by
+# CI and had to be produced by hand.
 bazel_dep(name = "rules_graphviz", version = "0.2.0")
-local_path_override(
-    module_name = "rules_graphviz",
-    path = "../rules_graphviz",
-)
 
 # The crank predict contract + its gRPC engine/services moved to the dedicated
 # `crank` repo (github:fastverk/crank — //proto, //engine, //deploy/helm). spec
