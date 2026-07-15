@@ -23,3 +23,11 @@ common --repo_env=JAVA_HOME
 build --action_env=JAVA_HOME
 
 try-import %workspace%/user.bazelrc
+
+# protobuf's upb uses the linkarr encapsulation-symbol pattern; lld's default
+# --gc-sections drops the section and leaves __start_/__stop_linkarr_upb_AllExts
+# undefined when linking protoc-gen-upb_stage0 under zig. Required whenever zig is
+# registered globally (see MODULE.bazel).
+common --enable_platform_specific_config
+build:linux --host_linkopt=-Wl,--no-gc-sections
+build:linux --linkopt=-Wl,--no-gc-sections
