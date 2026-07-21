@@ -267,8 +267,8 @@ checksum = "9f1f227452a390804cdb637b74a86990f2a7d7ba4b7d5693aac9b4dd6defd8d6"
 
 [[package]]
 name = "fastverk-layout"
-version = "0.0.2"
-source = "git+https://github.com/fastverk/fastverk-plugin-crates?tag=fastverk-layout-v0.0.2#4fc56976b6ee479fa2828d6d9437143daedcc05b"
+version = "0.1.0"
+source = "git+https://github.com/fastverk/fastverk-plugin-crates?tag=fastverk-layout-v0.1.0#875823d0eb321e91ff7e9038b766179e10a6afe1"
 dependencies = [
  "prost",
  "tokio",
