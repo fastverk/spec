@@ -2,7 +2,7 @@
 # (the Lean toolchain backing the spec-framework modules) resolves from the
 # public fastverk registry. Made explicit here so the build is self-contained
 # (previously relied on a global/user.bazelrc).
-common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
 
 # The services/spec plugin's crate_universe `crate` extension uses isolate = True;
