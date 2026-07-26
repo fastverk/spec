@@ -14,7 +14,7 @@ the narrative-site builder land here too as the kg retirement completes.
 
 module(
     name = "spec",
-    version = "0.6.2",
+    version = "0.6.3",
 )
 
 bazel_dep(name = "rules_java", version = "8.6.1")
@@ -58,7 +58,15 @@ lake.workspace(
 )
 use_repo(lake, "spec_lake")
 
-register_toolchains("@spec_lake//:lean_toolchain_def")
+# dev_dependency: these toolchains build SPEC, they are not part of its surface.
+# A non-dev register_toolchains propagates to every transitive consumer, which
+# is the D2 leak the registry gates on — and a dev registration still applies
+# when spec is the ROOT, so building this repo is unaffected. Same reasoning
+# rules_k8s and rules_lean document, and that gate applies to itself.
+register_toolchains(
+    "@spec_lake//:lean_toolchain_def",
+    dev_dependency = True,
+)
 
 # rules_rdf (engine-agnostic RDF rules) + rules_jena (Jena toolchain impls).
 # spec uses these to define its corpus gate library declaratively: an
@@ -77,7 +85,10 @@ bazel_dep(name = "rules_tectonic", version = "0.2.0")
 tectonic = use_extension("@rules_tectonic//tectonic:extensions.bzl", "tectonic")
 use_repo(tectonic, "tectonic")
 
-register_toolchains("@tectonic//:tectonic_toolchain_def")
+register_toolchains(
+    "@tectonic//:tectonic_toolchain_def",
+    dev_dependency = True,
+)
 
 # Graph rendering: rules_graphviz renders the authored .dot spec-graph figures
 # (//graph) to SVG hermetically (WASM graphviz under a bun runtime — no host
@@ -133,6 +144,7 @@ use_repo(zig_toolchains, "zig_sdk")
 register_toolchains(
     "@zig_sdk//toolchain:linux_amd64_gnu.2.28",
     "@zig_sdk//toolchain:linux_arm64_gnu.2.28",
+    dev_dependency = True,
 )
 
 bazel_dep(name = "rules_rust", version = "0.70.0")
@@ -157,7 +169,10 @@ rust.toolchain(
 )
 use_repo(rust, "rust_toolchains")
 
-register_toolchains("@rust_toolchains//:all")
+register_toolchains(
+    "@rust_toolchains//:all",
+    dev_dependency = True,
+)
 
 # crate_universe over the plugin's Cargo workspace. isolate = True keeps spec's
 # universe from colliding with a consumer's.
