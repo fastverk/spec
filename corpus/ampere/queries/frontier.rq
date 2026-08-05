@@ -1,0 +1,19 @@
+# ---
+# title: "The frontier — sub-R4 claims and their named blockers"
+# description: "Every claim below the binding rung, with the specific thing it is stalled on and the discipline that owns it."
+# severity: info
+# tier: 3
+# rationale: "Drives the frontier panel (RFC-002 §8.2), the one authoring surface that stays a declarative table. The load-bearing column is `stalledOn`: ladder-integrity.rq makes an unnamed stall a build failure precisely so that this query can never return a row saying only 'not done'. A stall that names its blocker is rankable and assignable; one that does not is indistinguishable from a claim nobody looked at."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?claim ?rung ?discipline ?stalledOn
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:rung ?rung .
+  FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+  OPTIONAL { ?claim au:discipline ?d . ?d rdfs:label ?discipline }
+  OPTIONAL { ?claim au:stalledOn ?stalledOn }
+}
+ORDER BY ?rung ?claim

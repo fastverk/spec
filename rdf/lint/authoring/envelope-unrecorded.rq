@@ -1,0 +1,35 @@
+# ---
+# title: "Unrecorded empty envelope"
+# description: "A quantity whose bounds intersect to the empty set with NO au:Conflict object recording it. The zero-row gate form of empty-envelope.rq."
+# severity: error
+# tier: 3
+# rationale: "empty-envelope.rq is a MEASURE, not a gate: an empty feasible envelope is a genuine finding about the world, and failing the build on it would mean a corpus could never record two instruments that genuinely cannot both be met. What must never happen is an empty envelope that nobody wrote down. This query is therefore the gate: it fires only when the arithmetic says infeasible AND no au:Conflict names that quantity. Zero rows means every infeasibility in the corpus is an admitted, witnessed, owned object — which is exactly the discipline that makes admitting conflicts (rather than rejecting the write) defensible. Pairs with conflict-hygiene-strict.rq, which then guarantees each of those recorded conflicts has a witness and an owner."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?quantity ?unit
+       (MAX(?lo) AS ?greatestLower)
+       (MIN(?hi) AS ?leastUpper)
+       (MAX(?lo) - MIN(?hi) AS ?deficit)
+WHERE {
+  ?quantity a au:Quantity .
+  OPTIONAL { ?quantity au:unit ?unit }
+
+  ?claim a rfc:NormativeStatement ;
+         au:constrains ?quantity ;
+         au:hasBound   ?bound ;
+         au:discipline ?discipline .
+  ?bound au:boundValue ?v ; au:boundKind ?kind .
+
+  BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
+  BIND(IF(?kind = au:UpperBound, ?v, ?unbound) AS ?hi)
+
+  # The gate condition: no admitted conflict names this quantity.
+  FILTER NOT EXISTS {
+    ?conflict a au:Conflict ; au:onQuantity ?quantity .
+  }
+}
+GROUP BY ?quantity ?unit
+HAVING (MAX(?lo) > MIN(?hi))
+ORDER BY DESC(?deficit)

@@ -16,15 +16,38 @@ that fires on both files is a false-positive generator.
 Executed against `rdf/ontology/aion-rfc.ttl` + `rdf/ontology/authoring.ttl` +
 the fixture:
 
+**Gates** (zero-row, fail the build):
+
 | Gate | conflict | clean |
 |---|---:|---:|
+| `envelope-unrecorded.rq` | 0 † | 0 |
+| `conflict-hygiene-strict.rq` | 4 | 0 |
+| `ladder-integrity.rq` | 4 | 0 |
+
+**Measures** (reported, never fail):
+
+| Measure | conflict | clean |
+|---|---:|---:|
 | `empty-envelope.rq` | 1 | 0 |
+| `conflict-hygiene.rq` | 6 | 0 |
 | `cross-discipline-coconstraint.rq` | 6 | 0 |
 | `homonym-unregistered.rq` | 1 | 0 |
-| `ladder-integrity.rq` | 4 | 0 |
-| `conflict-hygiene.rq` | 6 | 0 |
 
-All five discriminate.
+† `envelope-unrecorded.rq` is correctly silent on **both** fixtures: the conflict
+fixture's empty envelope *is* recorded by an `au:Conflict`. It keys on whether an
+infeasibility was documented, not on whether one exists. Strip `conflicts.ttl`
+from the AMPERE corpus and it fires with 2 rows — see
+`//corpus/ampere:ampere_undocumented_authoring_envelope_unrecorded`, tagged
+`manual` + `known-failing-by-design`. `:conflict_fixture_envelope_recorded` pins
+this: if it ever fires, the gate has started failing on the empty envelope
+itself, which is the confusion the gate/measure split exists to prevent.
+
+Every gate is silent on the clean fixture, so none false-positives — but that
+direction alone is passed trivially by a gate that always returns zero. The
+positive control is `expect-detections.rq`, a zero-row test asserting each gate's
+detection **count** over the planted fixture (including that the deficit computes
+to exactly 27.0 MW). It returns **0 rows** over the conflict fixture and **5** over
+the clean one, so the assertions are demonstrably live.
 
 The headline row is `empty-envelope.rq` on the conflict fixture:
 

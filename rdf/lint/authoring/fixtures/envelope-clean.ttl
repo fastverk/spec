@@ -46,7 +46,9 @@ fx:q-sustained-discharge a au:Quantity ;
     au:measurementPoint fx:node-poi ;
     au:estimator "revenue-meter" ; au:timeBase "4h-sustained" .
 
-fx:node-poi a rfc:Term ; rdfs:label "point of interconnection" .
+fx:node-poi a rfc:Term ; rdfs:label "point of interconnection" ;
+    rfc:name "point-of-interconnection" ;
+    rfc:definition "The electrical boundary between the facility and the transmission system. The referent for the contested discharge quantity." .
 
 fx:q-soc-bms a au:Quantity ;
     rdfs:label "state of charge (BMS-reported)" ;

@@ -1,0 +1,14 @@
+package(default_visibility = ["//visibility:public"])
+
+# The RFC-002 authoring/coherence gates + measures, over the au: vocabulary
+# (rdf/ontology/authoring.ttl). Exposed as source labels so
+# //rdf:authoring_gates.bzl can Label()-reference them and consumers can
+# instantiate the suite over their own corpus.
+#
+# Three are zero-row GATES (envelope-unrecorded, conflict-hygiene-strict,
+# ladder-integrity); four are reported MEASURES. See the gate/measure rationale
+# in //rdf:authoring_gates.bzl — the short version is that an empty feasible
+# envelope and an unresolved conflict are both TRUE FINDINGS, and gating on them
+# would push authors toward hiding rather than recording them. What is gated is
+# an infeasibility nobody wrote down, and a conflict nobody can act on.
+exports_files(glob(["*.rq"]))

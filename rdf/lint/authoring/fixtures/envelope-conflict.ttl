@@ -16,19 +16,30 @@
 #
 #   => greatest lower bound 82 > least upper bound 55.  Deficit 27 MW. EMPTY.
 #
-# Verified gate results (executed; see fixtures/README.md):
-#   empty-envelope.rq                1 row  (deficit 27.0 MW, 4 disciplines)
-#   cross-discipline-coconstraint.rq 6 rows (all pairs across 4 disciplines)
-#   homonym-unregistered.rq          1 row  (soc-bms vs soc-telemetered, no disjoint)
+# Verified results (executed; see fixtures/README.md). GATES first:
+#   envelope-unrecorded.rq           0 rows — CORRECTLY silent: the envelope here
+#                                            IS recorded by fx:conflict-envelope.
+#                                            That gate keys on whether an
+#                                            infeasibility was documented, not on
+#                                            whether one exists. Pinned by
+#                                            :conflict_fixture_envelope_recorded.
+#   conflict-hygiene-strict.rq       4 rows (unwitnessed, unowned, expired-waiver,
+#                                            unbounded-waiver)
 #   ladder-integrity.rq              4 rows (3 defect kinds; bad-unprovenanced
 #                                            carries two — no promotedBy AND no
 #                                            stalledOn — one row per defect)
-#   conflict-hygiene.rq              6 rows (5 defect kinds; conflict-unwitnessed
-#                                            carries three — unwitnessed, unowned,
-#                                            unresolved)
+# MEASURES (reported, never fail the build):
+#   empty-envelope.rq                1 row  (deficit 27.0 MW, 4 disciplines)
+#   conflict-hygiene.rq              6 rows (adds the UNRESOLVED rows, which are a
+#                                            legitimate state and so not gated)
+#   cross-discipline-coconstraint.rq 6 rows (all pairs across 4 disciplines)
+#   homonym-unregistered.rq          1 row  (soc-bms vs soc-telemetered, no disjoint)
 #
-# Each gate returns 0 rows against fixtures/envelope-clean.ttl, so all five
-# discriminate rather than merely firing.
+# Every gate returns 0 rows against fixtures/envelope-clean.ttl, so none
+# false-positives. That direction alone would be passed by a gate that always
+# returns zero, so the positive control is fixtures/expect-detections.rq, which
+# asserts these counts and itself returns 0 rows here and 5 against the clean
+# fixture. Both fixtures are SHACL-conformant against rdf/ontology/shapes.ttl.
 #
 # NOTE: every numeric value here is synthetic and every citation is illustrative.
 # This is a gate fixture, not a corpus — see corpus/ampere/ for the corpus and
@@ -60,7 +71,9 @@ fx:q-sustained-discharge a au:Quantity ;
     au:estimator "revenue-meter" ;
     au:timeBase "4h-sustained" .
 
-fx:node-poi a rfc:Term ; rdfs:label "point of interconnection" .
+fx:node-poi a rfc:Term ; rdfs:label "point of interconnection" ;
+    rfc:name "point-of-interconnection" ;
+    rfc:definition "The electrical boundary between the facility and the transmission system. The referent for the contested discharge quantity." .
 
 # -- the homonym pair (positive control for homonym-unregistered.rq) ----------
 # Same unit, same dimension, different estimator. No au:disjointQuantity edge,

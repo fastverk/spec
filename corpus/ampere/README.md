@@ -91,16 +91,41 @@ triples):
 | Claims carrying a discipline | 64 / 64 |
 | Claims constraining a typed quantity | 28 |
 | Non-defeasible claims | 23 |
-| Recorded conflicts | 11 |
+| Recorded conflicts | 12 |
+| Conflicts adjudicated | 5 |
 
 **Rung histogram** — R2: 1 · R3: 4 · R4: 59. **Dark fraction 8%**: five claims
 sit below the binding rung, each naming its blocker via `au:stalledOn`. That is
 the honest number an agent fleet must not build against, and the point of the
 ladder is that it is *countable* rather than invisible.
 
-**Claims per discipline** — market 12, fire-safety 9, interconnection 7,
-warranty 7, cyber 6, software 5, permitting 4, tax-finance 4, accounting 4,
-settlement 4, electrochemistry 1, protection 1.
+**Per-discipline coverage** (`bazel build //corpus/ampere:coverage`):
+
+| Discipline | claims | typed | non-defeasible | dark |
+|---|---:|---:|---:|---:|
+| market microstructure & tariff | 12 | 7 | 3 | 1 |
+| fire & life safety | 9 | 4 | 6 | 0 |
+| power-systems interconnection | 7 | 3 | 5 | 0 |
+| insurance, warranty & O&M | 7 | 4 | 1 | 1 |
+| cybersecurity & reliability compliance | 6 | 1 | 3 | 1 |
+| software & DER fleet control | 5 | 2 | 0 | 1 |
+| tax & project finance | 4 | 1 | 1 | 1 |
+| accounting & revenue recognition | 4 | 2 | 0 | 0 |
+| environmental permitting & land use | 4 | 2 | 2 | 0 |
+| **metering & settlement** | 4 | **0** | 0 | 0 |
+| electrochemistry & thermal | 1 | 1 | 1 | 0 |
+| protection & controls | 1 | 1 | 1 | 0 |
+
+The `typed` column is the leading indicator, and one row in it is the most useful
+thing this table says: **metering & settlement has zero typed claims.** That
+discipline *fixes the referent* for every energy and power quantity in the corpus
+— and because none of its own claims constrains a declared `au:Quantity`, it
+cannot participate in empty-envelope detection at all. Its conflicts are
+**invisible, not absent**; INV-16 had to be hand-recorded for exactly this reason.
+
+A low `typed`/`claims` ratio is therefore not a cosmetic gap. It is the measure of
+how much of a discipline the machinery is blind to, and it is the right thing to
+prioritise when deciding what to type next.
 
 ## Files
 
@@ -108,7 +133,7 @@ settlement 4, electrochemistry 1, protection 1.
 |---|---|
 | `disciplines.ttl` | The three registries: 12 disciplines with stewards, 20 quantities with dimension **and referent**, 12 scopes with a deliberately partial `au:precedes` order, and 10 explicit topology nodes |
 | `corpus.ttl` | 14 documents / 15 sections / 64 claims, with modality, evidence, citation, discipline, rung, bounds and defeasibility |
-| `conflicts.ttl` | 11 conflicts as first-class objects with witnesses and owners; 4 adjudicated with recorded resolutions |
+| `conflicts.ttl` | 12 conflicts as first-class objects with witnesses and owners; 5 adjudicated with recorded resolutions |
 
 ## The conflicts
 

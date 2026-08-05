@@ -345,18 +345,51 @@ checks `provenBy`, and adding a TTL projection of `Tier` is filed in §13.
 
 ## 7. Gate set
 
-Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`. All five
-were **executed** against a positive and a negative control
+Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, wired by
+`//rdf:authoring_gates.bzl` and executed against a positive and a negative control
 (`rdf/lint/authoring/fixtures/`, following the
-`grounding/AdversarialGateCheck.java` discipline) and all five discriminate:
+`grounding/AdversarialGateCheck.java` discipline).
+
+**Only three of the seven are gates.** The split is the important part.
+
+**Gates** — zero-row, fail the build:
 
 | Gate | Rejects | conflict / clean |
 |---|---|---|
-| `empty-envelope.rq` | bounds on one quantity intersecting to nothing | 1 / 0 |
-| `cross-discipline-coconstraint.rq` | *(detector, `info`)* implicit co-constraint pairs | 6 / 0 |
-| `conflict-hygiene.rq` | unwitnessed · unowned · unresolved · expired or unbounded waiver | 6 / 0 |
+| `envelope-unrecorded.rq` | an empty envelope with **no `au:Conflict` recording it** | 0 / 0 † |
+| `conflict-hygiene-strict.rq` | unwitnessed · unowned · unbounded or expired waiver | 4 / 0 |
 | `ladder-integrity.rq` | hand-set rungs · unnamed stalls · `provenBy` below R4 | 4 / 0 |
-| `homonym-unregistered.rq` | same unit and dimension, different referent, no disjointness | 1 / 0 |
+
+† Correctly silent on *both* fixtures: the conflict fixture's empty envelope **is**
+recorded. Strip `conflicts.ttl` from the AMPERE corpus and it fires with 2 rows —
+which is the `//corpus/ampere:ampere_undocumented_authoring_*` target, tagged
+`manual` + `known-failing-by-design` so it can be run as the demonstration that
+the gate has teeth.
+
+**Measures** — reported, never fail:
+
+| Measure | Reports | AMPERE |
+|---|---|---:|
+| `empty-envelope.rq` | the infeasibilities, with deficits | 2 |
+| `conflict-hygiene.rq` | the full report, **including `UNRESOLVED`** | 7 |
+| `cross-discipline-coconstraint.rq` | implicit co-constraint candidates | 25 |
+| `homonym-unregistered.rq` | the glossary-alignment work queue | 21 |
+
+`UNRESOLVED` is deliberately **not** gated, and neither is an empty envelope. Both
+are *true findings about the world*: a real multidisciplinary corpus has open
+conflicts, and two instruments can genuinely be jointly unsatisfiable. Gating on
+them would push authors toward fake resolutions and unrecorded infeasibility —
+the exact failure this system exists to prevent. What *is* gated is an
+infeasibility nobody wrote down, and a conflict nobody can act on. The
+distinction is between *"we have open problems"* and *"we have problems nobody
+can work on."*
+
+The positive control is `fixtures/expect-detections.rq`: a zero-row test
+asserting each gate's **detection count** over the planted fixture (including
+that the deficit computes to exactly 27.0 MW). It returns 0 rows over the
+conflict fixture and 5 over the clean one, so the assertions are demonstrably
+live. Written as counted assertions rather than an `emit_diff_test` against a
+golden TSV so it carries no dependency on the SPARQL engine's serialization.
 
 The headline result:
 
