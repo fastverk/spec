@@ -345,8 +345,8 @@ checks `provenBy`, and adding a TTL projection of `Tier` is filed in §13.
 
 ## 7. Gate set
 
-Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, and executed
-against a positive and a negative control
+Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, wired by
+`//rdf:authoring_gates.bzl` and executed against a positive and a negative control
 (`rdf/lint/authoring/fixtures/`, following the
 `grounding/AdversarialGateCheck.java` discipline).
 
@@ -362,8 +362,9 @@ against a positive and a negative control
 
 † Correctly silent on *both* fixtures: the conflict fixture's empty envelope **is**
 recorded. Strip `conflicts.ttl` from the AMPERE corpus and it fires with 2 rows —
-that is the demonstration the gate has teeth, and §12.1 explains why it should be
-expressed as a positive assertion rather than as a deliberately-failing target.
+which is the `//corpus/ampere:ampere_undocumented_authoring_*` target, tagged
+`manual` + `known-failing-by-design` so it can be run as the demonstration that
+the gate has teeth.
 
 **Measures** — reported, never fail:
 
@@ -650,7 +651,7 @@ sequencing, not commitments.
 
 | Phase | Weeks | Deliverable | Gate |
 |---|---|---|---|
-| **P0** Wire what exists | 1–2 | `BUILD.bazel` targets for `rdf/ontology/authoring.ttl` + the gates + both fixtures; the gate harness learns the authoring lint family. **Attempted and withdrawn — see §12.1** | The §7 control table runs under `bazel test`, not just under `rdflib` |
+| **P0** Wire what exists | 1–2 | `BUILD.bazel` targets for `rdf/ontology/authoring.ttl` + the gates + both fixtures. **Written; never exercised — see §12.1** | The §7 control table runs under `bazel test`. Blocked on the pre-existing `//java/...` maven and `//graph/...` svg2pdf failures |
 | **P1** Proposal + door | 3–8 | `lean/Spec/Authoring/{Proposal,Op,Door}.lean`; append-only proposal log; `spec propose` / `spec replay` CLI over `java/kg/edit`'s existing `WriteOps` | `spec replay <bootstrap-pid>` reproduces the committed corpus TTL **byte-identically** |
 | **P2** TTL becomes emitted | 6–11 | The corpus becomes an emit target of the proposal log via `Spec.Emit.TtlEmit` | **The existing 55× `rfc_NNNN_ttl_diff_test` pass unchanged — same tests, inverted meaning, zero test deletion.** The strongest available proof the new write path is faithful |
 | **P3** Ladder + import | 9–13 | R0–R5 as graph state; import the existing corpus, assigning rungs from evidence | Every existing claim lands at its correct rung with **zero hand annotation**, and the rung histogram is published |
@@ -663,48 +664,74 @@ sequencing, not commitments.
 P0 is deliberately two weeks and mostly wiring: the mechanism layer is already
 written and verified, and the fastest way to lose it is to leave it un-gated.
 
-### 12.1 P0 was attempted and withdrawn — read this before retrying
+### 12.1 P0 is wired, but CI cannot tell you whether it works
 
-The bazel wiring for P0 was written and pushed three times, and failed CI three
-times. It is **not** in this change; the branch touches exactly one existing
-BUILD file (a one-line `exclude` in `//rdf:lint`, required so KgLint does not run
-`au:`-targeting queries over `rfc:`-only graphs).
+The wiring is present. It has **never been exercised**, and the reason is worth
+recording carefully because it cost four commits to establish.
 
-The reason is worth recording, because it is a process finding rather than a
-technical one: **the build log was unreadable from the authoring environment.**
-`app.fastverk.com/b/…` returns 403 to the available tooling and the check run's
-`output.text` is empty, so each iteration was a guess from source. One guess found
-a real bug (an empty `glob()` across a new package boundary — Bazel 7+ errors on
-empty globs, and `rdf/lint/authoring/BUILD.bazel` had silently made that directory
-a subpackage). The next two did not.
+**`fastverk/build` is red on `main`, and has been for a while.** The evidence:
 
-Everything the wiring was meant to gate **is verified by execution**, just not by
-bazel: the queries, the fixtures, their discrimination table, and the corpus all
-run under `rdflib` 7.6 + `pyshacl`, and that harness reproduces
-`docs/phase-0-materialization.md`'s numbers exactly over the shipped corpus, which
-is the cross-check that it agrees with the bazel gates.
+| head | `fastverk/build` |
+|---|---|
+| PR #16 (merged into `main`) | failure |
+| PR #17 (merged into `main`, = current `main`) | failure |
+| this branch, at a one-line BUILD change | failure |
 
-Whoever retries P0 should have a local bazel or a readable log first. The
-constructs that were never validated, in likelihood order:
+And the cause is documented in `main`'s own HEAD commit message (`9bac9d7`):
+
+> *NOT fully verified: `bazel build //...` does not pass on this host either
+> before or after this change — `//java/...` cannot fetch maven ("Unable to locate
+> a Java Runtime" from coursier) and `//graph/...` fails in svg2pdf under bun.
+> Both reproduce identically on unmodified origin/main, so they are pre-existing
+> and environmental.*
+
+So the check is a **constant, not a signal**. It says nothing about whether a
+change is sound, and cannot validate the P0 wiring either way.
+
+**What that cost.** Three commits chased that red as though the wiring had caused
+it — narrowing constructs, then withdrawing the wiring entirely — before checking
+whether `main` was red too. The build log at `app.fastverk.com` returns 403 to the
+authoring environment and the check run's `output.text` is empty, which removed
+the fastest path to the answer. But the merged-PR check history was available the
+whole time and would have settled it in one call. **Check whether the baseline is
+green before treating a red check as yours.**
+
+**What was genuinely found.** One real bug, and it justified the exercise: an
+empty `glob()` across a new package boundary. `rdf/lint/authoring/BUILD.bazel`
+makes that directory a subpackage; `glob()` does not match into a subpackage; so
+`glob(["lint/authoring/*.rq"])` in `//rdf` matched nothing — and an empty glob is a
+hard error under `--incompatible_disallow_empty_glob`, default-on since Bazel 7.
+That would have broken loading of `//rdf` for every consumer, locally as much as
+in CI. Fixed, with a comment at both sites naming the trap.
+
+**Still unvalidated**, for whoever has a working bazel:
 
 1. `spec_authoring_gates` forwarding `tags` into `sparql_query` / `sparql_query_test`.
-2. `sparql_query_test(query = "//other/package:x.rq")` — a query label from
-   another package.
-3. `rdf_dataset(srcs = [...], deps = [":vocab"])` where the dep is itself a vocab
-   dataset. The only precedent puts a vocab dataset in the deps of a *leaf corpus*
-   dataset.
-4. Whether Jena's SHACL engine agrees with `pyshacl` on the three new datasets.
-5. Whether a `manual`-tagged target is actually excluded from the target pattern CI
-   uses.
+2. `rdf_dataset` with two vocab TTLs in `srcs` — chosen over `deps = [":vocab"]`
+   precisely because dataset-on-dataset layering has no precedent in this repo.
+3. Whether Jena's SHACL engine agrees with `pyshacl` on the three new datasets.
+4. Whether `//corpus/ampere:{measure,coverage,frontier}` resolve their
+   `queries/*.rq` labels. That subdirectory has no `BUILD.bazel`, so it should be
+   the same package — untested.
 
-**Drop item 5 rather than fix it.** The withdrawn wiring included a deliberately
-red target (`ampere_undocumented_authoring_*`, the AMPERE corpus minus
-`conflicts.ttl`) to demonstrate that `envelope-unrecorded` has teeth. In a repo
-whose culture is "green gates or it isn't real", a permanently-failing target is
-the wrong shape for that demonstration. Express it as a positive assertion
-instead — a query over the conflicts-stripped dataset whose expected row count is
-2, in the style of `fixtures/expect-detections.rq`, which is zero-row when the
-gate is working.
+**One thing was dropped rather than fixed.** An earlier draft wired a permanently
+red target — the AMPERE corpus minus `conflicts.ttl`, whose `envelope_unrecorded`
+gate then fires with 2 rows — to demonstrate the gate has teeth. In a repo whose
+culture is "green gates or it isn't real", a target that always fails is an
+invitation to start ignoring CI, and it is doubly wrong when the surrounding check
+is already a constant red. The demonstration belongs as a **positive** assertion:
+a query over the conflicts-stripped dataset whose expected row count is 2, which
+is zero-row exactly when the gate works — the shape
+`fixtures/expect-detections.rq` already uses. `corpus/ampere/BUILD.bazel` carries
+the verified numbers in a comment meanwhile.
+
+**The independent verification path.** Everything the wiring would gate is
+verified by execution under `rdflib` 7.6 + `pyshacl`, and that harness reproduces
+`docs/phase-0-materialization.md`'s numbers exactly over the shipped corpus — 18
+documents, 38 claims, SHACL conformant, all four consistency invariants at zero.
+That agreement on known-good data is what licenses trusting it on the new data.
+Keeping a Python-only path working is worth a little effort on its own merits: it
+runs where a bazel is not provisioned, which is most agent sessions.
 
 ## 13. Open questions
 

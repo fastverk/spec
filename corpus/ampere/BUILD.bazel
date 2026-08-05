@@ -1,0 +1,102 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+
+package(default_visibility = ["//visibility:public"])
+
+# AMPERE — the RFC-002 §11 worked corpus. A 400 MWh / 100 MW grid-scale battery
+# plus an aggregated DER virtual power plant in two wholesale markets, across 12
+# disciplines: 14 documents, 15 sections, 64 normative statements, 20 typed
+# quantities, 12 scopes, 11 recorded conflicts.
+#
+#   bazel test  //corpus/ampere/...            # structural + authoring gates
+#   bazel build //corpus/ampere:measure        # the corpus counts
+#   bazel build //corpus/ampere:ampere_authoring_empty_envelope
+#   cat bazel-bin/corpus/ampere/ampere_authoring_empty_envelope.tsv
+#
+# CITATION POSTURE: every clause number, edition and value in this corpus is a
+# LEAD, not a fact — nothing was citation-verified, and no real market operator,
+# manufacturer, insurer or jurisdiction is named. See README.md. The corpus
+# exists to exercise mechanisms.
+
+# ── The full corpus ─────────────────────────────────────────────────────────
+# Note the dep is //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the
+# authoring gates key on au: terms and would pass vacuously without them.
+rdf_dataset(
+    name = "ampere",
+    srcs = [
+        "conflicts.ttl",
+        "corpus.ttl",
+        "disciplines.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# The pre-existing structural suite: SHACL conformance plus the four consistency
+# invariants. THE POINT OF RUNNING IT HERE is that it passes — the corpus is
+# clean under every check the spine had before RFC-002, and still contains two
+# empty feasible envelopes. modality-conflict.rq cannot see them because it
+# matches on byte-equal predicate text, and the colliding claims share no words,
+# no document, no discipline and no citation.
+spec_corpus_gates(
+    name = "ampere_gates",
+    dataset = ":ampere",
+)
+
+# The RFC-002 authoring suite: 3 zero-row gates + 4 reported measures.
+#
+# All three gates pass over the full corpus. That is not because the corpus is
+# free of conflict — it has 11, seven of them open — but because every conflict
+# is recorded, witnessed and owned. Which is exactly the property being gated.
+spec_authoring_gates(
+    name = "ampere_authoring",
+    dataset = ":ampere",
+)
+
+# ── The demonstration that envelope_unrecorded has teeth ────────────────────
+#
+# Deliberately NOT a target. The obvious construction — the same corpus without
+# conflicts.ttl, whose envelope_unrecorded gate then fires with 2 rows — would be
+# a permanently RED target, and in a repo whose culture is "green gates or it
+# isn't real" a target that always fails is an invitation to start ignoring CI.
+#
+# Express it as a POSITIVE assertion instead, in the style of
+# //rdf/lint/authoring/fixtures:expect_detections: a query over the
+# conflicts-stripped dataset whose expected row count is 2, which is zero-row
+# (green) exactly when the gate is working. Verified by hand meanwhile:
+#
+#   corpus minus conflicts.ttl -> envelope-unrecorded.rq = 2 rows
+#     q-sustained-discharge  MW  82.0 > 55.0  deficit 27.0
+#     q-telemetry-latency    ms 180.0 > 150.0 deficit 30.0
+#
+# ── Measures ────────────────────────────────────────────────────────────────
+
+# Corpus counts: documents, sections, claims, disciplines, quantities, bounds,
+# scopes, and the rung histogram that yields the dark fraction.
+sparql_query(
+    name = "measure",
+    dataset = ":ampere",
+    query = "queries/ampere-measure.rq",
+    out_format = "tsv",
+)
+
+# Per-discipline coverage: claim count, how many carry a typed quantity, how
+# many are non-defeasible, and the sub-R4 (dark) count.
+sparql_query(
+    name = "coverage",
+    dataset = ":ampere",
+    query = "queries/discipline-coverage.rq",
+    out_format = "tsv",
+)
+
+# The frontier: sub-R4 claims with the blocker each one names.
+sparql_query(
+    name = "frontier",
+    dataset = ":ampere",
+    query = "queries/frontier.rq",
+    out_format = "tsv",
+)
+
+exports_files(glob(["*.ttl"]))
