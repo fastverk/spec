@@ -21,8 +21,7 @@
 #                                            IS recorded by fx:conflict-envelope.
 #                                            That gate keys on whether an
 #                                            infeasibility was documented, not on
-#                                            whether one exists. Pinned by
-#                                            :conflict_fixture_envelope_recorded.
+#                                            whether one exists.
 #   conflict-hygiene-strict.rq       4 rows (unwitnessed, unowned, expired-waiver,
 #                                            unbounded-waiver)
 #   ladder-integrity.rq              4 rows (3 defect kinds; bad-unprovenanced

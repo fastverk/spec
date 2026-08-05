@@ -99,7 +99,7 @@ sit below the binding rung, each naming its blocker via `au:stalledOn`. That is
 the honest number an agent fleet must not build against, and the point of the
 ladder is that it is *countable* rather than invisible.
 
-**Per-discipline coverage** (`bazel build //corpus/ampere:coverage`):
+**Per-discipline coverage** (`queries/discipline-coverage.rq`):
 
 | Discipline | claims | typed | non-defeasible | dark |
 |---|---:|---:|---:|---:|
@@ -178,7 +178,8 @@ gate's job is to make them counted and owned.
 
 ## Running it
 
-Canonically via bazel (targets not yet wired — RFC-002 §12 P0). Without bazel:
+Not yet wired to bazel targets — see RFC-002 §12.1 for why that was withdrawn.
+The verified path is `rdflib` + `pyshacl`:
 
 ```sh
 pip install rdflib pyshacl

@@ -8,5 +8,4 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "aion-rfc.ttl",
     "shapes.ttl",
-    "authoring.ttl",
 ])

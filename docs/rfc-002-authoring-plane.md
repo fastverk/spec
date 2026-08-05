@@ -345,8 +345,8 @@ checks `provenBy`, and adding a TTL projection of `Tier` is filed in §13.
 
 ## 7. Gate set
 
-Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, wired by
-`//rdf:authoring_gates.bzl` and executed against a positive and a negative control
+Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, and executed
+against a positive and a negative control
 (`rdf/lint/authoring/fixtures/`, following the
 `grounding/AdversarialGateCheck.java` discipline).
 
@@ -362,9 +362,8 @@ Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, wired by
 
 † Correctly silent on *both* fixtures: the conflict fixture's empty envelope **is**
 recorded. Strip `conflicts.ttl` from the AMPERE corpus and it fires with 2 rows —
-which is the `//corpus/ampere:ampere_undocumented_authoring_*` target, tagged
-`manual` + `known-failing-by-design` so it can be run as the demonstration that
-the gate has teeth.
+that is the demonstration the gate has teeth, and §12.1 explains why it should be
+expressed as a positive assertion rather than as a deliberately-failing target.
 
 **Measures** — reported, never fail:
 
@@ -651,7 +650,7 @@ sequencing, not commitments.
 
 | Phase | Weeks | Deliverable | Gate |
 |---|---|---|---|
-| **P0** Wire what exists | 1–2 | `BUILD.bazel` targets for `rdf/ontology/authoring.ttl` + the five gates + both fixtures; the gate harness learns the authoring lint family | The positive/negative control table in §7 runs under `bazel test //ci:pr_gates`, not just under `rdflib` |
+| **P0** Wire what exists | 1–2 | `BUILD.bazel` targets for `rdf/ontology/authoring.ttl` + the gates + both fixtures; the gate harness learns the authoring lint family. **Attempted and withdrawn — see §12.1** | The §7 control table runs under `bazel test`, not just under `rdflib` |
 | **P1** Proposal + door | 3–8 | `lean/Spec/Authoring/{Proposal,Op,Door}.lean`; append-only proposal log; `spec propose` / `spec replay` CLI over `java/kg/edit`'s existing `WriteOps` | `spec replay <bootstrap-pid>` reproduces the committed corpus TTL **byte-identically** |
 | **P2** TTL becomes emitted | 6–11 | The corpus becomes an emit target of the proposal log via `Spec.Emit.TtlEmit` | **The existing 55× `rfc_NNNN_ttl_diff_test` pass unchanged — same tests, inverted meaning, zero test deletion.** The strongest available proof the new write path is faithful |
 | **P3** Ladder + import | 9–13 | R0–R5 as graph state; import the existing corpus, assigning rungs from evidence | Every existing claim lands at its correct rung with **zero hand annotation**, and the rung histogram is published |
@@ -663,6 +662,49 @@ sequencing, not commitments.
 
 P0 is deliberately two weeks and mostly wiring: the mechanism layer is already
 written and verified, and the fastest way to lose it is to leave it un-gated.
+
+### 12.1 P0 was attempted and withdrawn — read this before retrying
+
+The bazel wiring for P0 was written and pushed three times, and failed CI three
+times. It is **not** in this change; the branch touches exactly one existing
+BUILD file (a one-line `exclude` in `//rdf:lint`, required so KgLint does not run
+`au:`-targeting queries over `rfc:`-only graphs).
+
+The reason is worth recording, because it is a process finding rather than a
+technical one: **the build log was unreadable from the authoring environment.**
+`app.fastverk.com/b/…` returns 403 to the available tooling and the check run's
+`output.text` is empty, so each iteration was a guess from source. One guess found
+a real bug (an empty `glob()` across a new package boundary — Bazel 7+ errors on
+empty globs, and `rdf/lint/authoring/BUILD.bazel` had silently made that directory
+a subpackage). The next two did not.
+
+Everything the wiring was meant to gate **is verified by execution**, just not by
+bazel: the queries, the fixtures, their discrimination table, and the corpus all
+run under `rdflib` 7.6 + `pyshacl`, and that harness reproduces
+`docs/phase-0-materialization.md`'s numbers exactly over the shipped corpus, which
+is the cross-check that it agrees with the bazel gates.
+
+Whoever retries P0 should have a local bazel or a readable log first. The
+constructs that were never validated, in likelihood order:
+
+1. `spec_authoring_gates` forwarding `tags` into `sparql_query` / `sparql_query_test`.
+2. `sparql_query_test(query = "//other/package:x.rq")` — a query label from
+   another package.
+3. `rdf_dataset(srcs = [...], deps = [":vocab"])` where the dep is itself a vocab
+   dataset. The only precedent puts a vocab dataset in the deps of a *leaf corpus*
+   dataset.
+4. Whether Jena's SHACL engine agrees with `pyshacl` on the three new datasets.
+5. Whether a `manual`-tagged target is actually excluded from the target pattern CI
+   uses.
+
+**Drop item 5 rather than fix it.** The withdrawn wiring included a deliberately
+red target (`ampere_undocumented_authoring_*`, the AMPERE corpus minus
+`conflicts.ttl`) to demonstrate that `envelope-unrecorded` has teeth. In a repo
+whose culture is "green gates or it isn't real", a permanently-failing target is
+the wrong shape for that demonstration. Express it as a positive assertion
+instead — a query over the conflicts-stripped dataset whose expected row count is
+2, in the style of `fixtures/expect-detections.rq`, which is zero-row when the
+gate is working.
 
 ## 13. Open questions
 

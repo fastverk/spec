@@ -36,11 +36,10 @@ the fixture:
 † `envelope-unrecorded.rq` is correctly silent on **both** fixtures: the conflict
 fixture's empty envelope *is* recorded by an `au:Conflict`. It keys on whether an
 infeasibility was documented, not on whether one exists. Strip `conflicts.ttl`
-from the AMPERE corpus and it fires with 2 rows — see
-`//corpus/ampere:ampere_undocumented_authoring_envelope_unrecorded`, tagged
-`manual` + `known-failing-by-design`. `:conflict_fixture_envelope_recorded` pins
-this: if it ever fires, the gate has started failing on the empty envelope
-itself, which is the confusion the gate/measure split exists to prevent.
+from the AMPERE corpus and it fires with 2 rows — that is the demonstration it has
+teeth. If it ever fires on the conflict fixture, the gate has started failing on
+the empty envelope itself, which is the confusion the gate/measure split exists to
+prevent.
 
 Every gate is silent on the clean fixture, so none false-positives — but that
 direction alone is passed trivially by a gate that always returns zero. The
@@ -88,10 +87,10 @@ dropped the requirement.
 
 ## Running them without bazel
 
-The canonical path is bazel (`//rdf/lint/authoring:*`). These fixtures were
-developed and verified in a container with no bazel, using `rdflib` 7.6 and
-`pyshacl` directly — the same SPARQL, the same SHACL shapes. That path is worth
-keeping working, because agent sessions frequently have Python but not a
+These are not yet wired to bazel targets — RFC-002 §12.1 explains why that was
+withdrawn. They were developed and verified with `rdflib` 7.6 and `pyshacl`
+directly: the same SPARQL, the same SHACL shapes. That path is worth keeping
+working regardless, because agent sessions frequently have Python but not a
 provisioned bazel.
 
 ```sh
