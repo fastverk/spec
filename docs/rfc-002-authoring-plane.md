@@ -577,9 +577,39 @@ cross-border payments (multi-jurisdiction, but one discipline's vocabulary
 dominates). AMPERE wins on *cross-domain conflict density*, which is the property
 under test.
 
+### 11.1 The result that justifies the whole RFC
+
+The corpus as committed (`corpus/ampere/`, 2,077 triples) is **SHACL-conformant**
+and returns **zero rows from all nine pre-existing coherence gates** —
+contradiction, modality conflict, dangling references, dependency cycles,
+derivation cycles, term drift, diagnostic collisions, dead `dependsOn`, inverse
+edges. By every coherence check the spine had before this RFC, it is clean.
+(`grounding.rq` correctly reports 64/64 ungrounded — nothing is theorem-backed
+yet. That is the frontier, not a defect.)
+
+It nevertheless contains **two empty feasible envelopes**, found by the new
+`empty-envelope.rq`:
+
+```
+q-sustained-discharge   MW    82.0 > 55.0    deficit 27.0 MW   5 disciplines
+q-telemetry-latency     ms   180.0 > 150.0   deficit 30.0 ms   2 disciplines
+```
+
+`modality-conflict.rq` cannot see either, because it matches on **byte-equal
+predicate text** — and these claims share no words, no document, no discipline and
+no citation. The second envelope was **not planted as a headline**: the same
+aggregation found it on *time* rather than power, which is the evidence that the
+mechanism generalises rather than being tuned to one demo.
+
+That is the argument for the whole RFC in one measurement. The existing gate set is
+not weak; it is *structurally blind* to cross-domain infeasibility, and no amount
+of prose review closes that gap.
+
 **Citation posture, stated once and prominently:** the corpus is technically
 coherent and deliberately **not citation-verified**. Clause numbers are leads, not
-facts, and are marked. The corpus exists to exercise mechanisms.
+facts, and are marked `# UNVERIFIED-CITATION`. No real market operator,
+manufacturer, insurer or jurisdiction is named. The corpus exists to exercise
+mechanisms.
 
 ## 12. Phased roadmap
 

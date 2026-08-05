@@ -27,8 +27,8 @@ spans jurisdictions but one discipline's vocabulary dominates. AMPERE wins on
 
 ## The central result
 
-The corpus is **SHACL-conformant** and returns **zero rows from every gate the
-spine had before RFC-002**:
+The corpus is **SHACL-conformant** and returns **zero rows from every
+coherence gate the spine had before RFC-002**:
 
 | Pre-existing gate | Rows |
 |---|---:|
@@ -37,9 +37,18 @@ spine had before RFC-002**:
 | `dangling-references.rq` | 0 |
 | `circular-deps.rq` | 0 |
 | `inverse-edges.rq` | 0 |
+| `derivation-cycle.rq` | 0 |
+| `term-drift.rq` | 0 |
+| `diagnostic-collisions.rq` | 0 |
+| `dead-depends-on.rq` | 0 |
 | SHACL against `shapes.ttl` | conforms |
 
-By every check available before this RFC, it is clean.
+By every coherence check available before this RFC, it is clean.
+
+*(One pre-existing gate is non-zero and should be: `grounding.rq` reports **64** —
+every claim, because none carries a `rfc:provenBy` yet. That is the corpus's
+frontier, not a defect: nothing here is theorem-backed, and honestly reporting
+64/64 ungrounded is the correct answer for a freshly imported corpus.)*
 
 It nevertheless contains **two empty feasible envelopes**:
 
