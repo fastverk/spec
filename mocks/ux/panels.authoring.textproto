@@ -1,0 +1,248 @@
+# panels.authoring.textproto — the PROPOSED meridian PanelBundle for the spec
+# authoring plane (RFC-002 §8).
+#
+# A MOCK. Not built, not served. The shipped bundle is
+# services/spec/ui/panels.textproto (3 read-only table panels).
+#
+# ── The key decision this file encodes ──────────────────────────────────────
+#
+# Across the whole estate, exactly three panel kinds exist: `table`, `lro`, and
+# `adhoc` (botnoc/web/static/assets/main.js dispatches on body.case for those
+# three). There is NO form, action, mutation, or confirmation descriptor, and
+# `meridian_schemas` is an upstream bazel_dep (MODULE.bazel:158, v0.5.0) that
+# this repo does not own — botnoc mirrors v0.6.0, so there is already a skew we
+# cannot unilaterally resolve.
+#
+# So the authoring surfaces ship as `adhoc` handlers, which is how `chat`,
+# `fleet`, `agents_launch`, `agents_graph`, `configs_manager`, `tools_gallery`,
+# `image_explorer`, `workspaces_cards` and the MUTATING `access_keys` already
+# work. `access_keys` mints a scoped RBE token via POST — mutation through an
+# adhoc panel is established precedent in this estate, not a new hole.
+#
+# Only the two genuinely tabular surfaces stay declarative. That split is the
+# whole delivery argument: everything below ships without an upstream change.
+#
+# The handler ids are the contract with the browser: each needs a matching entry
+# in the shell's ADHOC_HANDLERS registry, and each reads spec's own web routes
+# (mocks/ux/wire/*.json shows their payloads).
+
+# ============================================================
+# ATLAS — the discipline lattice. Faceted drill-down with
+# conflict heat and dark fraction. There is never a useful flat
+# list of 8,000 claims across 12 disciplines, which is why this
+# is the default landing surface and not a table.
+# ============================================================
+panels {
+  panel_id: "atlas"
+  title: "Atlas"
+  adhoc { handler_id: "spec_atlas" }
+}
+
+# ============================================================
+# SCOPE — the same lattice keyed on scope rather than
+# discipline. Answers "what constrains the thermal subsystem?"
+# by pulling every obligation from every discipline that binds
+# that scope, in one aligned vocabulary. This is the query
+# nobody can answer today, and it is the reason the whole
+# authoring plane is worth building.
+# ============================================================
+panels {
+  panel_id: "scope"
+  title: "By scope"
+  adhoc { handler_id: "spec_scope" }
+}
+
+# ============================================================
+# CONFLICTS — the annunciator board. Faceted by discipline
+# pair, sorted by BLOCKED WORK ORDERS: a conflict matters in
+# proportion to how much construction it stops. That sort order
+# is the design's opinion about what matters.
+# ============================================================
+panels {
+  panel_id: "conflicts"
+  title: "Conflicts"
+  adhoc { handler_id: "spec_conflicts" }
+}
+
+# ============================================================
+# WITNESS — one conflict's evidence. Constraint bars on a
+# single quantity axis, the intersection, the deficit, and each
+# party's defeasibility status.
+#
+# DELIBERATELY HAS NO EDITING AFFORDANCES AT ALL. You cannot
+# fix a witness; you can only arbitrate the claims underneath
+# it. The four arbitration controls it does carry are proposal
+# composers that navigate away, not mutations applied in place.
+# ============================================================
+panels {
+  panel_id: "witness"
+  title: "Witness"
+  adhoc { handler_id: "spec_witness" }
+}
+
+# ============================================================
+# CLAIM — obligation normal form plus the R0-R5 ladder, each
+# rung showing the evidence that moved it and the gate that
+# holds it. A stall names its specific blocker.
+#
+# Term fields here are typeahead over the aligned glossary and
+# CANNOT accept free text: an unmatched term forces an explicit
+# bindTerm with a definition, or an alignTerm against an
+# existing concept. That refusal is where corpus reuse is
+# enforced rather than encouraged, and it is the single
+# highest-leverage constraint in the UI — most cross-domain
+# errors are homonym errors.
+# ============================================================
+panels {
+  panel_id: "claim"
+  title: "Claim"
+  adhoc { handler_id: "spec_claim" }
+}
+
+# ============================================================
+# PROPOSAL — the delta review. Ordered op rows with before/
+# after, per-op accept/reject/defer, the author's prose intent
+# alongside the formal ops, and for chat-authored proposals the
+# formalization attempts that were REJECTED along the way.
+#
+# Review is at OP granularity: accepting three of five ops
+# emits a derived proposal against the same parent. A form
+# models one record; this models a diff with per-row triage.
+#
+# The reviewer sees the same panel whether the proposal came
+# from a click, a chat turn, or an agent — Door.admit does not
+# take provenance as an argument.
+# ============================================================
+panels {
+  panel_id: "proposal"
+  title: "Proposals"
+  adhoc { handler_id: "spec_proposal" }
+}
+
+# ============================================================
+# FRONTIER — stalls ranked by how many binding claims depend on
+# them. Genuinely tabular, so it stays declarative: this is the
+# one authoring surface that needs no new descriptor vocabulary.
+# populate/rows_field/columns exactly as the shipped panels use
+# them.
+# ============================================================
+panels {
+  panel_id: "frontier"
+  title: "Frontier"
+  table {
+    populate {
+      service: "spec.v1.Authoring"
+      method: "ListStalls"
+    }
+    rows_field: "stalls"
+    item_noun: "stalls"
+    placeholder: "No open stalls — every claim is at or above the binding rung."
+    columns {
+      header: "Claim"
+      field_path: "claim_id"
+      pref_width: 30
+    }
+    columns {
+      header: "Discipline"
+      field_path: "discipline"
+      pref_width: 20
+    }
+    columns {
+      header: "Rung"
+      field_path: "rung"
+      pref_width: 6
+    }
+    columns {
+      header: "Blocked on"
+      field_path: "stalled_on"
+      pref_width: 52
+    }
+    columns {
+      header: "Dependents"
+      field_path: "dependent_count"
+      pref_width: 11
+    }
+    columns {
+      header: "Orders"
+      field_path: "blocked_orders"
+      pref_width: 8
+    }
+  }
+}
+
+# ============================================================
+# FANOUT — work orders with their obligation closure size, the
+# disciplines bound, and why they are held. Also tabular.
+#
+# The `state` column carries the dispatch gate's answer:
+# an order with a non-empty conflict_holds cannot dispatch, so
+# HELD is a computed state and not a human's label.
+# ============================================================
+panels {
+  panel_id: "fanout"
+  title: "Fanout"
+  table {
+    populate {
+      service: "spec.v1.Authoring"
+      method: "ListWorkOrders"
+    }
+    rows_field: "orders"
+    item_noun: "work orders"
+    placeholder: "No work orders derived."
+    columns {
+      header: "Order"
+      field_path: "order_id"
+      pref_width: 10
+    }
+    columns {
+      header: "Scope"
+      field_path: "scope"
+      pref_width: 32
+    }
+    columns {
+      header: "Obl."
+      field_path: "obligation_count"
+      pref_width: 6
+    }
+    columns {
+      header: "Disciplines bound"
+      field_path: "disciplines"
+      pref_width: 40
+    }
+    columns {
+      header: "Writes"
+      field_path: "write_capability"
+      pref_width: 20
+    }
+    columns {
+      header: "State"
+      field_path: "state"
+      pref_width: 22
+    }
+  }
+}
+
+# ============================================================
+# DRAFT BAR — the persistent staging area, with the open
+# proposal's op count and a continuously refreshed door-verdict
+# chip (green certificate / amber "declares N conflicts" / red
+# violation count).
+#
+# MERIDIAN-EXT: this is the one surface that is NOT a panel. It
+# is shell chrome that must persist across panel navigation, and
+# nothing in the current vocabulary expresses a persistent slot.
+# Shipping it means either a shell-level extension upstream, or
+# — for the mock — rendering it inside each adhoc handler, which
+# is duplicative but requires no upstream change.
+#
+# It is listed here rather than silently omitted because
+# composition spans screens and sessions: without a persistent
+# index users lose drafts, and the door only speaks at submit
+# time, which is the worst possible moment to learn you have
+# contradicted the safety discipline.
+# ============================================================
+panels {
+  panel_id: "draft"
+  title: "Draft"
+  adhoc { handler_id: "spec_draft_bar" }
+}
