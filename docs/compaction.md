@@ -4,10 +4,17 @@ The reverse-diffusion step is *predict then project*. The **corrector** `P` is t
 deterministic, machine-checkable projection that never raises the energy — the
 safe half of each crank. This is its first implementation over the materialized
 graph, built as the hybrid you chose: a **Lean-proven core** + **executable
-passes** over the live graph. (Rust passes were the original aspiration; since
-`rules_rust` isn't in the ecosystem and Lean + SPARQL/Jena are, the in-ecosystem
-hybrid is Lean-proven core + SPARQL passes, with Lean→Rust emission available
-later via the kernel's existing path.)
+passes** over the live graph: a Lean-proven core + SPARQL passes, with Lean→Rust
+emission available later via the kernel's existing path.
+
+> **Correction (2026-08-05).** This section previously said Rust passes were
+> deferred because "`rules_rust` isn't in the ecosystem." That is no longer true —
+> `MODULE.bazel` declares `bazel_dep(name = "rules_rust", version = "0.70.0")`
+> with a Rust 1.95.0 toolchain and an isolated `crate_universe`, and
+> `services/spec/` is a Rust binary. The SPARQL passes below remain the right
+> first cut on their own merits (they run where the data lives), but the hot-path
+> Rust option RFC-001 §5 wanted is available today and needs no new dependency.
+> See [RFC-002](./rfc-002-authoring-plane.md) §3.2.
 
 ## Lean-proven core — the corrector invariants
 
