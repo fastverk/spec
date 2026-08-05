@@ -36,11 +36,12 @@ the fixture:
 † `envelope-unrecorded.rq` is correctly silent on **both** fixtures: the conflict
 fixture's empty envelope *is* recorded by an `au:Conflict`. It keys on whether an
 infeasibility was documented, not on whether one exists. Strip `conflicts.ttl`
-from the AMPERE corpus and it fires with 2 rows — see
-`//corpus/ampere:ampere_undocumented_authoring_envelope_unrecorded`, tagged
-`manual` + `known-failing-by-design`. `:conflict_fixture_envelope_recorded` pins
-this: if it ever fires, the gate has started failing on the empty envelope
-itself, which is the confusion the gate/measure split exists to prevent.
+from the AMPERE corpus and it fires with 2 rows — that is the demonstration it has
+teeth, and `corpus/ampere/BUILD.bazel` carries the verified numbers in a comment
+(RFC-002 §12.1 explains why that is deliberately not a target: it would be
+permanently red). If this gate ever fires on the conflict fixture, it has started
+failing on the empty envelope itself, which is the confusion the gate/measure
+split exists to prevent.
 
 Every gate is silent on the clean fixture, so none false-positives — but that
 direction alone is passed trivially by a gate that always returns zero. The

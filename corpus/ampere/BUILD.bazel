@@ -8,7 +8,7 @@ package(default_visibility = ["//visibility:public"])
 # AMPERE — the RFC-002 §11 worked corpus. A 400 MWh / 100 MW grid-scale battery
 # plus an aggregated DER virtual power plant in two wholesale markets, across 12
 # disciplines: 14 documents, 15 sections, 64 normative statements, 20 typed
-# quantities, 12 scopes, 11 recorded conflicts.
+# quantities, 12 scopes, 12 recorded conflicts (5 adjudicated).
 #
 #   bazel test  //corpus/ampere/...            # structural + authoring gates
 #   bazel build //corpus/ampere:measure        # the corpus counts
@@ -48,7 +48,7 @@ spec_corpus_gates(
 # The RFC-002 authoring suite: 3 zero-row gates + 4 reported measures.
 #
 # All three gates pass over the full corpus. That is not because the corpus is
-# free of conflict — it has 11, seven of them open — but because every conflict
+# free of conflict — it has 12, seven of them open — but because every conflict
 # is recorded, witnessed and owned. Which is exactly the property being gated.
 spec_authoring_gates(
     name = "ampere_authoring",
