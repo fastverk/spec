@@ -24,17 +24,26 @@ spec_corpus_gates(
 # proposals, the formalization ladder, witnessed conflict, and the quantity /
 # scope typing that makes cross-domain incoherence machine-detectable.
 #
-# Deliberately a SEPARATE dataset layered on :vocab rather than an addition to
-# it — `authoring.ttl` is additive, but folding it into :vocab would enlarge the
-# graph for every existing consumer (Aion, mycelium) whose corpora do not use
-# it. Consumers that want it depend on this instead:
+# Deliberately a SEPARATE target from :vocab rather than an addition to it —
+# `authoring.ttl` is additive, but folding it into :vocab would enlarge the graph
+# for every existing consumer (Aion, mycelium) whose corpora do not use it.
+# Consumers that want it depend on this instead:
 #
 #   rdf_dataset(name = "corpus", srcs = [...], deps = ["@spec//rdf:authoring_vocab"])
+#
+# NOTE the shape: both TTLs are listed directly in `srcs`, exactly mirroring
+# :vocab above, rather than srcs=[authoring.ttl] + deps=[":vocab"]. Layering one
+# rdf_dataset on another via `deps` is untested in this repo — the only precedent
+# (//corpus:ratio_corpus) uses a vocab dataset as a dep of a LEAF corpus dataset,
+# never of another vocab dataset. This construction is provably identical to
+# :vocab, which is known to build. It costs one duplicated src label.
 rdf_dataset(
     name = "authoring_vocab",
-    srcs = ["//rdf/ontology:authoring.ttl"],
+    srcs = [
+        "//rdf/ontology:aion-rfc.ttl",
+        "//rdf/ontology:authoring.ttl",
+    ],
     in_format = "turtle",
-    deps = [":vocab"],
 )
 
 # Self-test for the authoring profile: it parses, conforms vacuously, and the
@@ -76,17 +85,11 @@ filegroup(
     ),
 )
 
-# The RFC-002 authoring/coherence gates + measures. Requires a corpus carrying
-# the au: vocabulary (deps = ["@spec//rdf:authoring_vocab"]).
-#
-# rdf/lint/authoring is its own package, so this CANNOT be a glob: glob() does
-# not match across a package boundary, the result would be empty, and an empty
-# glob is a hard error under Bazel 7's default --incompatible_disallow_empty_glob.
-# Same reason :queries above appends explicit labels for rdf/queries/consistency.
-filegroup(
-    name = "authoring_lint",
-    srcs = ["//rdf/lint/authoring:queries"],
-)
+# NOTE: there is deliberately no :authoring_lint filegroup here. The authoring
+# queries are consumed via //rdf:authoring_gates.bzl, which Label()-references
+# them individually, and via //rdf/lint/authoring:queries for anyone who wants
+# the set. A filegroup in THIS package would have to reach across the
+# rdf/lint/authoring package boundary for no consumer that exists today.
 
 # Jena inference rules (e.g. emits-from-text), run by @spec//java:reasoner.
 filegroup(
