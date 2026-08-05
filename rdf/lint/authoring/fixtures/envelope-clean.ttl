@@ -1,0 +1,159 @@
+# envelope-clean.ttl — NEGATIVE CONTROL for the RFC-002 authoring gates.
+#
+# The same four-discipline slice as envelope-conflict.ttl, but coherent: the
+# conflict has been genuinely adjudicated rather than papered over. Every gate
+# MUST return zero rows against this file. A gate that fires here is producing a
+# false positive; a gate that fires on neither file is decorative.
+#
+# What changed from the conflict fixture, and why each change is an honest fix
+# rather than a suppression:
+#
+#   * The capacity commitment was RE-OFFERED at 55 MW, not waived. The binding
+#     constraint was the warranty budget, so the tariff obligation was reduced to
+#     what the asset can actually deliver — the envelope is now [55, 55] and
+#     non-empty. This is what au:Narrow looks like applied to the real binding
+#     constraint instead of to whichever claim was most convenient.
+#   * The two state-of-charge quantities are asserted au:disjointQuantity, so the
+#     homonym is registered.
+#   * Every claim carries au:promotedBy, and the sub-R4 claim names its blocker.
+#   * The conflict carries a witness, an owner, and a resolution; the discipline
+#     that lacked a steward has one.
+#
+# Values are synthetic; this is a fixture, not a corpus.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:   <https://aion.savvi.io/ontology/authoring#> .
+@prefix fx:   <https://aion.savvi.io/fixture/envelope-clean#> .
+
+# -- disciplines (all stewarded) ----------------------------------------------
+
+fx:market-tariff a au:Discipline ; rdfs:label "market microstructure / tariff" ;
+    au:stewardedBy fx:principal-market .
+fx:thermal a au:Discipline ; rdfs:label "thermal / electrochemistry" ;
+    au:stewardedBy fx:principal-thermal .
+fx:fire-safety a au:Discipline ; rdfs:label "fire & life safety" ;
+    au:stewardedBy fx:principal-ahj .
+fx:warranty a au:Discipline ; rdfs:label "insurance / warranty" ;
+    au:stewardedBy fx:principal-asset-mgr .
+
+# -- quantities (homonym registered) ------------------------------------------
+
+fx:q-sustained-discharge a au:Quantity ;
+    rdfs:label "sustained discharge power at the point of interconnection" ;
+    au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint fx:node-poi ;
+    au:estimator "revenue-meter" ; au:timeBase "4h-sustained" .
+
+fx:node-poi a rfc:Term ; rdfs:label "point of interconnection" .
+
+fx:q-soc-bms a au:Quantity ;
+    rdfs:label "state of charge (BMS-reported)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:estimator "BMS" ; au:timeBase "instantaneous" ;
+    au:disjointQuantity fx:q-soc-telemetered .
+
+fx:q-soc-telemetered a au:Quantity ;
+    rdfs:label "state of charge (telemetered to ISO)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:estimator "ISO-telemetry" ; au:timeBase "instantaneous" .
+
+# -- scopes -------------------------------------------------------------------
+
+fx:scope-rto a au:Scope ;
+    au:jurisdiction "federal" ; au:issuingBody "RTO" ;
+    au:instrument "tariff" ; au:edition "2026-06" ;
+    au:effectiveFrom "2026-06-01"^^xsd:date .
+fx:scope-ahj a au:Scope ;
+    au:jurisdiction "county" ; au:issuingBody "AHJ" ;
+    au:instrument "acceptance-letter" ; au:edition "2026-03" ;
+    au:effectiveFrom "2026-04-01"^^xsd:date .
+fx:scope-oem a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "OEM" ;
+    au:instrument "warranty-agreement" ; au:edition "rev-D" ;
+    au:effectiveFrom "2025-11-01"^^xsd:date .
+
+# -- the four claims, now jointly satisfiable ---------------------------------
+# Envelope: lower 55.0, upper min(78, 70, 55) = 55.0.  55 <= 55 — non-empty.
+
+fx:cap-must-deliver a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "The resource MUST deliver at least its re-offered capacity obligation for four continuous hours when called." ;
+    au:discipline fx:market-tariff ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-rto ;
+    au:defeasible true ;
+    au:hasBound fx:b-cap ;
+    au:rung au:R4 ; au:promotedBy fx:p-002 ;
+    rfc:references fx:warranty-throughput .   # the re-offer knows what bound it
+
+fx:b-cap a au:Bound ; au:boundKind au:LowerBound ; au:boundValue 55.0 .
+
+fx:oem-derate a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Continuous discharge MUST NOT exceed the ambient-derated rating at 45 C." ;
+    au:discipline fx:thermal ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-oem ;
+    au:defeasible false ;
+    au:hasBound fx:b-derate ;
+    au:rung au:R4 ; au:promotedBy fx:p-002 ;
+    rfc:references fx:ahj-soc-cap , fx:warranty-throughput , fx:cap-must-deliver .
+
+fx:b-derate a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 78.0 ;
+    au:boundGuard "ambient_c >= 45" .
+
+fx:ahj-soc-cap a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "BMS-reported state of charge MUST NOT exceed 85 percent nor fall below 15 percent." ;
+    au:discipline fx:fire-safety ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-ahj ;
+    au:defeasible false ;
+    au:hasBound fx:b-soc ;
+    au:rung au:R4 ; au:promotedBy fx:p-002 ;
+    rfc:references fx:cap-must-deliver , fx:warranty-throughput .
+
+fx:b-soc a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 70.0 ;
+    au:boundGuard "ambient_c >= 40" .
+
+fx:warranty-throughput a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Cumulative annual throughput MUST NOT exceed the warranted budget for the contract year." ;
+    au:discipline fx:warranty ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-oem ;
+    au:defeasible true ;
+    au:hasBound fx:b-warranty ;
+    au:rung au:R4 ; au:promotedBy fx:p-002 ;
+    rfc:references fx:cap-must-deliver , fx:ahj-soc-cap .
+
+fx:b-warranty a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 55.0 .
+
+# -- a sub-R4 claim that names its blocker (legal, not a defect) ---------------
+
+fx:pending-efficiency a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "Round-trip efficiency MUST be recomputed after each firmware revision." ;
+    au:discipline fx:thermal ;
+    au:rung au:R2 ; au:promotedBy fx:p-002 ;
+    au:stalledOn "no model of firmware revision effects on the derate curve" .
+
+# -- the adjudicated conflict -------------------------------------------------
+# Retained, not deleted. The record of the decision is the point.
+
+fx:conflict-envelope a au:Conflict ;
+    au:conflictKind au:EmptyEnvelope ;
+    au:onQuantity fx:q-sustained-discharge ;
+    au:party fx:cap-must-deliver , fx:oem-derate , fx:ahj-soc-cap , fx:warranty-throughput ;
+    au:witness "prior offer of 82.0 MW exceeded the 55.0 MW warranty-budget ceiling; deficit was 27.0 MW" ;
+    au:detector "rdf/lint/authoring/empty-envelope.rq" ;
+    au:owner fx:principal-ahj ;
+    au:resolvedBy fx:res-reoffer .
+
+fx:res-reoffer a au:Resolution ;
+    au:outcome au:Narrow ;
+    au:decidedBy fx:principal-asset-mgr ;
+    au:decidedAt "2026-08-01T16:20:00Z"^^xsd:dateTime ;
+    au:rationale "Re-offered the capacity commitment at 55 MW for the remainder of the contract year. The fire-safety cap and the thermal derate are non-defeasible, and breaching the warranty would have voided cell coverage for a priced-but-larger exposure than the reduced capacity revenue. Reviewed with the AHJ; no waiver required, so no expiry applies." .

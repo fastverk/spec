@@ -1,0 +1,43 @@
+# ---
+# title: "Ladder integrity"
+# description: "A claim whose au:rung is not backed by the proposal that set it, which sits below the binding rung without naming what it is stalled on, or which claims kernel verification (rfc:provenBy) while still unformalized."
+# severity: error
+# tier: 3
+# rationale: "The Lean-side Spec.Corpus.Schema.Tier defaults to Structural and is self-declared, and it has NO TTL representation at all — so it is neither queryable nor drift-checkable, and rfc:provenBy is the authoritative TTL signal for 'kernel-verified' per the aion-rfc ontology. au:rung must not repeat that mistake. UNPROVENANCED-RUNG makes a rung meaningless unless the promoting proposal is recorded, which is what stops au:rung from becoming another field an author sets by typing it. UNNAMED-STALL catches a claim parked below R4 with no au:stalledOn: indistinguishable from one nobody looked at, unrankable on the frontier, and unassignable. PROVEN-BELOW-RUNG catches the inverse overclaim — rfc:provenBy asserted on a claim that has not been formalized to R4, i.e. a named theorem attached to something not yet typed. Note the deliberate asymmetry: R0 is raw captured text (the only rung an agent principal may write) and needs no provenance."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT DISTINCT ?claim ?rung ?defect ?detail
+WHERE {
+  {
+    # A rung above R0 with no promoting proposal was hand-set.
+    ?claim a rfc:NormativeStatement ; au:rung ?rung .
+    FILTER(?rung != au:R0)
+    FILTER NOT EXISTS { ?claim au:promotedBy ?p }
+    BIND("UNPROVENANCED-RUNG" AS ?defect)
+    BIND(CONCAT(STRAFTER(STR(?rung), "#"), " with no au:promotedBy") AS ?detail)
+  }
+  UNION
+  {
+    # Below the binding threshold and not saying why.
+    ?claim a rfc:NormativeStatement ; au:rung ?rung .
+    FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+    FILTER NOT EXISTS { ?claim au:stalledOn ?s }
+    FILTER NOT EXISTS { ?claim au:demotedBy ?d }
+    BIND("UNNAMED-STALL" AS ?defect)
+    BIND(CONCAT("below R4 at ", STRAFTER(STR(?rung), "#"),
+                " with no au:stalledOn — not rankable on the frontier") AS ?detail)
+  }
+  UNION
+  {
+    # Claims kernel verification while unformalized: a theorem name attached to
+    # something not yet typed into the Lean corpus schema.
+    ?claim a rfc:NormativeStatement ; au:rung ?rung ; rfc:provenBy ?thm .
+    FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+    BIND("PROVEN-BELOW-RUNG" AS ?defect)
+    BIND(CONCAT("rfc:provenBy \"", STR(?thm), "\" at ", STRAFTER(STR(?rung), "#"),
+                " — kernel verification claimed before R4 typing") AS ?detail)
+  }
+}
+ORDER BY ?defect ?claim

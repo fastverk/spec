@@ -1,0 +1,228 @@
+# envelope-conflict.ttl — POSITIVE CONTROL fixture for the RFC-002 authoring gates.
+#
+# A deliberately incoherent four-discipline slice, sized to make each gate fire
+# exactly once so the gates are demonstrably not decorative. This mirrors the
+# discipline of grounding/AdversarialGateCheck.java: a gate that has never been
+# shown to reject anything is an assertion, not a check.
+#
+# Modelled on the flagship cross-domain invariant of the AMPERE corpus: the
+# feasible sustained-discharge envelope for a 100 MW / 400 MWh battery on a hot
+# afternoon. Four instruments, four vocabularies, zero mutual citations.
+#
+#   market-tariff   MUST     deliver >= 82 MW for 4h   (capacity commitment)
+#   thermal         MUST_NOT exceed 78 MW              (OEM derate at 45 C)
+#   fire-safety     MUST_NOT exceed 70 MW              (SOC cap / 4h => 70 MW)
+#   warranty        MUST_NOT exceed 55 MW              (throughput budget)
+#
+#   => greatest lower bound 82 > least upper bound 55.  Deficit 27 MW. EMPTY.
+#
+# Verified gate results (executed; see fixtures/README.md):
+#   empty-envelope.rq                1 row  (deficit 27.0 MW, 4 disciplines)
+#   cross-discipline-coconstraint.rq 6 rows (all pairs across 4 disciplines)
+#   homonym-unregistered.rq          1 row  (soc-bms vs soc-telemetered, no disjoint)
+#   ladder-integrity.rq              4 rows (3 defect kinds; bad-unprovenanced
+#                                            carries two — no promotedBy AND no
+#                                            stalledOn — one row per defect)
+#   conflict-hygiene.rq              6 rows (5 defect kinds; conflict-unwitnessed
+#                                            carries three — unwitnessed, unowned,
+#                                            unresolved)
+#
+# Each gate returns 0 rows against fixtures/envelope-clean.ttl, so all five
+# discriminate rather than merely firing.
+#
+# NOTE: every numeric value here is synthetic and every citation is illustrative.
+# This is a gate fixture, not a corpus — see corpus/ampere/ for the corpus and
+# its own citation-confidence marking.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:   <https://aion.savvi.io/ontology/authoring#> .
+@prefix fx:   <https://aion.savvi.io/fixture/envelope#> .
+
+# -- disciplines --------------------------------------------------------------
+
+fx:market-tariff a au:Discipline ; rdfs:label "market microstructure / tariff" ;
+    au:stewardedBy fx:principal-market .
+fx:thermal a au:Discipline ; rdfs:label "thermal / electrochemistry" ;
+    au:stewardedBy fx:principal-thermal .
+fx:fire-safety a au:Discipline ; rdfs:label "fire & life safety" ;
+    au:stewardedBy fx:principal-ahj .
+fx:warranty a au:Discipline ; rdfs:label "insurance / warranty" .
+    # NOTE: deliberately no au:stewardedBy — exercises the UNOWNED path.
+
+# -- the contested quantity ---------------------------------------------------
+
+fx:q-sustained-discharge a au:Quantity ;
+    rdfs:label "sustained discharge power at the point of interconnection" ;
+    au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint fx:node-poi ;
+    au:estimator "revenue-meter" ;
+    au:timeBase "4h-sustained" .
+
+fx:node-poi a rfc:Term ; rdfs:label "point of interconnection" .
+
+# -- the homonym pair (positive control for homonym-unregistered.rq) ----------
+# Same unit, same dimension, different estimator. No au:disjointQuantity edge,
+# so a claim about one can be silently enforced against the other.
+
+fx:q-soc-bms a au:Quantity ;
+    rdfs:label "state of charge (BMS-reported)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:estimator "BMS" ; au:timeBase "instantaneous" .
+
+fx:q-soc-telemetered a au:Quantity ;
+    rdfs:label "state of charge (telemetered to ISO)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:estimator "ISO-telemetry" ; au:timeBase "instantaneous" .
+
+# -- scopes -------------------------------------------------------------------
+
+fx:scope-rto a au:Scope ;
+    au:jurisdiction "federal" ; au:issuingBody "RTO" ;
+    au:instrument "tariff" ; au:edition "2026-06" ;
+    au:effectiveFrom "2026-06-01"^^xsd:date .
+
+fx:scope-ahj a au:Scope ;
+    au:jurisdiction "county" ; au:issuingBody "AHJ" ;
+    au:instrument "acceptance-letter" ; au:edition "2026-03" ;
+    au:effectiveFrom "2026-04-01"^^xsd:date .
+
+fx:scope-oem a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "OEM" ;
+    au:instrument "warranty-agreement" ; au:edition "rev-D" ;
+    au:effectiveFrom "2025-11-01"^^xsd:date .
+
+# DELIBERATELY: no au:precedes edges at all. Nothing here outranks anything, so
+# the empty envelope cannot be resolved by derivation — only by an owned
+# decision. That is the intended behaviour, not a gap in the fixture.
+
+# -- the four claims ----------------------------------------------------------
+
+fx:cap-must-deliver a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "The resource MUST deliver at least its committed capacity obligation for four continuous hours when called." ;
+    rfc:rationale "Illustrative capacity-commitment tariff provision." ;
+    au:discipline fx:market-tariff ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-rto ;
+    au:defeasible true ;
+    au:hasBound fx:b-cap ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 .
+
+fx:b-cap a au:Bound ; au:boundKind au:LowerBound ; au:boundValue 82.0 .
+
+fx:oem-derate a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Continuous discharge MUST NOT exceed the ambient-derated rating at 45 C." ;
+    au:discipline fx:thermal ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-oem ;
+    au:defeasible false ;
+    au:hasBound fx:b-derate ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 .
+
+fx:b-derate a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 78.0 ;
+    au:boundGuard "ambient_c >= 45" .
+
+fx:ahj-soc-cap a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "BMS-reported state of charge MUST NOT exceed 85 percent nor fall below 15 percent." ;
+    au:discipline fx:fire-safety ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-ahj ;
+    au:defeasible false ;
+    au:hasBound fx:b-soc ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 .
+
+fx:b-soc a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 70.0 ;
+    au:boundGuard "ambient_c >= 40" .
+
+fx:warranty-throughput a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Cumulative annual throughput MUST NOT exceed the warranted budget for the contract year." ;
+    au:discipline fx:warranty ;
+    au:constrains fx:q-sustained-discharge ;
+    au:scopedBy fx:scope-oem ;
+    au:defeasible true ;
+    au:hasBound fx:b-warranty ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 .
+
+fx:b-warranty a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 55.0 .
+
+# -- ladder-integrity positive controls (one row per defect) -------------------
+
+# UNPROVENANCED-RUNG: a rung above R0 with no au:promotedBy — hand-set.
+fx:bad-unprovenanced a rfc:NormativeStatement ;
+    rfc:modality rfc:SHOULD ;
+    rfc:predicate "Telemetry SHOULD be reported at the interval the RTO specifies." ;
+    au:discipline fx:market-tariff ;
+    au:rung au:R3 .
+
+# UNNAMED-STALL: below R4, no au:stalledOn, no au:demotedBy.
+fx:bad-unnamed-stall a rfc:NormativeStatement ;
+    rfc:modality rfc:MAY ;
+    rfc:predicate "The operator MAY self-schedule outside the committed window." ;
+    au:discipline fx:market-tariff ;
+    au:rung au:R2 ; au:promotedBy fx:p-001 .
+
+# PROVEN-BELOW-RUNG: names a Lean theorem while still only R2 formalized. Note
+# this is the overclaim rfc:provenBy makes possible today: //grounding gates check
+# that the theorem RESOLVES and is sorry-free, not that the claim is far enough
+# along to have a theorem at all.
+fx:bad-proven-below-rung a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "Round-trip efficiency MUST be recomputed after each firmware revision." ;
+    au:discipline fx:thermal ;
+    rfc:provenBy "Spec.Grounding.WriteDoor.trades_compose_conserving" ;
+    au:rung au:R2 ; au:promotedBy fx:p-001 ; au:stalledOn "no model of firmware revision effects" .
+
+# -- the admitted conflict, plus conflict-hygiene positive controls ------------
+
+# The real one: fully hygienic except that it is unresolved (which is honest —
+# nobody has adjudicated it yet).
+fx:conflict-envelope a au:Conflict ;
+    au:conflictKind au:EmptyEnvelope ;
+    au:onQuantity fx:q-sustained-discharge ;
+    au:party fx:cap-must-deliver , fx:oem-derate , fx:ahj-soc-cap , fx:warranty-throughput ;
+    au:witness "greatest lower bound 82.0 MW > least upper bound 55.0 MW; deficit 27.0 MW over a 4h-sustained window" ;
+    au:detector "rdf/lint/authoring/empty-envelope.rq" ;
+    au:owner fx:principal-ahj ;
+    au:blocksWorkOrder "wo-041" , "wo-042" .
+
+# UNWITNESSED + UNOWNED + UNRESOLVED (crosses market-tariff x warranty).
+fx:conflict-unwitnessed a au:Conflict ;
+    au:conflictKind au:ModalityClash ;
+    au:party fx:cap-must-deliver , fx:warranty-throughput ;
+    au:detector "hand-authored" .
+
+# EXPIRED-WAIVER: a lapsed exemption is unresolved again.
+fx:conflict-lapsed a au:Conflict ;
+    au:conflictKind au:PrecedenceUndefined ;
+    au:party fx:oem-derate , fx:ahj-soc-cap ;
+    au:witness "scope-oem and scope-ahj both apply; au:precedes relates neither" ;
+    au:detector "hand-authored" ;
+    au:owner fx:principal-ahj ;
+    au:resolvedBy fx:res-lapsed .
+
+fx:res-lapsed a au:Resolution ;
+    au:outcome au:Exempt ;
+    au:decidedBy fx:principal-ahj ;
+    au:decidedAt "2026-01-15T10:00:00Z"^^xsd:dateTime ;
+    au:expires "2026-04-30"^^xsd:date ;
+    au:rationale "Interim waiver pending the revised hazard mitigation analysis." .
+
+# UNBOUNDED-WAIVER: an au:Exempt with no au:expires could only exist if the
+# write path was bypassed.
+fx:conflict-unbounded a au:Conflict ;
+    au:conflictKind au:Homonym ;
+    au:party fx:ahj-soc-cap , fx:bad-unprovenanced ;
+    au:witness "soc-bms and soc-telemetered not asserted disjoint" ;
+    au:detector "hand-authored" ;
+    au:owner fx:principal-market ;
+    au:resolvedBy fx:res-unbounded .
+
+fx:res-unbounded a au:Resolution ;
+    au:outcome au:Exempt ;
+    au:decidedBy fx:principal-market ;
+    au:rationale "Accepted indefinitely." .
