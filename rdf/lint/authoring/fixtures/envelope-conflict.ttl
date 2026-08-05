@@ -51,6 +51,22 @@
 @prefix au:   <https://aion.savvi.io/ontology/authoring#> .
 @prefix fx:   <https://aion.savvi.io/fixture/envelope#> .
 
+# -- principals and the bootstrap proposal ------------------------------------
+# Declared so that au:promotedBy / au:owner / au:decidedBy / au:stewardedBy all
+# resolve. An au:promotedBy pointing at a proposal that does not exist is exactly
+# the unprovenanced-rung defect ladder-integrity.rq exists to catch, so leaving
+# fx:p-001 undeclared would have made the fixture quietly self-contradictory.
+
+fx:p-001 a au:Proposal ;
+    au:proposalId "p:fixture-conflict-bootstrap" ;
+    au:surface au:Ingest ;
+    au:intent "Bootstrap import of the positive-control fixture." ;
+    au:verdict au:Admitted .
+
+fx:principal-market  a au:Principal ; rdfs:label "market operations" .
+fx:principal-thermal a au:Principal ; rdfs:label "battery engineering" .
+fx:principal-ahj     a au:Principal ; rdfs:label "authority having jurisdiction" .
+
 # -- disciplines --------------------------------------------------------------
 
 fx:market-tariff a au:Discipline ; rdfs:label "market microstructure / tariff" ;

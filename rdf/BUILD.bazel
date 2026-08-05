@@ -78,9 +78,14 @@ filegroup(
 
 # The RFC-002 authoring/coherence gates + measures. Requires a corpus carrying
 # the au: vocabulary (deps = ["@spec//rdf:authoring_vocab"]).
+#
+# rdf/lint/authoring is its own package, so this CANNOT be a glob: glob() does
+# not match across a package boundary, the result would be empty, and an empty
+# glob is a hard error under Bazel 7's default --incompatible_disallow_empty_glob.
+# Same reason :queries above appends explicit labels for rdf/queries/consistency.
 filegroup(
     name = "authoring_lint",
-    srcs = glob(["lint/authoring/*.rq"]),
+    srcs = ["//rdf/lint/authoring:queries"],
 )
 
 # Jena inference rules (e.g. emits-from-text), run by @spec//java:reasoner.

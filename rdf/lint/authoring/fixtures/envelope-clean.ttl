@@ -27,6 +27,22 @@
 @prefix au:   <https://aion.savvi.io/ontology/authoring#> .
 @prefix fx:   <https://aion.savvi.io/fixture/envelope-clean#> .
 
+# -- principals and the bootstrap proposal ------------------------------------
+# See the note in envelope-conflict.ttl: every au:promotedBy / au:owner /
+# au:decidedBy / au:stewardedBy target is declared, so the fixture does not
+# itself contain the unprovenanced-rung defect it is meant to control for.
+
+fx:p-002 a au:Proposal ;
+    au:proposalId "p:fixture-clean-bootstrap" ;
+    au:surface au:Ingest ;
+    au:intent "Bootstrap import of the negative-control fixture, post-adjudication." ;
+    au:verdict au:Admitted .
+
+fx:principal-market    a au:Principal ; rdfs:label "market operations" .
+fx:principal-thermal   a au:Principal ; rdfs:label "battery engineering" .
+fx:principal-ahj       a au:Principal ; rdfs:label "authority having jurisdiction" .
+fx:principal-asset-mgr a au:Principal ; rdfs:label "asset manager" .
+
 # -- disciplines (all stewarded) ----------------------------------------------
 
 fx:market-tariff a au:Discipline ; rdfs:label "market microstructure / tariff" ;

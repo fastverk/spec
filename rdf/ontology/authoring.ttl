@@ -359,6 +359,10 @@ au:parent a owl:ObjectProperty ; rdfs:domain au:Proposal ; rdfs:range au:Proposa
 au:authoredBy a owl:ObjectProperty ; rdfs:domain au:Proposal ;
     rdfs:label "authored by" .
 
+au:Principal a owl:Class ;
+    rdfs:label "Principal" ;
+    rdfs:comment "A party that can author, own, or decide: a human, a role, or an agent. Referenced by au:authoredBy / au:owner / au:decidedBy / au:stewardedBy. Declared as a class so those references resolve to a typed node rather than a bare IRI — an unowned conflict and a conflict owned by an undeclared principal are equally unactionable." .
+
 au:Surface a owl:Class ;
     rdfs:label "Authoring Surface" ;
     rdfs:comment "Recorded for audit, and NEVER read by the admission check. Provenance sits beside the ops, not inside the admitted input, so 'the composer is untrusted' is a structural property rather than a review convention." .
