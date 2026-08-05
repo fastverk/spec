@@ -1,0 +1,707 @@
+# corpus.ttl — the AMPERE seed graph: 14 documents across 12 disciplines.
+#
+# Companion to disciplines.ttl (registries) and conflicts.ttl (planted conflicts
+# + resolutions). Loaded together with rdf/ontology/aion-rfc.ttl and
+# rdf/ontology/authoring.ttl.
+#
+# CITATION POSTURE: see the banner in disciplines.ttl. Every clause number and
+# numeric value is a LEAD, not a fact. Provisions are illustrative
+# reconstructions attributed to real concerns, not verified quotations. Claims
+# naming a specific provision carry `# UNVERIFIED-CITATION`.
+#
+# Ladder note: most claims sit at au:R4 (binding for fanout) with an
+# au:promotedBy. A deliberate minority sit at R2/R3 with an au:stalledOn naming
+# the blocker — that is the corpus's DARK FRACTION, and it is honest: a real
+# corpus of this size is never fully formalized, and the value of the ladder is
+# that the unformalized part is countable rather than invisible.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:   <https://aion.savvi.io/ontology/authoring#> .
+@prefix amp:  <https://ampere.example/corpus#> .
+
+# The bootstrap proposal every imported claim is attributed to. A real import
+# would mint one proposal per source document; one is enough to satisfy
+# ladder-integrity and to make the point that nothing is unprovenanced.
+amp:p-import a au:Proposal ;
+    au:proposalId "p:ampere-bootstrap-import" ;
+    au:surface au:Ingest ;
+    au:intent "Bulk import of the AMPERE source corpus. Rungs assigned from evidence, not by hand." ;
+    au:verdict au:Admitted .
+
+# =============================================================================
+# RFC-1000 — Market Operator A tariff: storage resource participation
+# =============================================================================
+
+amp:RFC-1000 a rfc:Document ;
+    rfc:rfcId "RFC-1000" ; rfc:status "stable" ;
+    rfc:title "Market Operator A Tariff — Storage Resource Participation" ;
+    rfc:hasSection amp:RFC-1000-s1, amp:RFC-1000-s2 .
+
+amp:RFC-1000-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Resource model and offer parameters" ;
+    rfc:containsRule amp:mkt-a-soc-telemetry, amp:mkt-a-energy-limit-params,
+        amp:mkt-a-regulation-submode, amp:mkt-a-outage-reporting .
+
+amp:mkt-a-soc-telemetry a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "A storage resource MUST telemeter state of charge to the market operator at the prescribed scan rate." ;
+    rfc:rationale "Storage resource model, telemetry obligations." ;  # UNVERIFIED-CITATION
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:constrains amp:q-soc-telemetered ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-a-energy-limit-params a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "A storage resource MUST submit upper and lower energy-limit parameters consistent with its physical capability for each market interval." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-a-regulation-submode a rfc:NormativeStatement ; rfc:modality rfc:MAY ;
+    rfc:predicate "A storage resource MAY elect an energy-management sub-mode that restricts its offered range in exchange for relaxed state-of-charge management obligations." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-a-outage-reporting a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Derates and outages MUST be reported through the operator's outage system before the affected interval." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:RFC-1000-s2 a rfc:Section ; rfc:sectionNumber "2" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Dispatch and station power" ;
+    rfc:containsRule amp:mkt-a-follow-dispatch, amp:mkt-a-emergency-override,
+        amp:mkt-a-station-power-netting .
+
+amp:mkt-a-follow-dispatch a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "A dispatchable resource MUST follow the operator's active-power setpoint within the prescribed response window." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:constrains amp:q-setpoint ;
+    au:defeasible true ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-a-emergency-override a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "During a declared system emergency the resource MUST follow the operator's instruction without curtailment for local economic or contractual reasons." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:constrains amp:q-setpoint ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-02. As written this is unbounded, which is what collides with the non-defeasible fire-safety cap." .
+
+amp:mkt-a-station-power-netting a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Station auxiliary load MUST be netted against delivered energy at the metering point rather than settled separately." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-a ;
+    au:constrains amp:q-station-power ;
+    au:rung au:R3 ; au:promotedBy amp:p-import ;
+    au:stalledOn "netting convention not yet reconciled with the accounting standard's gross-versus-net presentation test" .
+
+# =============================================================================
+# RFC-1001 — Market Operator B tariff: capacity performance
+# =============================================================================
+
+amp:RFC-1001 a rfc:Document ;
+    rfc:rfcId "RFC-1001" ; rfc:status "stable" ;
+    rfc:title "Market Operator B Tariff — Capacity Performance Obligation" ;
+    rfc:hasSection amp:RFC-1001-s1 .
+
+amp:RFC-1001-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Committed capacity and performance assessment" ;
+    rfc:containsRule amp:mkt-b-must-deliver, amp:mkt-b-accreditation,
+        amp:mkt-b-nonperformance-charge, amp:mkt-b-four-hour-duration,
+        amp:mkt-b-must-offer .
+
+amp:mkt-b-must-deliver a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "During a performance-assessment interval the resource MUST deliver at least its committed capacity obligation of 82 MW for four continuous hours." ;
+    rfc:rationale "Capacity performance obligation; committed value is asset-specific." ;  # UNVERIFIED-CITATION
+    rfc:evidence "shall deliver its committed capacity during each performance assessment interval" ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-b ;
+    au:constrains amp:q-sustained-discharge ;
+    au:hasBound amp:b-mkt-b-deliver ;
+    au:defeasible true ;
+    au:defeatedBy amp:def-nonperformance ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-01 — the LOWER bound of the empty envelope." .
+
+amp:b-mkt-b-deliver a au:Bound ; au:boundKind au:LowerBound ; au:boundValue 82.0 ;
+    au:boundGuard "performance_assessment_interval" .
+
+amp:def-nonperformance a au:Defeater ;
+    au:trigger "non-delivery during a performance-assessment interval" ;
+    au:defeatsScope amp:s-market-b ;
+    rdfs:comment "A PRICED defeater: non-performance is charged per MWh of shortfall rather than prohibited. This is what makes the obligation au:BreachedButLiquidated rather than au:Breached, and it is the fact that decides INV-01." .
+
+amp:mkt-b-accreditation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Accredited capacity MUST be determined by the operator's accreditation model and MUST NOT be assumed equal to nameplate rating." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-b ;
+    au:constrains amp:q-cap-accredited ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-b-nonperformance-charge a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Shortfall against the committed obligation MUST be assessed a non-performance charge per MWh not delivered." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-b ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-b-four-hour-duration a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "A storage resource seeking a full capacity commitment MUST demonstrate four continuous hours of discharge at its committed level." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-b ;
+    au:constrains amp:q-sustained-discharge ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:mkt-b-must-offer a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "A committed resource MUST offer its full committed capacity into the day-ahead market in every eligible hour." ;
+    au:discipline amp:d-market ; au:scopedBy amp:s-market-b ;
+    au:defeasible true ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1002 — Mandatory reliability standards: cyber and control-centre
+# =============================================================================
+
+amp:RFC-1002 a rfc:Document ;
+    rfc:rfcId "RFC-1002" ; rfc:status "stable" ;
+    rfc:title "Mandatory Reliability Standards — Cyber Security and Control Centre Data Exchange" ;
+    rfc:hasSection amp:RFC-1002-s1 .
+
+amp:RFC-1002-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Requirements, measures, and evidence" ;
+    rfc:containsRule amp:cip-asset-inventory, amp:cip-electronic-perimeter,
+        amp:cip-patch-assessment, amp:cip-evidence-retention,
+        amp:cip-inspect-control-traffic, amp:cip-cert-rotation .
+
+amp:cip-asset-inventory a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The responsible entity MUST maintain a current inventory of cyber assets within the electronic security perimeter." ;
+    au:discipline amp:d-cyber ; au:scopedBy amp:s-federal-reliability ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:cip-electronic-perimeter a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "All external routable connectivity to control systems MUST traverse a defined electronic access point." ;
+    au:discipline amp:d-cyber ; au:scopedBy amp:s-federal-reliability ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:cip-inspect-control-traffic a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Inbound and outbound control traffic at the electronic access point MUST be subject to malicious-communications detection." ;
+    au:discipline amp:d-cyber ; au:scopedBy amp:s-federal-reliability ;
+    au:constrains amp:q-telemetry-latency ;
+    au:hasBound amp:b-cip-inspection ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-03. The inspection step adds latency to the control path; the standard says nothing about how much, because latency is not its concern." .
+
+amp:b-cip-inspection a au:Bound ; au:boundKind au:LowerBound ; au:boundValue 180.0 ;
+    au:boundGuard "deep-inspection enabled at the electronic access point" ;
+    rdfs:comment "Measured floor contributed by the inspection step, in ms. A LOWER bound on latency: enabling the control cannot make the path faster." .
+
+amp:cip-patch-assessment a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Security patches for applicable cyber assets MUST be assessed within the prescribed period of release." ;
+    au:discipline amp:d-cyber ; au:scopedBy amp:s-federal-reliability ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:cip-cert-rotation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Device certificates used for control-path authentication MUST be rotated before expiry without interrupting the reliability function." ;
+    au:discipline amp:d-cyber ; au:scopedBy amp:s-federal-reliability ;
+    au:rung au:R3 ; au:promotedBy amp:p-import ;
+    au:stalledOn "no model of the control path's behaviour during rotation; cannot be typed until the DER fleet control spec states its reconnect semantics" .
+
+amp:cip-evidence-retention a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Evidence of compliance MUST be retained for the audit period specified by the applicable measure." ;
+    au:discipline amp:d-cyber ; au:scopedBy amp:s-federal-reliability ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1003 — Interconnection agreement
+# =============================================================================
+
+amp:RFC-1003 a rfc:Document ;
+    rfc:rfcId "RFC-1003" ; rfc:status "stable" ;
+    rfc:title "Large Generator Interconnection Agreement" ;
+    rfc:hasSection amp:RFC-1003-s1 .
+
+amp:RFC-1003-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Delivery point, reactive capability, and protection" ;
+    rfc:containsRule amp:lgia-delivery-point, amp:lgia-reactive-capability,
+        amp:lgia-protection-settings, amp:lgia-max-injection .
+
+amp:lgia-delivery-point a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Energy MUST be delivered at the contractual delivery point on the high side of the main power transformer." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-lgia ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-16: this names the HIGH side, while the settlement protocol reads the revenue meter on the low side. One winding of losses, and neither document mentions the other." .
+
+amp:lgia-reactive-capability a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The facility MUST maintain reactive capability across the specified power-factor range at the point of interconnection." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-lgia ;
+    au:constrains amp:q-reactive-power ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:lgia-protection-settings a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Certified protection settings MUST NOT be altered without written approval of the transmission provider." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-lgia ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-11 against the OEM firmware-revision requirement." .
+
+amp:lgia-max-injection a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Net injection at the point of interconnection MUST NOT exceed 100 MW." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-lgia ;
+    au:constrains amp:q-sustained-discharge ;
+    au:hasBound amp:b-lgia-injection ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:b-lgia-injection a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 100.0 .
+
+# =============================================================================
+# RFC-1004 — DER interconnection and inverter standard
+# =============================================================================
+
+amp:RFC-1004 a rfc:Document ;
+    rfc:rfcId "RFC-1004" ; rfc:status "stable" ;
+    rfc:title "DER Interconnection and Inverter Performance Standard" ;
+    rfc:hasSection amp:RFC-1004-s1 .
+
+amp:RFC-1004-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Ride-through, anti-islanding, and control modes" ;
+    rfc:containsRule amp:der-ride-through, amp:der-anti-islanding,
+        amp:der-mode-exclusivity, amp:der-default-control-mode .
+
+amp:der-ride-through a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The inverter MUST ride through voltage and frequency excursions within the specified envelope rather than tripping." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-state-puc ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:der-anti-islanding a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The inverter MUST cease to energize the area network upon loss of the utility source." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-state-puc ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-14: 'cease to energize' and the microgrid island requirement in the control spec are both booleans about the same contactor." .
+
+amp:der-mode-exclusivity a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "A DER MUST NOT execute a retail-program control and a wholesale dispatch instruction for the same interval." ;
+    au:discipline amp:d-interconnection ; au:scopedBy amp:s-state-puc ;
+    au:constrains amp:q-setpoint ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-07 against the market tariff's follow-dispatch obligation." .
+
+amp:der-default-control-mode a rfc:NormativeStatement ; rfc:modality rfc:SHOULD ;
+    rfc:predicate "The default control mode SHOULD remain in effect whenever no higher-priority schedule or event is active." ;
+    au:discipline amp:d-software ; au:scopedBy amp:s-state-puc ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1005 — Hazard mitigation acceptance (the AHJ letter)
+# =============================================================================
+
+amp:RFC-1005 a rfc:Document ;
+    rfc:rfcId "RFC-1005" ; rfc:status "stable" ;
+    rfc:title "Hazard Mitigation Analysis Acceptance — County Authority Having Jurisdiction" ;
+    rfc:hasSection amp:RFC-1005-s1 .
+
+amp:RFC-1005-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Accepted conditions" ;
+    rfc:containsRule amp:ahj-soc-cap, amp:ahj-soc-floor, amp:ahj-cell-temp-limit,
+        amp:ahj-no-override, amp:ahj-deflagration-venting .
+
+amp:ahj-soc-cap a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "BMS-reported state of charge MUST NOT exceed 85 percent when ambient temperature is at or above 40 degrees Celsius." ;
+    rfc:rationale "Condition of the accepted hazard mitigation analysis." ;  # UNVERIFIED-CITATION
+    rfc:evidence "acceptance is conditioned on the state-of-charge limits stated in the analysis as submitted" ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:constrains amp:q-soc-bms ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-01 and INV-02. Non-defeasible: no market emergency defeats an AHJ acceptance condition." .
+
+amp:ahj-soc-floor a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "BMS-reported state of charge MUST NOT fall below 15 percent, reserving energy for thermal management and emergency response." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:constrains amp:q-soc-bms ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# The derived consequence: an 85/15 window over 400 MWh leaves 280 MWh usable,
+# which over a four-hour sustained window is 70 MW. NOTE this claim exists only
+# because someone did the arithmetic — no source document states it, and that is
+# precisely the kind of claim an authoring plane must make first-class.
+amp:ahj-derived-sustained-cap a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Sustained discharge over a four-hour window MUST NOT exceed 70 MW, being the usable energy admitted by the 85/15 percent state-of-charge window divided by four hours." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:constrains amp:q-sustained-discharge ;
+    au:hasBound amp:b-ahj-sustained ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rfc:references amp:ahj-soc-cap , amp:ahj-soc-floor ;
+    rdfs:comment "Party to INV-01. Derived, not quoted — the conversion from an energy window to a power bound needs au:viaModel to be auditable, which is filed as a stall on the round-trip efficiency model." .
+
+amp:b-ahj-sustained a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 70.0 ;
+    au:boundGuard "ambient_c >= 40" .
+
+amp:ahj-cell-temp-limit a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Maximum cell temperature MUST NOT exceed the limit established in the accepted analysis." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:constrains amp:q-cell-temp ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:ahj-no-override a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "The accepted state-of-charge and temperature conditions MUST NOT be overridden by any operational, economic, or grid-emergency instruction." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "The claim that makes INV-02 a genuine conflict rather than a precedence question: it explicitly forecloses the market tariff's emergency override." .
+
+amp:ahj-deflagration-venting a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Each enclosure MUST provide deflagration venting sized per the accepted analysis." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1006 — Fire code: enclosure separation and siting
+# =============================================================================
+
+amp:RFC-1006 a rfc:Document ;
+    rfc:rfcId "RFC-1006" ; rfc:status "stable" ;
+    rfc:title "Fire Code — Energy Storage System Installation Requirements" ;
+    rfc:hasSection amp:RFC-1006-s1 .
+
+amp:RFC-1006-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Separation and grouping" ;
+    rfc:containsRule amp:fire-enclosure-separation, amp:fire-group-energy-cap,
+        amp:fire-access-pathway .
+
+amp:fire-enclosure-separation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Enclosures MUST be separated by the minimum distance established by the applicable large-scale fire test, or by a listed barrier." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-05 against the permit's noise limit: separation pushes enclosures outward toward the property line where the noise limit is measured." .
+
+amp:fire-group-energy-cap a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "The stored energy of a single group MUST NOT exceed the applicable maximum without additional protection measures." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:fire-access-pathway a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "An access pathway MUST be maintained to each enclosure for emergency response." ;
+    au:discipline amp:d-firesafety ; au:scopedBy amp:s-county-ahj ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1007 — OEM warranty agreement
+# =============================================================================
+
+amp:RFC-1007 a rfc:Document ;
+    rfc:rfcId "RFC-1007" ; rfc:status "stable" ;
+    rfc:title "Equipment Manufacturer Warranty Agreement" ;
+    rfc:hasSection amp:RFC-1007-s1 .
+
+amp:RFC-1007-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Operating envelope and throughput budget" ;
+    rfc:containsRule amp:warranty-throughput-budget, amp:warranty-derate-curve,
+        amp:warranty-firmware-current, amp:warranty-cycle-definition,
+        amp:warranty-sustained-cap .
+
+amp:warranty-throughput-budget a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Cumulative annual energy throughput MUST NOT exceed the warranted budget for the contract year, on pain of voiding cell coverage." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-oem-warranty ;
+    au:constrains amp:q-throughput-annual ;
+    au:defeasible true ;
+    au:defeatedBy amp:def-warranty-ld ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:def-warranty-ld a au:Defeater ;
+    au:trigger "throughput exceeded with notice to the manufacturer" ;
+    au:defeatsScope amp:s-oem-warranty ;
+    rdfs:comment "Breach is priced: coverage lapses for the affected cells rather than the agreement terminating. au:BreachedButLiquidated." .
+
+# The binding consequence for the four-hour window. Like the AHJ derived cap,
+# this is arithmetic nobody wrote down: 80% of the budget consumed at 61% of the
+# contract year leaves throughput for about 1.6 equivalent full cycles per week,
+# which over a four-hour window caps sustained discharge at 55 MW.
+amp:warranty-sustained-cap a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Given 80 percent of the annual throughput budget consumed at 61 percent of the contract year, sustained discharge over a four-hour window MUST NOT exceed 55 MW for the remainder of the year." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-oem-warranty ;
+    au:constrains amp:q-sustained-discharge ;
+    au:hasBound amp:b-warranty-sustained ;
+    au:defeasible true ;
+    au:defeatedBy amp:def-warranty-ld ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rfc:references amp:warranty-throughput-budget ;
+    rdfs:comment "Party to INV-01 — the BINDING upper bound at 55 MW, and the one that makes the envelope empty." .
+
+amp:b-warranty-sustained a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 55.0 ;
+    au:boundGuard "throughput_budget_consumed >= 0.80" .
+
+amp:warranty-derate-curve a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Continuous discharge MUST NOT exceed 78 MW when ambient temperature is at or above 45 degrees Celsius, per the ambient derate curve." ;
+    au:discipline amp:d-electrochem ; au:scopedBy amp:s-oem-warranty ;
+    au:constrains amp:q-sustained-discharge ;
+    au:hasBound amp:b-oem-derate ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-01. Non-defeasible in practice: the protective function trips regardless of what any agreement says." .
+
+amp:b-oem-derate a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 78.0 ;
+    au:boundGuard "ambient_c >= 45" .
+
+amp:warranty-firmware-current a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The battery management system MUST run the manufacturer's current released firmware revision to maintain warranty coverage." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-oem-warranty ;
+    au:defeasible true ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-11: a firmware revision changes protective-function behaviour, which the interconnection agreement forbids altering without written approval. Neither instrument's scope outranks the other." .
+
+amp:warranty-cycle-definition a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Cycle counting for warranty purposes MUST use the equivalent-full-cycle definition, being throughput divided by nameplate energy." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-oem-warranty ;
+    au:constrains amp:q-cycle-efc ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1008 — Insurance binder
+# =============================================================================
+
+amp:RFC-1008 a rfc:Document ;
+    rfc:rfcId "RFC-1008" ; rfc:status "stable" ;
+    rfc:title "Property Insurance Binder — Conditions of Coverage" ;
+    rfc:hasSection amp:RFC-1008-s1 .
+
+amp:RFC-1008-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Conditions and warranties" ;
+    rfc:containsRule amp:ins-soc-concurrence, amp:ins-hma-compliance,
+        amp:ins-notice-of-derate .
+
+amp:ins-soc-concurrence a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "State of charge MUST NOT exceed the limit accepted in the hazard mitigation analysis; exceedance is a breach of a policy condition." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-insurance ;
+    au:constrains amp:q-soc-bms ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rfc:references amp:ahj-soc-cap ;
+    rdfs:comment "The insurer mirrors the AHJ condition — one of the few places in this corpus where two disciplines DO cite each other, which is why it is not a conflict." .
+
+amp:ins-hma-compliance a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The insured MUST operate in compliance with the accepted hazard mitigation analysis as a condition of coverage." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-insurance ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:ins-notice-of-derate a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The insured MUST notify the insurer of any sustained derate attributable to thermal or degradation causes." ;
+    au:discipline amp:d-warranty ; au:scopedBy amp:s-insurance ;
+    au:rung au:R2 ; au:promotedBy amp:p-import ;
+    au:stalledOn "\"sustained\" is unquantified in the binder; no bound can be typed until the insurer confirms a duration threshold" .
+
+# =============================================================================
+# RFC-1009 — Conditional use permit
+# =============================================================================
+
+amp:RFC-1009 a rfc:Document ;
+    rfc:rfcId "RFC-1009" ; rfc:status "stable" ;
+    rfc:title "Conditional Use Permit — Site Conditions" ;
+    rfc:hasSection amp:RFC-1009-s1 .
+
+amp:RFC-1009-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Noise, setback, and capacity conditions" ;
+    rfc:containsRule amp:permit-noise-limit, amp:permit-setback,
+        amp:permit-capacity-cap, amp:permit-local-procurement .
+
+amp:permit-noise-limit a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Sound pressure level at the nearest property line MUST NOT exceed 45 dBA as a one-hour average during night hours." ;
+    au:discipline amp:d-permitting ; au:scopedBy amp:s-county-permit ;
+    au:constrains amp:q-noise ;
+    au:hasBound amp:b-permit-noise ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-05: thermal management runs HVAC harder exactly when the fire-code separation has already pushed enclosures toward the property line." .
+
+amp:b-permit-noise a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 45.0 ;
+    au:boundGuard "night_hours" .
+
+amp:permit-setback a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Equipment MUST be set back from the property line by the distance stated in the permit condition." ;
+    au:discipline amp:d-permitting ; au:scopedBy amp:s-county-permit ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:permit-capacity-cap a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Permitted capacity MUST NOT exceed 100 MW at the point of interconnection." ;
+    au:discipline amp:d-permitting ; au:scopedBy amp:s-county-permit ;
+    au:constrains amp:q-cap-permitted ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:permit-local-procurement a rfc:NormativeStatement ; rfc:modality rfc:SHOULD ;
+    rfc:predicate "The applicant SHOULD give preference to local suppliers and labour where commercially reasonable." ;
+    au:discipline amp:d-permitting ; au:scopedBy amp:s-county-permit ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-13 against the tax credit's domestic-content condition: 'local' and 'domestic' are different predicates over the same procurement decision, and the permit's is only a SHOULD." .
+
+# =============================================================================
+# RFC-1010 — Investment credit qualification
+# =============================================================================
+
+amp:RFC-1010 a rfc:Document ;
+    rfc:rfcId "RFC-1010" ; rfc:status "stable" ;
+    rfc:title "Investment Credit Qualification — Domestic Content and Placed in Service" ;
+    rfc:hasSection amp:RFC-1010-s1 .
+
+amp:RFC-1010-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Conditions of the enhanced credit" ;
+    rfc:containsRule amp:tax-domestic-content, amp:tax-placed-in-service,
+        amp:tax-recapture-period, amp:tax-cost-substantiation .
+
+amp:tax-domestic-content a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "To qualify for the domestic-content bonus, domestic content MUST be at least the applicable percentage of eligible project cost." ;
+    rfc:rationale "Domestic content bonus condition; applicable percentage is year-dependent." ;  # UNVERIFIED-CITATION
+    au:discipline amp:d-taxfinance ; au:scopedBy amp:s-tax-code ;
+    au:constrains amp:q-domestic-content ;
+    au:hasBound amp:b-tax-domestic ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-13. The claim an agent could not satisfy in the fanout mock: it MUST cite procurement records that are outside its scope, and no claim in the corpus states who supplies them." .
+
+amp:b-tax-domestic a au:Bound ; au:boundKind au:LowerBound ; au:boundValue 45.0 .
+
+amp:tax-placed-in-service a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The facility MUST be placed in service in the taxable year for which the credit is claimed." ;
+    au:discipline amp:d-taxfinance ; au:scopedBy amp:s-tax-code ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-12: 'placed in service' for tax and the accounting standard's commencement test are different predicates over the same date, and they can fall in different periods." .
+
+amp:tax-recapture-period a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "The facility MUST NOT be disposed of or cease to be qualifying property during the recapture period." ;
+    au:discipline amp:d-taxfinance ; au:scopedBy amp:s-tax-code ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:tax-cost-substantiation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Claimed eligible cost MUST be substantiated by supplier certifications and procurement records." ;
+    au:discipline amp:d-taxfinance ; au:scopedBy amp:s-tax-code ;
+    au:rung au:R3 ; au:promotedBy amp:p-import ;
+    au:stalledOn "no claim in the corpus states which party is obligated to produce supplier certifications; the obligation has no subject" .
+
+# =============================================================================
+# RFC-1011 — Accounting standard
+# =============================================================================
+
+amp:RFC-1011 a rfc:Document ;
+    rfc:rfcId "RFC-1011" ; rfc:status "stable" ;
+    rfc:title "Accounting Standard — Revenue Recognition and Lease Classification" ;
+    rfc:hasSection amp:RFC-1011-s1 .
+
+amp:RFC-1011-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Performance obligations and commencement" ;
+    rfc:containsRule amp:acct-performance-obligation, amp:acct-commencement,
+        amp:acct-gross-vs-net, amp:acct-capacity-revenue .
+
+amp:acct-performance-obligation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Distinct performance obligations in the offtake agreement MUST be identified and the transaction price allocated among them." ;
+    au:discipline amp:d-accounting ; au:scopedBy amp:s-accounting ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:acct-commencement a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The commencement date MUST be the date the asset is made available for use by the counterparty." ;
+    au:discipline amp:d-accounting ; au:scopedBy amp:s-accounting ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-12 against the tax placed-in-service condition." .
+
+amp:acct-gross-vs-net a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Amounts collected on behalf of another party MUST be presented net rather than gross." ;
+    au:discipline amp:d-accounting ; au:scopedBy amp:s-accounting ;
+    au:constrains amp:q-station-power ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-10 against the tariff's station-power netting rule: the tariff nets at the meter, and whether that makes station power a cost or a revenue reduction is not the tariff's question." .
+
+amp:acct-capacity-revenue a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Capacity revenue MUST be recognized as the stand-ready obligation is satisfied over the delivery year." ;
+    au:discipline amp:d-accounting ; au:scopedBy amp:s-accounting ;
+    au:constrains amp:q-cap-contracted ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1012 — Metering and settlement protocol
+# =============================================================================
+
+amp:RFC-1012 a rfc:Document ;
+    rfc:rfcId "RFC-1012" ; rfc:status "stable" ;
+    rfc:title "Metering and Settlement Protocol" ;
+    rfc:hasSection amp:RFC-1012-s1 .
+
+amp:RFC-1012-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Measurement point, accuracy, and reconciliation" ;
+    rfc:containsRule amp:settle-metering-point, amp:settle-accuracy-class,
+        amp:settle-loss-compensation, amp:settle-telemetry-reconciliation .
+
+amp:settle-metering-point a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Settlement quantities MUST be read at the revenue metering point on the low side of the main power transformer." ;
+    au:discipline amp:d-settlement ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-16 against the interconnection agreement's high-side delivery point. The disagreement is exactly one node on the single-line graph, and is computable only because the nodes are explicit." .
+
+amp:settle-accuracy-class a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Revenue metering MUST meet the accuracy class specified for wholesale settlement." ;
+    au:discipline amp:d-settlement ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+amp:settle-loss-compensation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Metered quantities MUST be loss-compensated to the contractual delivery point using the stated transformer loss factor." ;
+    au:discipline amp:d-settlement ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "The bridge INV-16 needs: a named model licensing the conversion between two measurement points. Whether the stated factor matches the interconnection agreement's is the open question." .
+
+amp:settle-telemetry-reconciliation a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Interval metered energy MUST be reconciled against control-path telemetry, with metered values governing on disagreement." ;
+    au:discipline amp:d-settlement ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
+
+# =============================================================================
+# RFC-1013 — Plant control and DER fleet specification (internal)
+# =============================================================================
+
+amp:RFC-1013 a rfc:Document ;
+    rfc:rfcId "RFC-1013" ; rfc:status "draft" ;
+    rfc:title "Plant Control and DER Fleet Specification" ;
+    rfc:hasSection amp:RFC-1013-s1 .
+
+amp:RFC-1013-s1 a rfc:Section ; rfc:sectionNumber "1" ; rfc:sectionKind rfc:Normative ;
+    rfc:title "Control path, mode arbitration, and islanding" ;
+    rfc:containsRule amp:ctl-agc-latency, amp:ctl-mode-arbitration,
+        amp:ctl-island-support, amp:ctl-setpoint-clamp, amp:ctl-derate-publication .
+
+amp:ctl-agc-latency a rfc:NormativeStatement ; rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Control-signal round-trip latency MUST NOT exceed 150 milliseconds, so that the four-second regulation obligation is met with margin." ;
+    au:discipline amp:d-protection ; au:scopedBy amp:s-lgia ;
+    au:constrains amp:q-telemetry-latency ;
+    au:hasBound amp:b-ctl-latency ;
+    au:defeasible false ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-03. Against the cyber inspection floor of 180 ms this is a second empty envelope, on time rather than power." .
+
+amp:b-ctl-latency a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 150.0 .
+
+amp:ctl-mode-arbitration a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The plant controller MUST arbitrate between wholesale dispatch and retail-program signals by a documented, deterministic priority." ;
+    au:discipline amp:d-software ; au:scopedBy amp:s-state-puc ;
+    au:constrains amp:q-setpoint ;
+    au:rung au:R3 ; au:promotedBy amp:p-import ;
+    au:stalledOn "the priority is not documented anywhere; it currently exists only as code in the controller, which is INV-07's real state" .
+
+amp:ctl-island-support a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The plant MUST be capable of supporting an intentional island for the site's critical loads on loss of the utility source." ;
+    au:discipline amp:d-software ; au:scopedBy amp:s-offtake ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "Party to INV-14: this and the anti-islanding requirement are contradictory booleans about the same contactor unless the island's electrical boundary is stated, which no document does." .
+
+amp:ctl-setpoint-clamp a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "The controller MUST clamp any received setpoint to the intersection of all active operating limits before acting on it." ;
+    au:discipline amp:d-software ; au:scopedBy amp:s-lgia ;
+    au:constrains amp:q-setpoint ;
+    au:rung au:R4 ; au:promotedBy amp:p-import ;
+    rdfs:comment "The one claim in the corpus that ASSERTS the feasible envelope must be computed. It is why INV-01 is not merely a paperwork conflict: with an empty intersection the clamp has no value to choose, so this claim is unsatisfiable as written." .
+
+amp:ctl-derate-publication a rfc:NormativeStatement ; rfc:modality rfc:MUST ;
+    rfc:predicate "Any active derate MUST be published to the market operator's outage system and to the asset manager within the reporting window." ;
+    au:discipline amp:d-software ; au:scopedBy amp:s-market-a ;
+    au:rung au:R4 ; au:promotedBy amp:p-import .
