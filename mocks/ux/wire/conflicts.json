@@ -1,0 +1,125 @@
+{
+  "conflicts": [
+    {
+      "id": "INV-01",
+      "kind": "EmptyEnvelope",
+      "disciplines": "market microstructure & tariff x insurance, warranty & O&M x fire & life safety x electrochemistry & thermal x power-systems interconnection x software & DER fleet control",
+      "party_count": 6,
+      "blocked_orders": 3,
+      "owner": "p-asset-mgr",
+      "state": "resolved",
+      "outcome": "Narrow"
+    },
+    {
+      "id": "INV-02",
+      "kind": "ModalityClash",
+      "disciplines": "market microstructure & tariff x fire & life safety",
+      "party_count": 3,
+      "blocked_orders": 1,
+      "owner": "p-ahj",
+      "state": "resolved",
+      "outcome": "Narrow"
+    },
+    {
+      "id": "INV-03",
+      "kind": "EmptyEnvelope",
+      "disciplines": "cybersecurity & reliability compliance x protection & controls",
+      "party_count": 2,
+      "blocked_orders": 1,
+      "owner": "p-ciso",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-07",
+      "kind": "ModalityClash",
+      "disciplines": "market microstructure & tariff x power-systems interconnection x software & DER fleet control",
+      "party_count": 3,
+      "blocked_orders": 1,
+      "owner": "p-controls-sw",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-11",
+      "kind": "PrecedenceUndefined",
+      "disciplines": "insurance, warranty & O&M x power-systems interconnection",
+      "party_count": 2,
+      "blocked_orders": 1,
+      "owner": "p-interconnection-eng",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-13",
+      "kind": "PrecedenceUndefined",
+      "disciplines": "tax & project finance x environmental permitting & land use",
+      "party_count": 2,
+      "blocked_orders": 1,
+      "owner": "p-tax-counsel",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-05",
+      "kind": "EmptyEnvelope",
+      "disciplines": "fire & life safety x environmental permitting & land use",
+      "party_count": 3,
+      "blocked_orders": 0,
+      "owner": "p-permit-mgr",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-10",
+      "kind": "ModalityClash",
+      "disciplines": "market microstructure & tariff x accounting & revenue recognition",
+      "party_count": 2,
+      "blocked_orders": 0,
+      "owner": "p-controller",
+      "state": "resolved",
+      "outcome": "Refute"
+    },
+    {
+      "id": "INV-12",
+      "kind": "Homonym",
+      "disciplines": "tax & project finance x accounting & revenue recognition",
+      "party_count": 2,
+      "blocked_orders": 0,
+      "owner": "p-tax-counsel",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-14",
+      "kind": "ModalityClash",
+      "disciplines": "power-systems interconnection x software & DER fleet control",
+      "party_count": 2,
+      "blocked_orders": 0,
+      "owner": "p-interconnection-eng",
+      "state": "open",
+      "outcome": ""
+    },
+    {
+      "id": "INV-16",
+      "kind": "TopologyDisagreement",
+      "disciplines": "power-systems interconnection x metering & settlement",
+      "party_count": 3,
+      "blocked_orders": 0,
+      "owner": "p-settlement-analyst",
+      "state": "resolved",
+      "outcome": "Narrow"
+    },
+    {
+      "id": "INV-19",
+      "kind": "Homonym",
+      "disciplines": "market microstructure & tariff x environmental permitting & land use x accounting & revenue recognition",
+      "party_count": 3,
+      "blocked_orders": 0,
+      "owner": "p-market-ops",
+      "state": "resolved",
+      "outcome": "Narrow"
+    }
+  ],
+  "unreachable_repos": []
+}

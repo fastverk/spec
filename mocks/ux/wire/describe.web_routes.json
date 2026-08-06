@@ -1,0 +1,40 @@
+{
+  "web_routes": [
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListConflicts",
+      "http_method": "GET",
+      "path": "conflicts"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListEnvelopes",
+      "http_method": "GET",
+      "path": "envelopes"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListStalls",
+      "http_method": "GET",
+      "path": "frontier"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListDisciplines",
+      "http_method": "GET",
+      "path": "disciplines"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListClaims",
+      "http_method": "GET",
+      "path": "claims"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "GetConflictWitness",
+      "http_method": "GET",
+      "path": "witness"
+    }
+  ]
+}

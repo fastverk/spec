@@ -1,0 +1,645 @@
+{
+  "claims": [
+    {
+      "claim_id": "acct-capacity-revenue",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-cap-contracted",
+      "instrument": "accounting-standard",
+      "defeasible": "",
+      "predicate": "Capacity revenue MUST be recognized as the stand-ready obligation is satisfied over the delivery year."
+    },
+    {
+      "claim_id": "acct-commencement",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "accounting-standard",
+      "defeasible": "",
+      "predicate": "The commencement date MUST be the date the asset is made available for use by the counterparty."
+    },
+    {
+      "claim_id": "acct-gross-vs-net",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-station-power",
+      "instrument": "accounting-standard",
+      "defeasible": "",
+      "predicate": "Amounts collected on behalf of another party MUST be presented net rather than gross."
+    },
+    {
+      "claim_id": "acct-performance-obligation",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "accounting-standard",
+      "defeasible": "",
+      "predicate": "Distinct performance obligations in the offtake agreement MUST be identified and the transaction price allocated among them."
+    },
+    {
+      "claim_id": "cip-asset-inventory",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "mandatory-reliability-standard",
+      "defeasible": "false",
+      "predicate": "The responsible entity MUST maintain a current inventory of cyber assets within the electronic security perimeter."
+    },
+    {
+      "claim_id": "cip-cert-rotation",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "rung": "R3",
+      "quantity": "",
+      "instrument": "mandatory-reliability-standard",
+      "defeasible": "",
+      "predicate": "Device certificates used for control-path authentication MUST be rotated before expiry without interrupting the reliability function."
+    },
+    {
+      "claim_id": "cip-electronic-perimeter",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "mandatory-reliability-standard",
+      "defeasible": "false",
+      "predicate": "All external routable connectivity to control systems MUST traverse a defined electronic access point."
+    },
+    {
+      "claim_id": "cip-evidence-retention",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "mandatory-reliability-standard",
+      "defeasible": "",
+      "predicate": "Evidence of compliance MUST be retained for the audit period specified by the applicable measure."
+    },
+    {
+      "claim_id": "cip-inspect-control-traffic",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-telemetry-latency",
+      "instrument": "mandatory-reliability-standard",
+      "defeasible": "false",
+      "predicate": "Inbound and outbound control traffic at the electronic access point MUST be subject to malicious-communications detection."
+    },
+    {
+      "claim_id": "cip-patch-assessment",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "mandatory-reliability-standard",
+      "defeasible": "",
+      "predicate": "Security patches for applicable cyber assets MUST be assessed within the prescribed period of release."
+    },
+    {
+      "claim_id": "warranty-derate-curve",
+      "discipline": "electrochemistry & thermal",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "warranty-agreement",
+      "defeasible": "false",
+      "predicate": "Continuous discharge MUST NOT exceed 78 MW when ambient temperature is at or above 45 degrees Celsius, per the ambient derate curve."
+    },
+    {
+      "claim_id": "permit-capacity-cap",
+      "discipline": "environmental permitting & land use",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-cap-permitted",
+      "instrument": "conditional-use-permit",
+      "defeasible": "",
+      "predicate": "Permitted capacity MUST NOT exceed 100 MW at the point of interconnection."
+    },
+    {
+      "claim_id": "permit-local-procurement",
+      "discipline": "environmental permitting & land use",
+      "modality": "SHOULD",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "conditional-use-permit",
+      "defeasible": "",
+      "predicate": "The applicant SHOULD give preference to local suppliers and labour where commercially reasonable."
+    },
+    {
+      "claim_id": "permit-noise-limit",
+      "discipline": "environmental permitting & land use",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-noise",
+      "instrument": "conditional-use-permit",
+      "defeasible": "false",
+      "predicate": "Sound pressure level at the nearest property line MUST NOT exceed 45 dBA as a one-hour average during night hours."
+    },
+    {
+      "claim_id": "permit-setback",
+      "discipline": "environmental permitting & land use",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "conditional-use-permit",
+      "defeasible": "false",
+      "predicate": "Equipment MUST be set back from the property line by the distance stated in the permit condition."
+    },
+    {
+      "claim_id": "ahj-cell-temp-limit",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-cell-temp",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "false",
+      "predicate": "Maximum cell temperature MUST NOT exceed the limit established in the accepted analysis."
+    },
+    {
+      "claim_id": "ahj-deflagration-venting",
+      "discipline": "fire & life safety",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "",
+      "predicate": "Each enclosure MUST provide deflagration venting sized per the accepted analysis."
+    },
+    {
+      "claim_id": "ahj-derived-sustained-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "false",
+      "predicate": "Sustained discharge over a four-hour window MUST NOT exceed 70 MW, being the usable energy admitted by the 85/15 percent state-of-charge window divided by four hours."
+    },
+    {
+      "claim_id": "ahj-no-override",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "false",
+      "predicate": "The accepted state-of-charge and temperature conditions MUST NOT be overridden by any operational, economic, or grid-emergency instruction."
+    },
+    {
+      "claim_id": "ahj-soc-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-soc-bms",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "false",
+      "predicate": "BMS-reported state of charge MUST NOT exceed 85 percent when ambient temperature is at or above 40 degrees Celsius."
+    },
+    {
+      "claim_id": "ahj-soc-floor",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-soc-bms",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "false",
+      "predicate": "BMS-reported state of charge MUST NOT fall below 15 percent, reserving energy for thermal management and emergency response."
+    },
+    {
+      "claim_id": "fire-access-pathway",
+      "discipline": "fire & life safety",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "",
+      "predicate": "An access pathway MUST be maintained to each enclosure for emergency response."
+    },
+    {
+      "claim_id": "fire-enclosure-separation",
+      "discipline": "fire & life safety",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "false",
+      "predicate": "Enclosures MUST be separated by the minimum distance established by the applicable large-scale fire test, or by a listed barrier."
+    },
+    {
+      "claim_id": "fire-group-energy-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "hazard-mitigation-acceptance",
+      "defeasible": "",
+      "predicate": "The stored energy of a single group MUST NOT exceed the applicable maximum without additional protection measures."
+    },
+    {
+      "claim_id": "ins-hma-compliance",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "property-binder",
+      "defeasible": "",
+      "predicate": "The insured MUST operate in compliance with the accepted hazard mitigation analysis as a condition of coverage."
+    },
+    {
+      "claim_id": "ins-notice-of-derate",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST",
+      "rung": "R2",
+      "quantity": "",
+      "instrument": "property-binder",
+      "defeasible": "",
+      "predicate": "The insured MUST notify the insurer of any sustained derate attributable to thermal or degradation causes."
+    },
+    {
+      "claim_id": "ins-soc-concurrence",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-soc-bms",
+      "instrument": "property-binder",
+      "defeasible": "false",
+      "predicate": "State of charge MUST NOT exceed the limit accepted in the hazard mitigation analysis; exceedance is a breach of a policy condition."
+    },
+    {
+      "claim_id": "warranty-cycle-definition",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-cycle-efc",
+      "instrument": "warranty-agreement",
+      "defeasible": "",
+      "predicate": "Cycle counting for warranty purposes MUST use the equivalent-full-cycle definition, being throughput divided by nameplate energy."
+    },
+    {
+      "claim_id": "warranty-firmware-current",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "warranty-agreement",
+      "defeasible": "true",
+      "predicate": "The battery management system MUST run the manufacturer's current released firmware revision to maintain warranty coverage."
+    },
+    {
+      "claim_id": "warranty-sustained-cap",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "warranty-agreement",
+      "defeasible": "true",
+      "predicate": "Given 80 percent of the annual throughput budget consumed at 61 percent of the contract year, sustained discharge over a four-hour window MUST NOT exceed 55 MW for the remainder of the year."
+    },
+    {
+      "claim_id": "warranty-throughput-budget",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-throughput-annual",
+      "instrument": "warranty-agreement",
+      "defeasible": "true",
+      "predicate": "Cumulative annual energy throughput MUST NOT exceed the warranted budget for the contract year, on pain of voiding cell coverage."
+    },
+    {
+      "claim_id": "mkt-a-emergency-override",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-setpoint",
+      "instrument": "tariff",
+      "defeasible": "false",
+      "predicate": "During a declared system emergency the resource MUST follow the operator's instruction without curtailment for local economic or contractual reasons."
+    },
+    {
+      "claim_id": "mkt-a-energy-limit-params",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "false",
+      "predicate": "A storage resource MUST submit upper and lower energy-limit parameters consistent with its physical capability for each market interval."
+    },
+    {
+      "claim_id": "mkt-a-follow-dispatch",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-setpoint",
+      "instrument": "tariff",
+      "defeasible": "true",
+      "predicate": "A dispatchable resource MUST follow the operator's active-power setpoint within the prescribed response window."
+    },
+    {
+      "claim_id": "mkt-a-outage-reporting",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Derates and outages MUST be reported through the operator's outage system before the affected interval."
+    },
+    {
+      "claim_id": "mkt-a-regulation-submode",
+      "discipline": "market microstructure & tariff",
+      "modality": "MAY",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "A storage resource MAY elect an energy-management sub-mode that restricts its offered range in exchange for relaxed state-of-charge management obligations."
+    },
+    {
+      "claim_id": "mkt-a-soc-telemetry",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-soc-telemetered",
+      "instrument": "tariff",
+      "defeasible": "false",
+      "predicate": "A storage resource MUST telemeter state of charge to the market operator at the prescribed scan rate."
+    },
+    {
+      "claim_id": "mkt-a-station-power-netting",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R3",
+      "quantity": "q-station-power",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Station auxiliary load MUST be netted against delivered energy at the metering point rather than settled separately."
+    },
+    {
+      "claim_id": "mkt-b-accreditation",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-cap-accredited",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Accredited capacity MUST be determined by the operator's accreditation model and MUST NOT be assumed equal to nameplate rating."
+    },
+    {
+      "claim_id": "mkt-b-four-hour-duration",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "A storage resource seeking a full capacity commitment MUST demonstrate four continuous hours of discharge at its committed level."
+    },
+    {
+      "claim_id": "mkt-b-must-deliver",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "tariff",
+      "defeasible": "true",
+      "predicate": "During a performance-assessment interval the resource MUST deliver at least its committed capacity obligation of 82 MW for four continuous hours."
+    },
+    {
+      "claim_id": "mkt-b-must-offer",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "true",
+      "predicate": "A committed resource MUST offer its full committed capacity into the day-ahead market in every eligible hour."
+    },
+    {
+      "claim_id": "mkt-b-nonperformance-charge",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Shortfall against the committed obligation MUST be assessed a non-performance charge per MWh not delivered."
+    },
+    {
+      "claim_id": "settle-accuracy-class",
+      "discipline": "metering & settlement",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Revenue metering MUST meet the accuracy class specified for wholesale settlement."
+    },
+    {
+      "claim_id": "settle-loss-compensation",
+      "discipline": "metering & settlement",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Metered quantities MUST be loss-compensated to the contractual delivery point using the stated transformer loss factor."
+    },
+    {
+      "claim_id": "settle-metering-point",
+      "discipline": "metering & settlement",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Settlement quantities MUST be read at the revenue metering point on the low side of the main power transformer."
+    },
+    {
+      "claim_id": "settle-telemetry-reconciliation",
+      "discipline": "metering & settlement",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Interval metered energy MUST be reconciled against control-path telemetry, with metered values governing on disagreement."
+    },
+    {
+      "claim_id": "der-anti-islanding",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "interconnection-rule",
+      "defeasible": "false",
+      "predicate": "The inverter MUST cease to energize the area network upon loss of the utility source."
+    },
+    {
+      "claim_id": "der-mode-exclusivity",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-setpoint",
+      "instrument": "interconnection-rule",
+      "defeasible": "false",
+      "predicate": "A DER MUST NOT execute a retail-program control and a wholesale dispatch instruction for the same interval."
+    },
+    {
+      "claim_id": "der-ride-through",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "interconnection-rule",
+      "defeasible": "false",
+      "predicate": "The inverter MUST ride through voltage and frequency excursions within the specified envelope rather than tripping."
+    },
+    {
+      "claim_id": "lgia-delivery-point",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "interconnection-agreement",
+      "defeasible": "",
+      "predicate": "Energy MUST be delivered at the contractual delivery point on the high side of the main power transformer."
+    },
+    {
+      "claim_id": "lgia-max-injection",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "interconnection-agreement",
+      "defeasible": "false",
+      "predicate": "Net injection at the point of interconnection MUST NOT exceed 100 MW."
+    },
+    {
+      "claim_id": "lgia-protection-settings",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "interconnection-agreement",
+      "defeasible": "false",
+      "predicate": "Certified protection settings MUST NOT be altered without written approval of the transmission provider."
+    },
+    {
+      "claim_id": "lgia-reactive-capability",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-reactive-power",
+      "instrument": "interconnection-agreement",
+      "defeasible": "",
+      "predicate": "The facility MUST maintain reactive capability across the specified power-factor range at the point of interconnection."
+    },
+    {
+      "claim_id": "ctl-agc-latency",
+      "discipline": "protection & controls",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-telemetry-latency",
+      "instrument": "interconnection-agreement",
+      "defeasible": "false",
+      "predicate": "Control-signal round-trip latency MUST NOT exceed 150 milliseconds, so that the four-second regulation obligation is met with margin."
+    },
+    {
+      "claim_id": "ctl-derate-publication",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "tariff",
+      "defeasible": "",
+      "predicate": "Any active derate MUST be published to the market operator's outage system and to the asset manager within the reporting window."
+    },
+    {
+      "claim_id": "ctl-island-support",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "capacity-and-energy-agreement",
+      "defeasible": "",
+      "predicate": "The plant MUST be capable of supporting an intentional island for the site's critical loads on loss of the utility source."
+    },
+    {
+      "claim_id": "ctl-mode-arbitration",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "rung": "R3",
+      "quantity": "q-setpoint",
+      "instrument": "interconnection-rule",
+      "defeasible": "",
+      "predicate": "The plant controller MUST arbitrate between wholesale dispatch and retail-program signals by a documented, deterministic priority."
+    },
+    {
+      "claim_id": "ctl-setpoint-clamp",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-setpoint",
+      "instrument": "interconnection-agreement",
+      "defeasible": "",
+      "predicate": "The controller MUST clamp any received setpoint to the intersection of all active operating limits before acting on it."
+    },
+    {
+      "claim_id": "der-default-control-mode",
+      "discipline": "software & DER fleet control",
+      "modality": "SHOULD",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "interconnection-rule",
+      "defeasible": "",
+      "predicate": "The default control mode SHOULD remain in effect whenever no higher-priority schedule or event is active."
+    },
+    {
+      "claim_id": "tax-cost-substantiation",
+      "discipline": "tax & project finance",
+      "modality": "MUST",
+      "rung": "R3",
+      "quantity": "",
+      "instrument": "statute-and-regulation",
+      "defeasible": "",
+      "predicate": "Claimed eligible cost MUST be substantiated by supplier certifications and procurement records."
+    },
+    {
+      "claim_id": "tax-domestic-content",
+      "discipline": "tax & project finance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-domestic-content",
+      "instrument": "statute-and-regulation",
+      "defeasible": "false",
+      "predicate": "To qualify for the domestic-content bonus, domestic content MUST be at least the applicable percentage of eligible project cost."
+    },
+    {
+      "claim_id": "tax-placed-in-service",
+      "discipline": "tax & project finance",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "statute-and-regulation",
+      "defeasible": "",
+      "predicate": "The facility MUST be placed in service in the taxable year for which the credit is claimed."
+    },
+    {
+      "claim_id": "tax-recapture-period",
+      "discipline": "tax & project finance",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "statute-and-regulation",
+      "defeasible": "",
+      "predicate": "The facility MUST NOT be disposed of or cease to be qualifying property during the recapture period."
+    }
+  ],
+  "unreachable_repos": []
+}

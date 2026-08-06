@@ -12,7 +12,9 @@ actually run on.
 | Artifact | What it shows |
 |---|---|
 | **[Interactive console mock](https://claude.ai/code/artifact/2483c84d-86f3-4ec9-b195-071c203d0206)** | Seven walkable screens: conflict board, the INV-01 witness with the empty envelope, the discipline atlas with dark fraction, a claim with its R0–R5 ladder, per-op proposal review, the chat grounding loop, and the fanout board |
-| [`panels.authoring.textproto`](./panels.authoring.textproto) | The proposed meridian `PanelBundle` — 8 adhoc handlers + 2 declarative tables, with the delivery argument in the header comment |
+| [`panels.readmodel.textproto`](./panels.readmodel.textproto) | **Stage 1 — shippable.** Six declarative `table` panels needing *no* shell change. See [RFC-002a](../../docs/rfc-002a-browser-authoring-path.md) |
+| [`wire/`](./wire/) | **Real payloads**, generated from `corpus/ampere` by `tools/readmodel/emit_readmodel.py` — 12 conflicts, 2 envelopes, 5 stalls, 12 disciplines, 64 claims, 33 witness parties, plus the `/describe` `web_routes` fragment |
+| [`panels.authoring.textproto`](./panels.authoring.textproto) | **Stage 3 — aspirational.** 8 adhoc handlers + 2 tables; needs a botnoc `ADHOC_HANDLERS` entry |
 | [`chat/01-ground-new-intent.md`](./chat/01-ground-new-intent.md) | A market-ops engineer authors a fire-safety claim. Includes a gate failure, the model refusing to adjudicate, and the split proposal routed to the fire marshal |
 | [`chat/02-conflict-adjudication.md`](./chat/02-conflict-adjudication.md) | INV-01 adjudicated — **and the model being wrong about INV-10 and refuted by the expert** |
 | [`chat/03-agent-fanout.md`](./chat/03-agent-fanout.md) | Fanout over the coherent slice, an agent's good failure, and the replay guarantee |

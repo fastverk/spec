@@ -1,0 +1,335 @@
+{
+  "parties": [
+    {
+      "conflict_id": "INV-01",
+      "claim_id": "ctl-setpoint-clamp",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-01",
+      "claim_id": "warranty-sustained-cap",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 55.0,
+      "guard": "throughput_budget_consumed >= 0.80",
+      "defeasible": "true"
+    },
+    {
+      "conflict_id": "INV-01",
+      "claim_id": "ahj-derived-sustained-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 70.0,
+      "guard": "ambient_c >= 40",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-01",
+      "claim_id": "warranty-derate-curve",
+      "discipline": "electrochemistry & thermal",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 78.0,
+      "guard": "ambient_c >= 45",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-01",
+      "claim_id": "mkt-b-must-deliver",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "bound_kind": "LowerBound",
+      "bound_value": 82.0,
+      "guard": "performance_assessment_interval",
+      "defeasible": "true"
+    },
+    {
+      "conflict_id": "INV-01",
+      "claim_id": "lgia-max-injection",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 100.0,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-02",
+      "claim_id": "mkt-a-emergency-override",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-02",
+      "claim_id": "ahj-no-override",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-02",
+      "claim_id": "ahj-soc-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-03",
+      "claim_id": "ctl-agc-latency",
+      "discipline": "protection & controls",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 150.0,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-03",
+      "claim_id": "cip-inspect-control-traffic",
+      "discipline": "cybersecurity & reliability compliance",
+      "modality": "MUST",
+      "bound_kind": "LowerBound",
+      "bound_value": 180.0,
+      "guard": "deep-inspection enabled at the electronic access point",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-05",
+      "claim_id": "fire-enclosure-separation",
+      "discipline": "fire & life safety",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-05",
+      "claim_id": "permit-setback",
+      "discipline": "environmental permitting & land use",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-05",
+      "claim_id": "permit-noise-limit",
+      "discipline": "environmental permitting & land use",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 45.0,
+      "guard": "night_hours",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-07",
+      "claim_id": "mkt-a-follow-dispatch",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "true"
+    },
+    {
+      "conflict_id": "INV-07",
+      "claim_id": "der-mode-exclusivity",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST_NOT",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-07",
+      "claim_id": "ctl-mode-arbitration",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-10",
+      "claim_id": "mkt-a-station-power-netting",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-10",
+      "claim_id": "acct-gross-vs-net",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-11",
+      "claim_id": "warranty-firmware-current",
+      "discipline": "insurance, warranty & O&M",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "true"
+    },
+    {
+      "conflict_id": "INV-11",
+      "claim_id": "lgia-protection-settings",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST_NOT",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-12",
+      "claim_id": "tax-placed-in-service",
+      "discipline": "tax & project finance",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-12",
+      "claim_id": "acct-commencement",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-13",
+      "claim_id": "permit-local-procurement",
+      "discipline": "environmental permitting & land use",
+      "modality": "SHOULD",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-13",
+      "claim_id": "tax-domestic-content",
+      "discipline": "tax & project finance",
+      "modality": "MUST",
+      "bound_kind": "LowerBound",
+      "bound_value": 45.0,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-14",
+      "claim_id": "der-anti-islanding",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": "false"
+    },
+    {
+      "conflict_id": "INV-14",
+      "claim_id": "ctl-island-support",
+      "discipline": "software & DER fleet control",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-16",
+      "claim_id": "lgia-delivery-point",
+      "discipline": "power-systems interconnection",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-16",
+      "claim_id": "settle-metering-point",
+      "discipline": "metering & settlement",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-16",
+      "claim_id": "settle-loss-compensation",
+      "discipline": "metering & settlement",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-19",
+      "claim_id": "mkt-b-accreditation",
+      "discipline": "market microstructure & tariff",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-19",
+      "claim_id": "permit-capacity-cap",
+      "discipline": "environmental permitting & land use",
+      "modality": "MUST_NOT",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    },
+    {
+      "conflict_id": "INV-19",
+      "claim_id": "acct-capacity-revenue",
+      "discipline": "accounting & revenue recognition",
+      "modality": "MUST",
+      "bound_kind": "",
+      "bound_value": null,
+      "guard": "",
+      "defeasible": ""
+    }
+  ],
+  "unreachable_repos": []
+}
