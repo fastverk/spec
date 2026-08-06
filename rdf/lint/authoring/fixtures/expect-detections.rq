@@ -1,0 +1,150 @@
+# ---
+# title: "Authoring-gate detection counts (adversarial control)"
+# description: "Zero-row iff the authoring gates detect EXACTLY the defects planted in envelope-conflict.ttl. Fails if a gate stops detecting, or starts over-detecting."
+# severity: error
+# tier: 3
+# rationale: "The negative control (envelope-clean.ttl returning zero rows from every gate) proves the gates do not false-positive. It cannot prove they detect anything at all — a gate that always returns zero passes it trivially. This is the positive control, in the same zero-row idiom the rest of the suite uses: run each gate's body over the planted fixture, count, and emit a row if the count is not the expected one. Written as counted assertions rather than an emit_diff_test against a golden TSV so it carries no dependency on the SPARQL engine's TSV serialization. Expected counts are one row per DEFECT, not per subject, which is why two exceed the number of defect kinds: bad-unprovenanced carries both UNPROVENANCED-RUNG and UNNAMED-STALL, and conflict-unwitnessed carries UNWITNESSED, UNOWNED and UNRESOLVED. If you change a gate's body, this file must change with it — that coupling is the point."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?check ?expected ?actual
+WHERE {
+  {
+    # empty-envelope.rq must find exactly the one planted infeasibility, and
+    # must compute its deficit as 27.0 MW across 4 disciplines.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT ?q (MAX(?lo) AS ?gl) (MIN(?hi) AS ?lu)
+          WHERE {
+            ?q a au:Quantity .
+            ?c a rfc:NormativeStatement ;
+               au:constrains ?q ; au:hasBound ?b ; au:discipline ?d .
+            ?b au:boundValue ?v ; au:boundKind ?k .
+            BIND(IF(?k = au:LowerBound, ?v, ?unb) AS ?lo)
+            BIND(IF(?k = au:UpperBound, ?v, ?unb) AS ?hi)
+          }
+          GROUP BY ?q
+          HAVING (MAX(?lo) > MIN(?hi))
+        }
+      }
+    }
+    BIND("empty-envelope" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # The planted deficit must be exactly 27.0 on q-sustained-discharge. Guards
+    # against a bounds-arithmetic regression that still reports "one envelope".
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT ?q (MAX(?lo) - MIN(?hi) AS ?deficit)
+          WHERE {
+            ?q a au:Quantity ; au:unit "MW" .
+            ?c a rfc:NormativeStatement ;
+               au:constrains ?q ; au:hasBound ?b ; au:discipline ?d .
+            ?b au:boundValue ?v ; au:boundKind ?k .
+            BIND(IF(?k = au:LowerBound, ?v, ?unb) AS ?lo)
+            BIND(IF(?k = au:UpperBound, ?v, ?unb) AS ?hi)
+          }
+          GROUP BY ?q
+          HAVING (MAX(?lo) - MIN(?hi) = 27.0)
+        }
+      }
+    }
+    BIND("empty-envelope-deficit-27MW" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # conflict-hygiene-strict.rq must find its four planted defect instances.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT DISTINCT ?conflict ?defect
+          WHERE {
+            { ?conflict a au:Conflict .
+              FILTER NOT EXISTS { ?conflict au:witness ?w }
+              BIND("UNWITNESSED" AS ?defect) }
+            UNION
+            { ?conflict a au:Conflict ; au:party ?pa , ?pb .
+              ?pa au:discipline ?da . ?pb au:discipline ?db .
+              FILTER(STR(?da) < STR(?db))
+              FILTER NOT EXISTS { ?conflict au:owner ?o }
+              BIND("UNOWNED" AS ?defect) }
+            UNION
+            { ?conflict a au:Conflict ; au:resolvedBy ?r .
+              ?r au:outcome au:Exempt ; au:expires ?e .
+              FILTER(?e < NOW())
+              BIND("EXPIRED-WAIVER" AS ?defect) }
+            UNION
+            { ?conflict a au:Conflict ; au:resolvedBy ?r .
+              ?r au:outcome au:Exempt .
+              FILTER NOT EXISTS { ?r au:expires ?e }
+              BIND("UNBOUNDED-WAIVER" AS ?defect) }
+          }
+        }
+      }
+    }
+    BIND("conflict-hygiene-strict" AS ?check)
+    BIND(4 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # ladder-integrity.rq must find its four planted defect instances.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT DISTINCT ?claim ?defect
+          WHERE {
+            { ?claim a rfc:NormativeStatement ; au:rung ?rung .
+              FILTER(?rung != au:R0)
+              FILTER NOT EXISTS { ?claim au:promotedBy ?p }
+              BIND("UNPROVENANCED-RUNG" AS ?defect) }
+            UNION
+            { ?claim a rfc:NormativeStatement ; au:rung ?rung .
+              FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+              FILTER NOT EXISTS { ?claim au:stalledOn ?s }
+              FILTER NOT EXISTS { ?claim au:demotedBy ?d }
+              BIND("UNNAMED-STALL" AS ?defect) }
+            UNION
+            { ?claim a rfc:NormativeStatement ; au:rung ?rung ; rfc:provenBy ?thm .
+              FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+              BIND("PROVEN-BELOW-RUNG" AS ?defect) }
+          }
+        }
+      }
+    }
+    BIND("ladder-integrity" AS ?check)
+    BIND(4 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # homonym-unregistered.rq must find the one planted unregistered pair.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        ?qA a au:Quantity ; au:unit ?u ; au:estimator ?eA .
+        ?qB a au:Quantity ; au:unit ?u ; au:estimator ?eB .
+        FILTER(STR(?qA) < STR(?qB))
+        FILTER(?eA != ?eB)
+        FILTER NOT EXISTS { ?qA au:disjointQuantity ?qB }
+        FILTER NOT EXISTS { ?qB au:disjointQuantity ?qA }
+      }
+    }
+    BIND("homonym-unregistered" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+}
+ORDER BY ?check

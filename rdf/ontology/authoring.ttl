@@ -1,0 +1,398 @@
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix dcterms:<http://purl.org/dc/terms/> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
+@prefix rfc:    <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:     <https://aion.savvi.io/ontology/authoring#> .
+
+# =============================================================================
+# Authoring / Coherence Ontology (TBox) — v1 · RFC-002 §6
+#
+# A DOMAIN-NEUTRAL profile layered on the Aion RFC ontology
+# (rdf/ontology/aion-rfc.ttl). It adds the five things RFC-002 §2.2 identifies as
+# missing, and nothing else:
+#
+#   1. the proposal    — a content-addressed delta with provenance (au:Proposal)
+#   2. the ladder      — formalization commitment as graph state  (au:rung)
+#   3. conflict        — a witnessed, owned, resolvable object    (au:Conflict)
+#   4. quantity typing — dimension + REFERENT, so homonyms are type errors
+#   5. scope typing    — jurisdiction/edition/effective interval + a DELIBERATELY
+#                        PARTIAL precedence order
+#
+# Design constraints this file honours:
+#   * Additive only. It introduces no term that changes the meaning of an
+#     existing rfc: term, so the 55 per-RFC TTL diff gates and the existing
+#     corpus are unaffected.
+#   * au:rung is ORTHOGONAL to rfc:tier, not a replacement. rfc:tier
+#     (Structural / Derivational / Implemented, see Spec.Corpus.Schema.Tier)
+#     grades how a claim's PROOF is discharged. au:rung grades how far the claim
+#     has been FORMALIZED at all. A claim can be fully formalized (R4) and still
+#     Structural; it cannot be Derivational below R4. Conflating them is what
+#     makes "partially authored" unrepresentable today.
+#   * Every class here is instantiable by an op in the authoring op vocabulary,
+#     so nothing in this ontology can only be produced by hand-editing Turtle.
+# =============================================================================
+
+<https://aion.savvi.io/ontology/authoring> a owl:Ontology ;
+    rdfs:label "Aion Authoring & Coherence Ontology" ;
+    dcterms:title "Aion Authoring & Coherence Ontology" ;
+    dcterms:description "Proposals, the formalization ladder, witnessed cross-discipline conflict, and the quantity/scope typing that makes cross-domain incoherence machine-detectable. A domain-neutral profile over the Aion RFC ontology." ;
+    owl:imports <https://aion.savvi.io/ontology/rfc> ;
+    owl:versionInfo "1.0.0" .
+
+# -----------------------------------------------------------------------------
+# 1. Discipline
+# -----------------------------------------------------------------------------
+
+au:Discipline a owl:Class ;
+    rdfs:label "Discipline" ;
+    rdfs:comment "A body of practice with its own vocabulary, normative sources, and authority to decide. The unit of cross-domain conflict: a conflict is INTERESTING precisely when its parties belong to different disciplines, because then no single reviewer holds the context to see it." .
+
+au:discipline a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ;
+    rdfs:range au:Discipline ;
+    rdfs:label "discipline" ;
+    rdfs:comment "The discipline that authored / owns this claim. Required for a claim to participate in cross-discipline conflict detection — an unassigned claim is invisible to the conflict gate, which is why the authoring surfaces prefill it from the drill path and refuse to leave it blank." .
+
+au:stewardedBy a owl:ObjectProperty ;
+    rdfs:domain au:Discipline ;
+    rdfs:label "stewarded by" ;
+    rdfs:comment "The principal holding steward capability for this discipline — the party a conflict involving it must be routed to. Without this, an adjudication has no addressee and silently becomes the author's decision." .
+
+# -----------------------------------------------------------------------------
+# 2. Quantity — dimension AND referent
+#
+# Dimension checking alone is insufficient: MW and MVAr share a dimension, and
+# five distinct concepts routinely share the surface term "capacity". A quantity
+# is therefore identified by its referent as much as its unit.
+# -----------------------------------------------------------------------------
+
+au:Quantity a owl:Class ;
+    rdfs:label "Quantity" ;
+    rdfs:comment "A measurable quantity, identified by dimension AND referent — the measurement point, the estimator that produces it, and its time base. Two quantities with the same unit and different referents are DISJOINT, and asserting a claim about one while citing the other is the single most common cross-domain error." .
+
+au:dimension a owl:DatatypeProperty ;
+    rdfs:domain au:Quantity ; rdfs:range xsd:string ;
+    rdfs:label "dimension" ;
+    rdfs:comment "Physical dimension in a canonical form (e.g. \"power\", \"energy\", \"dimensionless\"). Necessary but NOT sufficient for identity." .
+
+au:unit a owl:DatatypeProperty ;
+    rdfs:domain au:Quantity ; rdfs:range xsd:string ;
+    rdfs:label "unit" ;
+    rdfs:comment "The unit the quantity is expressed in (e.g. \"MW\", \"MWh\", \"percent\"). Conversions between units of the same dimension are safe; conversions between REFERENTS require a named model (see au:viaModel)." .
+
+au:measurementPoint a owl:ObjectProperty ;
+    rdfs:domain au:Quantity ;
+    rdfs:label "measurement point" ;
+    rdfs:comment "The node in the system topology at which the quantity is measured. Two claims constraining 'the same' quantity at different points are not in conflict — and two that appear unrelated may be, once both are resolved to the same point." .
+
+au:estimator a owl:DatatypeProperty ;
+    rdfs:domain au:Quantity ; rdfs:range xsd:string ;
+    rdfs:label "estimator" ;
+    rdfs:comment "What produces the value (e.g. \"revenue-meter\", \"BMS\", \"ISO-model\"). Part of identity: an obligation on a BMS-reported value is not an obligation on a telemetered value even when both are 'state of charge' in percent." .
+
+au:timeBase a owl:DatatypeProperty ;
+    rdfs:domain au:Quantity ; rdfs:range xsd:string ;
+    rdfs:label "time base" ;
+    rdfs:comment "Interval semantics and clock (e.g. \"5min-average/EPT\", \"instantaneous\", \"annual/contract-year\"). Distinct time bases make otherwise-identical bounds incomparable, so the envelope gate refuses to intersect across them rather than producing a wrong answer." .
+
+au:viaModel a owl:ObjectProperty ;
+    rdfs:domain au:Quantity ;
+    rdfs:label "via model" ;
+    rdfs:comment "A named, versioned model licensing conversion from another quantity (loss factor, round-trip efficiency, degradation curve). Attaching it makes derived claims invalidatable: revising the model marks every downstream claim stale rather than leaving it silently wrong." .
+
+au:disjointQuantity a owl:ObjectProperty, owl:SymmetricProperty ;
+    rdfs:domain au:Quantity ; rdfs:range au:Quantity ;
+    rdfs:label "disjoint quantity" ;
+    rdfs:comment "Explicit non-identity between two quantities sharing a surface term. This is the homonym registry: asserting it is what turns an invisible cross-domain error into a detectable one." .
+
+au:constrains a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range au:Quantity ;
+    rdfs:label "constrains" ;
+    rdfs:comment "The quantity this claim bounds. The join key for conflict detection: two claims constraining the same quantity from different disciplines are co-constraint candidates even when neither cites the other." .
+
+# -----------------------------------------------------------------------------
+# 3. Bounds — so the feasible envelope is SPARQL-computable
+# -----------------------------------------------------------------------------
+
+au:Bound a owl:Class ;
+    rdfs:label "Bound" ;
+    rdfs:comment "A numeric bound a claim places on a quantity, reified so the intersection of all bounds is computable rather than needing to be read out of prose. The envelope gate's whole leverage comes from bounds being data." .
+
+au:hasBound a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range au:Bound ;
+    rdfs:label "has bound" .
+
+au:boundKind a owl:ObjectProperty ;
+    rdfs:domain au:Bound ;
+    rdfs:label "bound kind" ;
+    rdfs:comment "au:LowerBound or au:UpperBound." .
+
+au:BoundKind a owl:Class ; rdfs:label "Bound Kind" .
+au:LowerBound a au:BoundKind ; rdfs:label "lower bound" ;
+    rdfs:comment "The claim REQUIRES at least this value (typically a MUST)." .
+au:UpperBound a au:BoundKind ; rdfs:label "upper bound" ;
+    rdfs:comment "The claim PERMITS at most this value (typically a MUST_NOT)." .
+
+au:boundValue a owl:DatatypeProperty ;
+    rdfs:domain au:Bound ; rdfs:range xsd:decimal ;
+    rdfs:label "bound value" .
+
+au:boundGuard a owl:DatatypeProperty ;
+    rdfs:domain au:Bound ; rdfs:range xsd:string ;
+    rdfs:label "bound guard" ;
+    rdfs:comment "The condition under which the bound applies (e.g. \"ambient_c >= 40\"). Narrowing a guard is the cheapest genuine conflict resolution — it makes two claims stop overlapping instead of ranking one over the other." .
+
+# -----------------------------------------------------------------------------
+# 4. Scope — jurisdiction, instrument, edition, effective interval
+#
+# Precedence is a PARTIAL order and is meant to stay partial. An undefined pair
+# yields an owned decision, never an invented derivation.
+# -----------------------------------------------------------------------------
+
+au:Scope a owl:Class ;
+    rdfs:label "Scope" ;
+    rdfs:comment "The authority-and-time envelope within which a claim holds: jurisdiction, issuing body, instrument, edition, and effective interval. Claims whose scopes cannot both apply are not in conflict, so scope is what keeps the conflict set small enough to act on." .
+
+au:scopedBy a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range au:Scope ;
+    rdfs:label "scoped by" .
+
+au:jurisdiction a owl:DatatypeProperty ; rdfs:domain au:Scope ; rdfs:range xsd:string ;
+    rdfs:label "jurisdiction" .
+au:issuingBody a owl:DatatypeProperty ; rdfs:domain au:Scope ; rdfs:range xsd:string ;
+    rdfs:label "issuing body" .
+au:instrument a owl:DatatypeProperty ; rdfs:domain au:Scope ; rdfs:range xsd:string ;
+    rdfs:label "instrument" ;
+    rdfs:comment "The document type carrying the claim (statute, tariff, standard, contract, acceptance letter). Instrument class drives defeasibility: a contract term and a fire code are breachable on very different terms." .
+au:edition a owl:DatatypeProperty ; rdfs:domain au:Scope ; rdfs:range xsd:string ;
+    rdfs:label "edition" .
+au:effectiveFrom a owl:DatatypeProperty ; rdfs:domain au:Scope ; rdfs:range xsd:date ;
+    rdfs:label "effective from" .
+au:effectiveTo a owl:DatatypeProperty ; rdfs:domain au:Scope ; rdfs:range xsd:date ;
+    rdfs:label "effective to" ;
+    rdfs:comment "Absent means open-ended. A waiver MUST carry one (see au:expires) so it genuinely lapses." .
+
+au:precedes a owl:ObjectProperty, owl:TransitiveProperty ;
+    rdfs:domain au:Scope ; rdfs:range au:Scope ;
+    rdfs:label "precedes" ;
+    rdfs:comment "Scope A outranks scope B where both apply. DELIBERATELY PARTIAL: most pairs are unrelated, and a pair left undefined is a feature — au:PrecedenceUndefined raises an owned decision instead of letting the system invent a ranking nobody agreed to. Asserting this edge is a kernel-capability act because it changes the lattice for every discipline." .
+
+# -----------------------------------------------------------------------------
+# 5. The formalization ladder
+#
+# Orthogonal to rfc:tier. Nothing is ever deleted; a claim demotes rather than
+# disappearing, and a stall NAMES the missing thing.
+# -----------------------------------------------------------------------------
+
+au:Rung a owl:Class ;
+    rdfs:label "Ladder Rung" ;
+    rdfs:comment "How far a claim has been formalized. Monotone under promotion, reversible only by an explicit au:demotedBy. R4 is the BINDING threshold: fanout binds against R4+ only, and R0-R3 reach an agent explicitly marked non-binding." .
+
+au:R0 a au:Rung ; rdfs:label "R0 utterance" ;
+    rdfs:comment "A span of source text with a content hash. Recorded, not interpreted. The only rung an agent principal may write." .
+au:R1 a au:Rung ; rdfs:label "R1 intent" ;
+    rdfs:comment "Durable identity minted, discipline assigned. The claim now exists and is countable even though nothing about it is formal yet — this is what makes 'partially authored' a legal state." .
+au:R2 a au:Rung ; rdfs:label "R2 candidate" ;
+    rdfs:comment "A skeleton with named holes. Open holes are enumerable, which is why the chat loop can ask about exactly the unbound ones and nothing else." .
+au:R3 a au:Rung ; rdfs:label "R3 grounded" ;
+    rdfs:comment "Every term resolves to a registered concept; quantity and scope are complete. Enforced by the grounding gate." .
+au:R4 a au:Rung ; rdfs:label "R4 typed" ;
+    rdfs:comment "Elaborated into the Lean corpus schema and dimension-checked. BINDING FOR FANOUT. This is the rung that earns the right to dispatch work against a claim." .
+au:R5 a au:Rung ; rdfs:label "R5 theorem-backed" ;
+    rdfs:comment "A sorry-free theorem discharges it. NOTE the honest limit: //grounding:grounding_verified proves the named theorem RESOLVES and is sorry-free, not that it says what the claim says. R5 is where that gap is made visible rather than implicit." .
+
+au:rung a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range au:Rung ;
+    rdfs:label "rung" .
+
+au:promotedBy a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ;
+    rdfs:label "promoted by" ;
+    rdfs:comment "The proposal that moved this claim to its current rung. A rung with no promoting proposal is unprovenanced and fails the ladder gate — this is what stops au:rung becoming another self-declared field like rfc:tier is today." .
+
+au:demotedBy a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ;
+    rdfs:label "demoted by" ;
+    rdfs:comment "The conflict or gate failure that pushed this claim back down. Demotion never deletes: the claim and its history stay queryable." .
+
+au:stalledOn a owl:DatatypeProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range xsd:string ;
+    rdfs:label "stalled on" ;
+    rdfs:comment "The specific missing thing blocking the next promotion — an unbound term, an absent model, a needed proof. A stall must name its blocker; 'it didn't work' is not a legal value, because an unnamed stall cannot be ranked on the frontier or handed to anyone." .
+
+# -----------------------------------------------------------------------------
+# 6. Conflict — witnessed, owned, resolvable
+# -----------------------------------------------------------------------------
+
+au:Conflict a owl:Class ;
+    rdfs:label "Conflict" ;
+    rdfs:comment "An admitted incoherence between two or more claims. ADMITTED, not rejected: refusing the write would mean the second claim could never be recorded at all, and the corpus would stay quietly wrong instead of loudly conflicted. This is the system's most valuable output." .
+
+au:ConflictKind a owl:Class ; rdfs:label "Conflict Kind" .
+au:EmptyEnvelope a au:ConflictKind ; rdfs:label "empty envelope" ;
+    rdfs:comment "The intersection of all bounds on a quantity is empty. Every instrument is individually satisfiable; jointly they are not, so someone must choose which to breach." .
+au:ModalityClash a au:ConflictKind ; rdfs:label "modality clash" ;
+    rdfs:comment "A MUST and a MUST_NOT over the same quantity and overlapping scope. Detected today by modality-conflict.rq." .
+au:PrecedenceUndefined a au:ConflictKind ; rdfs:label "precedence undefined" ;
+    rdfs:comment "Two scopes both apply and au:precedes relates neither. Deliberately not auto-resolved." .
+au:Homonym a au:ConflictKind ; rdfs:label "homonym" ;
+    rdfs:comment "One surface term resolving to quantities that are not asserted disjoint. The cheapest conflict to fix and the most expensive to miss." .
+au:TopologyDisagreement a au:ConflictKind ; rdfs:label "topology disagreement" ;
+    rdfs:comment "Documents describing the same system structure differently; computable only as a set difference over an explicit topology graph." .
+
+au:conflictKind a owl:ObjectProperty ; rdfs:domain au:Conflict ; rdfs:range au:ConflictKind ;
+    rdfs:label "conflict kind" .
+
+au:party a owl:ObjectProperty ;
+    rdfs:domain au:Conflict ; rdfs:range rfc:NormativeStatement ;
+    rdfs:label "party" ;
+    rdfs:comment "A claim participating in the conflict. At least two, and the conflict is cross-DISCIPLINE when their au:discipline values differ — the case worth surfacing." .
+
+au:onQuantity a owl:ObjectProperty ; rdfs:domain au:Conflict ; rdfs:range au:Quantity ;
+    rdfs:label "on quantity" .
+
+au:witness a owl:DatatypeProperty ;
+    rdfs:domain au:Conflict ; rdfs:range xsd:string ;
+    rdfs:label "witness" ;
+    rdfs:comment "The concrete evidence of incoherence — the empty interval, the overlapping scope assignment, the differing node set. A conflict without a witness is an accusation, and cannot be reviewed; the gate requires one." .
+
+au:detector a owl:DatatypeProperty ;
+    rdfs:domain au:Conflict ; rdfs:range xsd:string ;
+    rdfs:label "detector" ;
+    rdfs:comment "The query or check that found it, so a false positive is attributable to a specific mechanism and fixable there." .
+
+au:owner a owl:ObjectProperty ;
+    rdfs:domain au:Conflict ;
+    rdfs:label "owner" ;
+    rdfs:comment "The principal with authority to adjudicate. An unowned conflict is a gate failure, not a backlog item: cross-discipline conflicts without an addressee are exactly the ones that rot." .
+
+au:blocksWorkOrder a owl:DatatypeProperty ;
+    rdfs:domain au:Conflict ; rdfs:range xsd:string ;
+    rdfs:label "blocks work order" ;
+    rdfs:comment "A work order held by this conflict. The board's sort key: a conflict matters in proportion to how much construction it stops." .
+
+# -----------------------------------------------------------------------------
+# 7. Resolution — the decision is itself a formal, expiring object
+# -----------------------------------------------------------------------------
+
+au:Resolution a owl:Class ;
+    rdfs:label "Resolution" ;
+    rdfs:comment "The recorded adjudication of a conflict. First-class and provenance-bearing so that 'we decided to live with it' is auditable, attributable, and — for a waiver — expiring." .
+
+au:resolvedBy a owl:ObjectProperty ; rdfs:domain au:Conflict ; rdfs:range au:Resolution ;
+    rdfs:label "resolved by" .
+
+au:Outcome a owl:Class ; rdfs:label "Resolution Outcome" .
+au:Narrow a au:Outcome ; rdfs:label "narrow" ;
+    rdfs:comment "Add a guard so the scopes stop overlapping. The cheapest honest fix." .
+au:Prioritize a au:Outcome ; rdfs:label "prioritize" ;
+    rdfs:comment "Assert au:precedes. Requires kernel capability: it changes the lattice for everyone, so it is deliberately the expensive option." .
+au:Exempt a au:Outcome ; rdfs:label "exempt" ;
+    rdfs:comment "A scoped waiver. MUST carry au:expires — an unbounded waiver is indistinguishable from having silently dropped the requirement." .
+au:Escalate a au:Outcome ; rdfs:label "escalate" ;
+    rdfs:comment "Admit the conflict standing, notify both discipline stewards, hold affected work orders. A legitimate terminal state — some conflicts are real and unfixable, and saying so beats faking a resolution." .
+au:Refute a au:Outcome ; rdfs:label "refute" ;
+    rdfs:comment "The conflict was not real. Records the expert's correction AND the detector that produced the false positive, so the mechanism improves. A spec system that cannot be corrected by a domain expert is worthless." .
+
+au:outcome a owl:ObjectProperty ; rdfs:domain au:Resolution ; rdfs:range au:Outcome ;
+    rdfs:label "outcome" .
+au:decidedBy a owl:ObjectProperty ; rdfs:domain au:Resolution ;
+    rdfs:label "decided by" .
+au:decidedAt a owl:DatatypeProperty ; rdfs:domain au:Resolution ; rdfs:range xsd:dateTime ;
+    rdfs:label "decided at" .
+au:expires a owl:DatatypeProperty ; rdfs:domain au:Resolution ; rdfs:range xsd:date ;
+    rdfs:label "expires" ;
+    rdfs:comment "Mandatory for au:Exempt. The unresolved-conflict gate treats an expired waiver as unresolved again." .
+au:rationale a owl:DatatypeProperty ; rdfs:domain au:Resolution ; rdfs:range xsd:string ;
+    rdfs:label "rationale" .
+
+# -----------------------------------------------------------------------------
+# 8. Defeasibility — six statuses, because collapsing them is the prose failure
+# -----------------------------------------------------------------------------
+
+au:defeasible a owl:DatatypeProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range xsd:boolean ;
+    rdfs:label "defeasible" ;
+    rdfs:comment "Whether any defeater can excuse non-compliance. A fire code typically cannot be defeated by an ISO emergency; a warranty limit can be breached for liquidated damages. Recording this is what lets the system say WHICH instrument to breach when the envelope is empty." .
+
+au:Defeater a owl:Class ;
+    rdfs:label "Defeater" ;
+    rdfs:comment "A prioritized exception with its own provenance, trigger, notice condition, and — crucially — the scope of obligations it defeats. Exceptions are ASYMMETRIC across disciplines, so a defeater without a stated scope is unusable." .
+
+au:defeatedBy a owl:ObjectProperty ; rdfs:domain rfc:NormativeStatement ; rdfs:range au:Defeater ;
+    rdfs:label "defeated by" .
+au:trigger a owl:DatatypeProperty ; rdfs:domain au:Defeater ; rdfs:range xsd:string ;
+    rdfs:label "trigger" .
+au:defeatsScope a owl:ObjectProperty ; rdfs:domain au:Defeater ; rdfs:range au:Scope ;
+    rdfs:label "defeats scope" .
+
+au:ComplianceStatus a owl:Class ;
+    rdfs:label "Compliance Status" ;
+    rdfs:comment "Six values, deliberately. Collapsing the middle four into 'allowed' is precisely the prose failure this ontology exists to prevent." .
+au:Satisfied              a au:ComplianceStatus ; rdfs:label "satisfied" .
+au:Permitted              a au:ComplianceStatus ; rdfs:label "permitted" .
+au:Excused                a au:ComplianceStatus ; rdfs:label "excused" ;
+    rdfs:comment "A defeater fired and its notice condition was met." .
+au:BreachedButLiquidated  a au:ComplianceStatus ; rdfs:label "breached but liquidated" ;
+    rdfs:comment "Breached, with a priced remedy. Economically a choice, not a failure — and the distinction the empty-envelope decision turns on." .
+au:Breached               a au:ComplianceStatus ; rdfs:label "breached" .
+au:Unresolved             a au:ComplianceStatus ; rdfs:label "unresolved" ;
+    rdfs:comment "Compliance is not determinable — undefined precedence, a stale model, a missing claim. An honest answer the system must be able to give." .
+
+# -----------------------------------------------------------------------------
+# 9. The proposal — the only write path
+# -----------------------------------------------------------------------------
+
+au:Proposal a owl:Class ;
+    rdfs:label "Proposal" ;
+    rdfs:comment "A content-addressed, signed delta: the ONLY thing that enters the graph, from any surface. Click, chat, ingest and agent all compose the same object, so a chat-authored change and a click-authored change are indistinguishable downstream and equally replayable — replay is by proposal id, never by re-running a model." .
+
+au:proposalId a owl:DatatypeProperty ; rdfs:domain au:Proposal ; rdfs:range xsd:string ;
+    rdfs:label "proposal id" ;
+    rdfs:comment "Content hash over (parent, author, ops). Identity is the hash, so two surfaces producing the same ops produce the same proposal." .
+au:parent a owl:ObjectProperty ; rdfs:domain au:Proposal ; rdfs:range au:Proposal ;
+    rdfs:label "parent" ;
+    rdfs:comment "The ledger head this was authored against — the bitemporal read point the author actually saw. Without it, a reviewer and an agent can be looking at different graphs and neither can tell." .
+au:authoredBy a owl:ObjectProperty ; rdfs:domain au:Proposal ;
+    rdfs:label "authored by" .
+
+au:Principal a owl:Class ;
+    rdfs:label "Principal" ;
+    rdfs:comment "A party that can author, own, or decide: a human, a role, or an agent. Referenced by au:authoredBy / au:owner / au:decidedBy / au:stewardedBy. Declared as a class so those references resolve to a typed node rather than a bare IRI — an unowned conflict and a conflict owned by an undeclared principal are equally unactionable." .
+
+au:Surface a owl:Class ;
+    rdfs:label "Authoring Surface" ;
+    rdfs:comment "Recorded for audit, and NEVER read by the admission check. Provenance sits beside the ops, not inside the admitted input, so 'the composer is untrusted' is a structural property rather than a review convention." .
+au:Meridian a au:Surface ; rdfs:label "meridian (point-and-click)" .
+au:Chat     a au:Surface ; rdfs:label "chat" .
+au:Ingest   a au:Surface ; rdfs:label "document ingest" .
+au:Agent    a au:Surface ; rdfs:label "agent report (R0 only)" .
+
+au:surface a owl:ObjectProperty ; rdfs:domain au:Proposal ; rdfs:range au:Surface ;
+    rdfs:label "surface" .
+
+au:intent a owl:DatatypeProperty ; rdfs:domain au:Proposal ; rdfs:range xsd:string ;
+    rdfs:label "intent" ;
+    rdfs:comment "The author's prose. Carried in the hash, never executed — it is evidence about the change, not part of it." ;
+    rdfs:seeAlso au:transcript .
+au:transcript a owl:DatatypeProperty ; rdfs:domain au:Proposal ; rdfs:range xsd:string ;
+    rdfs:label "transcript" ;
+    rdfs:comment "For chat-authored proposals: the session reference, including formalization attempts that were REJECTED along the way. A reviewer needs to see what the model tried and the author refused." .
+
+au:proposes a owl:ObjectProperty ; rdfs:domain au:Proposal ;
+    rdfs:label "proposes" ;
+    rdfs:comment "An entity this proposal creates or amends. Links a claim, conflict, or resolution back to the delta that produced it — the provenance edge the ladder gate checks." .
+
+au:Verdict a owl:Class ; rdfs:label "Admission Verdict" .
+au:Admitted a au:Verdict ; rdfs:label "admitted" ;
+    rdfs:comment "May carry declared conflicts: admission and coherence are different questions, and a conflict is admitted as an object rather than blocking the write." .
+au:Rejected a au:Verdict ; rdfs:label "rejected" ;
+    rdfs:comment "A gate failed or capability was denied. Graph state is untouched and a witness is returned." .
+au:Queued   a au:Verdict ; rdfs:label "queued" ;
+    rdfs:comment "Partly admitted; kernel-capability ops (au:precedes assertions) routed to review. One proposal can be split this way." .
+
+au:verdict a owl:ObjectProperty ; rdfs:domain au:Proposal ; rdfs:range au:Verdict ;
+    rdfs:label "verdict" .

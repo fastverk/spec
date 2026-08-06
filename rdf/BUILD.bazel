@@ -20,6 +20,39 @@ spec_corpus_gates(
     dataset = ":vocab",
 )
 
+# The RFC vocabulary PLUS the authoring/coherence profile (RFC-002 §6):
+# proposals, the formalization ladder, witnessed conflict, and the quantity /
+# scope typing that makes cross-domain incoherence machine-detectable.
+#
+# Deliberately a SEPARATE target from :vocab rather than an addition to it —
+# `authoring.ttl` is additive, but folding it into :vocab would enlarge the graph
+# for every existing consumer (Aion, mycelium) whose corpora do not use it.
+# Consumers that want it depend on this instead:
+#
+#   rdf_dataset(name = "corpus", srcs = [...], deps = ["@spec//rdf:authoring_vocab"])
+#
+# NOTE the shape: both TTLs are listed directly in `srcs`, exactly mirroring
+# :vocab above, rather than srcs=[authoring.ttl] + deps=[":vocab"]. Layering one
+# rdf_dataset on another via `deps` is untested in this repo — the only precedent
+# (//corpus:ratio_corpus) uses a vocab dataset as a dep of a LEAF corpus dataset,
+# never of another vocab dataset. This construction is provably identical to
+# :vocab, which is known to build. It costs one duplicated src label.
+rdf_dataset(
+    name = "authoring_vocab",
+    srcs = [
+        "//rdf/ontology:aion-rfc.ttl",
+        "//rdf/ontology:authoring.ttl",
+    ],
+    in_format = "turtle",
+)
+
+# Self-test for the authoring profile: it parses, conforms vacuously, and the
+# consistency gates execute against it. Same rationale as :vocab_selftest.
+spec_corpus_gates(
+    name = "authoring_vocab_selftest",
+    dataset = ":authoring_vocab",
+)
+
 # ── Migrated from Aion kg/: the generic RFC/spec-KG query + lint + rule
 # catalog. Consumers fold these in alongside their corpus (the SPARQL
 # patterns target the rfc: vocab; lints are Tier-3 integrity checks; the
@@ -38,10 +71,25 @@ filegroup(
 )
 
 # Semantic lint checks (one .rq each), run by @spec//java:kg_lint_lib.
+#
+# The authoring family is EXCLUDED. Those queries target the au: vocabulary,
+# which a plain rfc: corpus does not carry — folding them in here would have
+# KgLint run them over graphs where every pattern is unmatched. They are wired as
+# their own gate suite instead (//rdf:authoring_gates.bzl), and exposed as a set
+# by //rdf/lint/authoring:queries.
 filegroup(
     name = "lint",
-    srcs = glob(["lint/**/*.rq"]),
+    srcs = glob(
+        ["lint/**/*.rq"],
+        exclude = ["lint/authoring/**/*.rq"],
+    ),
 )
+
+# NOTE: there is deliberately no :authoring_lint filegroup here. The authoring
+# queries are consumed via //rdf:authoring_gates.bzl, which Label()-references
+# them individually, and via //rdf/lint/authoring:queries for anyone who wants
+# the set. A filegroup in THIS package would have to reach across the
+# rdf/lint/authoring package boundary for no consumer that exists today.
 
 # Jena inference rules (e.g. emits-from-text), run by @spec//java:reasoner.
 filegroup(

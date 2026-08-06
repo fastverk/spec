@@ -1,0 +1,33 @@
+# ---
+# title: "Empty feasible envelope"
+# description: "All bounds asserted on one quantity intersect to the empty set: the greatest lower bound exceeds the least upper bound. Every instrument is individually satisfiable; jointly they are not."
+# severity: error
+# tier: 3
+# rationale: "This is the payload gate of RFC-002. No document in a multidisciplinary corpus states the intersection of its own constraints with everyone else's, so an empty envelope is invisible to every reviewer and to every citation-following tool — but it is a two-line aggregation once bounds are data (au:Bound) rather than prose. Grouping is by quantity, and a quantity carries its own au:timeBase and au:estimator, so bounds on incomparable referents are never silently intersected. A hit does NOT mean an authoring error: it means the operator must choose which instrument to breach, which is what au:defeasible and the six au:ComplianceStatus values exist to inform."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?quantity ?unit
+       (MAX(?lo) AS ?greatestLower)
+       (MIN(?hi) AS ?leastUpper)
+       (MAX(?lo) - MIN(?hi) AS ?deficit)
+       (COUNT(DISTINCT ?discipline) AS ?disciplines)
+WHERE {
+  ?quantity a au:Quantity .
+  OPTIONAL { ?quantity au:unit ?unit }
+
+  # Every bound asserted on this quantity, with the discipline that asserted it.
+  ?claim a rfc:NormativeStatement ;
+         au:constrains ?quantity ;
+         au:hasBound   ?bound ;
+         au:discipline ?discipline .
+  ?bound au:boundValue ?v ; au:boundKind ?kind .
+
+  # Split into the lower and upper families. A claim contributes to exactly one.
+  BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
+  BIND(IF(?kind = au:UpperBound, ?v, ?unbound) AS ?hi)
+}
+GROUP BY ?quantity ?unit
+HAVING (MAX(?lo) > MIN(?hi))
+ORDER BY DESC(?deficit)

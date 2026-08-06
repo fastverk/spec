@@ -1,16 +1,22 @@
-//! spec-server — the spec plugin backend (read-only).
+//! spec-server — the spec plugin backend.
 //!
-//! Two planes over the same estate index:
+//! Two planes over two sources:
 //!   * HTTP/JSON facade on `$PORT_ADDR` (:8080) — the web plane the fastverk-web
 //!     shell forwards to (`/api/gw/spec/*`): `/healthz`, `/describe`,
 //!     `/panels.binpb`, the data routes, and the MCP tool surface (`/mcp`).
 //!   * gRPC meridian `LayoutService` on `$SPEC_GRPC_ADDR` (:50056) — the plugin's
-//!     nested nav (Specs / Contracts / Proof-Status), so the console shell renders
-//!     a proper section subtree instead of the flat-leaf fallback. The leaf ids
-//!     match the panel ids in ui/panels.textproto.
+//!     nav subtree, so the console shell renders a proper section instead of the
+//!     flat-leaf fallback. The leaf ids match the panel ids in ui/panels.textproto.
 //!
-//! Both run concurrently; if either exits, the process exits. No outbound network
-//! — the index is a scan of the git-synced source tree at `$SPEC_SOURCE_ROOT`.
+//! The two sources are the estate **spec index** (`$SPEC_SOURCE_ROOT`, a scan of
+//! the git-synced tree) and the RFC-002 **authoring read model**
+//! (`$SPEC_READMODEL_DIR`, precomputed SPARQL results). Both are read-only. The one
+//! write surface — `POST /proposal` — appends to `$SPEC_PROPOSAL_LOG` and is
+//! disabled unless that is set; it queues rather than admits, because the door that
+//! admits runs in the build (see `spec::proposal`).
+//!
+//! Both planes run concurrently; if either exits, the process exits. No outbound
+//! network.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -49,11 +55,36 @@ async fn main() -> Result<()> {
     let backend = Arc::new(spec::SpecBackend::from_env());
     tracing::info!(source_root = %backend.source_root().display(), "spec index source root");
 
+    // The RFC-002 authoring read model: precomputed SPARQL results served as files
+    // (the build computes, the plugin serves — see spec::readmodel).
+    let readmodel = Arc::new(spec::readmodel::ReadModel::from_env(backend.source_root()));
+    tracing::info!(dir = %readmodel.dir().display(), "authoring read model directory");
+    for r in readmodel.status()["routes"].as_array().into_iter().flatten() {
+        tracing::info!(
+            route = r["route"].as_str().unwrap_or(""),
+            rows = r["rows"].as_u64().unwrap_or(0),
+            available = r["available"].as_bool().unwrap_or(false),
+            note = r["note"].as_str().unwrap_or(""),
+            "read model route",
+        );
+    }
+
+    // Fail LOUD at boot if a served authoring route isn't declared in /describe.
+    // The alternative is discovering it as "no gateway route for
+    // spec.v1.Authoring/…" in a browser console, which reads as a console bug.
+    if let Err(why) = spec::readmodel::routes_match_describe(&spec::routes::describe_web_routes()) {
+        tracing::error!(%why, "web_routes and the served read-model routes disagree");
+    }
+
+    let log = Arc::new(spec::proposal::ProposalLog::from_env());
+
     let panels = load_panels(args.panel_bundle);
     let gateway_token = std::env::var("FASTVERK_PLUGIN_TOKEN").ok();
     let http = spec::http::router(
         spec::http::HttpState {
             backend,
+            readmodel,
+            log,
             panels: panels.clone(),
         },
         gateway_token,
@@ -71,6 +102,24 @@ async fn main() -> Result<()> {
                     fastverk_layout::leaf("specs", "Specs"),
                     fastverk_layout::leaf("contracts", "Contracts"),
                     fastverk_layout::leaf("status", "Proof Status"),
+                    // The RFC-002 authoring plane. Flat leaves, not a `group`:
+                    // `leaf` is the only constructor this plugin's pinned
+                    // fastverk-layout tag is known to carry, and nine leaves read
+                    // fine. Grouping is a follow-up, not a prerequisite.
+                    //
+                    // Order is deliberate — the three shipped index leaves keep
+                    // their positions, then the authoring surfaces in the order
+                    // they are actually used: what is in conflict, what is
+                    // infeasible, what is stalled, who owns what. Claims is LAST:
+                    // with thousands of them a flat list is the least useful
+                    // surface, and the point of the four above it is that you
+                    // rarely need it.
+                    fastverk_layout::leaf("conflicts", "Conflicts"),
+                    fastverk_layout::leaf("envelopes", "Envelopes"),
+                    fastverk_layout::leaf("frontier", "Frontier"),
+                    fastverk_layout::leaf("disciplines", "Disciplines"),
+                    fastverk_layout::leaf("witness", "Witnesses"),
+                    fastverk_layout::leaf("claims", "Claims"),
                 ])
                 .with_panels(panels)
                 .into_server(),

@@ -34,4 +34,91 @@ discharger (*
 *
 Sorriessorry_count *
 Specs
-spec_count 
+spec_count ¦
+	conflicts	Conflicts
+"
+spec.v1.AuthoringListConflicts	conflicts	conflicts"'No cross-discipline conflicts recorded.*
+
+IDid 
+*
+Kindkind *
+Disciplinesdisciplines ,*
+Partiesparty_count *
+Blocksblocked_orders *
+Ownerowner *
+Statestate 	*
+Outcomeoutcome 
+Ô
+	envelopes	Envelopes»
+"
+spec.v1.AuthoringListEnvelopes	envelopesempty envelopes"ENo empty feasible envelopes Ã¢Â€Â” every quantity's bounds intersect.*
+Quantityquantity *
+Unitunit *#
+Requires Ã¢Â‰Â¥greatest_lower *
+Permits Ã¢Â‰Â¤least_upper 
+*
+Deficitdeficit 	*
+Disc.disciplines *
+Recordedrecorded 	„
+frontierFrontierí
+
+spec.v1.Authoring
+ListStallsstallsstalls"BNo open stalls Ã¢Â€Â” every claim is at or above the binding rung.*
+Claimclaim_id *
+Rungrung *
+
+Discipline
+discipline *
+
+Blocked on
+stalled_on 8*
+Depsdependent_count 
+disciplinesDisciplinesó
+$
+spec.v1.AuthoringListDisciplinesdisciplinesdisciplines"No disciplines declared.*
+
+Discipline
+discipline "*
+Stewardsteward *
+Claimsclaim_count *
+Typed %	typed_pct *
+Hardnon_defeasible_count *
+Dark %dark_pct 
+claimsClaimsü
+
+spec.v1.Authoring
+ListClaimsclaimsclaims" No normative statements indexed.*
+Claimclaim_id *
+
+Discipline
+discipline *
+Modalitymodality 
+*
+Rungrung *
+Quantityquantity *
+
+Instrument
+instrument *
+
+Defeasible
+defeasible 
+Ô
+witness	Witnesses½
+'
+spec.v1.AuthoringGetConflictWitnesspartieswitness parties"No conflict parties to witness.*
+Conflictconflict_id 
+*
+Quantityquantity *
+Claimclaim_id *
+
+Discipline
+discipline *
+Modalitymodality 
+*
+Bound
+bound_kind *
+Valuebound_value *
+Guardguard *
+
+Defeasible
+defeasible 

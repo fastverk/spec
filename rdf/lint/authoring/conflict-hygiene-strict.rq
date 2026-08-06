@@ -1,0 +1,47 @@
+# ---
+# title: "Conflict hygiene (strict / gate form)"
+# description: "The subset of conflict-hygiene.rq defects that must NEVER be present: unwitnessed, unowned, unbounded waiver, expired waiver. Deliberately excludes UNRESOLVED."
+# severity: error
+# tier: 3
+# rationale: "conflict-hygiene.rq is the full report and is NOT a gate, because it includes UNRESOLVED — and an unresolved conflict is a correct, honest state. A real multidisciplinary corpus has open conflicts; the AMPERE corpus has seven, several of whose resolutions are engineering work not yet done. Failing the build on those would push authors toward fake resolutions, which is the opposite of the intent. This strict variant is the gate: the four defects here are all cases where a conflict exists but cannot be acted on. UNWITNESSED — an accusation, not a finding, so it cannot be reviewed. UNOWNED (cross-discipline only) — no addressee, and unaddressed cross-discipline conflicts are precisely the ones that survive for years. UNBOUNDED-WAIVER — an au:Exempt with no au:expires is indistinguishable from having silently dropped the requirement, and could only exist if the write path was bypassed. EXPIRED-WAIVER — a lapsed exemption is unresolved again, which is the whole reason au:expires is mandatory. Keeping UNRESOLVED as a reported measure and these four as a gate is the distinction between 'we have open problems' and 'we have problems nobody can work on'."
+# ---
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT DISTINCT ?conflict ?defect ?detail
+WHERE {
+  {
+    ?conflict a au:Conflict .
+    FILTER NOT EXISTS { ?conflict au:witness ?w }
+    BIND("UNWITNESSED" AS ?defect)
+    BIND("no au:witness — cannot be reviewed" AS ?detail)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:party ?pa , ?pb .
+    ?pa au:discipline ?da .
+    ?pb au:discipline ?db .
+    FILTER(STR(?da) < STR(?db))
+    FILTER NOT EXISTS { ?conflict au:owner ?o }
+    BIND("UNOWNED" AS ?defect)
+    BIND(CONCAT("crosses ", STRAFTER(STR(?da), "#"), " x ", STRAFTER(STR(?db), "#"),
+                " with no au:owner") AS ?detail)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt ; au:expires ?exp .
+    FILTER(?exp < NOW())
+    BIND("EXPIRED-WAIVER" AS ?defect)
+    BIND(CONCAT("au:Exempt lapsed ", STR(?exp), " — unresolved again") AS ?detail)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt .
+    FILTER NOT EXISTS { ?res au:expires ?e }
+    BIND("UNBOUNDED-WAIVER" AS ?defect)
+    BIND("au:Exempt with no au:expires — authored outside the write path" AS ?detail)
+  }
+}
+ORDER BY ?defect ?conflict

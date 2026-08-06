@@ -1,0 +1,25 @@
+package(default_visibility = ["//visibility:public"])
+
+# The RFC-002 authoring/coherence gates + measures, over the au: vocabulary
+# (rdf/ontology/authoring.ttl). Exposed as source labels so
+# //rdf:authoring_gates.bzl can Label()-reference them and consumers can
+# instantiate the suite over their own corpus.
+#
+# Three are zero-row GATES (envelope-unrecorded, conflict-hygiene-strict,
+# ladder-integrity); four are reported MEASURES. See the gate/measure rationale
+# in //rdf:authoring_gates.bzl — the short version is that an empty feasible
+# envelope and an unresolved conflict are both TRUE FINDINGS, and gating on them
+# would push authors toward hiding rather than recording them. What is gated is
+# an infeasibility nobody wrote down, and a conflict nobody can act on.
+exports_files(glob(["*.rq"]))
+
+# The same files as a filegroup, so //rdf can compose them WITHOUT globbing
+# across the package boundary. `glob()` does not match files in a subpackage, so
+# a glob(["lint/authoring/*.rq"]) in //rdf silently matches nothing — and an
+# empty glob is a hard error under Bazel 7's default
+# --incompatible_disallow_empty_glob. //rdf:queries already handles the same
+# situation for rdf/queries/consistency by appending explicit labels.
+filegroup(
+    name = "queries",
+    srcs = glob(["*.rq"]),
+)

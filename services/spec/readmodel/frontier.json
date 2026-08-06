@@ -1,0 +1,40 @@
+{
+  "stalls": [
+    {
+      "claim_id": "ins-notice-of-derate",
+      "rung": "R2",
+      "discipline": "insurance, warranty & O&M",
+      "stalled_on": "\"sustained\" is unquantified in the binder; no bound can be typed until the insurer confirms a duration threshold",
+      "dependent_count": 0
+    },
+    {
+      "claim_id": "cip-cert-rotation",
+      "rung": "R3",
+      "discipline": "cybersecurity & reliability compliance",
+      "stalled_on": "no model of the control path's behaviour during rotation; cannot be typed until the DER fleet control spec states its reconnect semantics",
+      "dependent_count": 0
+    },
+    {
+      "claim_id": "ctl-mode-arbitration",
+      "rung": "R3",
+      "discipline": "software & DER fleet control",
+      "stalled_on": "the priority is not documented anywhere; it currently exists only as code in the controller, which is INV-07's real state",
+      "dependent_count": 0
+    },
+    {
+      "claim_id": "mkt-a-station-power-netting",
+      "rung": "R3",
+      "discipline": "market microstructure & tariff",
+      "stalled_on": "netting convention not yet reconciled with the accounting standard's gross-versus-net presentation test",
+      "dependent_count": 0
+    },
+    {
+      "claim_id": "tax-cost-substantiation",
+      "rung": "R3",
+      "discipline": "tax & project finance",
+      "stalled_on": "no claim in the corpus states which party is obligated to produce supplier certifications; the obligation has no subject",
+      "dependent_count": 0
+    }
+  ],
+  "unreachable_repos": []
+}

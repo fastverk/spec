@@ -1,0 +1,60 @@
+# ---
+# title: "Conflict hygiene"
+# description: "An admitted au:Conflict that is unwitnessed, unowned, unresolved, or resting on an expired waiver. Each defect is reported with a reason so the board can act on it."
+# severity: error
+# tier: 3
+# rationale: "Admitting a conflict as a first-class object instead of rejecting the write is only defensible if admitted conflicts cannot rot. Four ways they rot, all checked here. UNWITNESSED: a conflict without au:witness is an accusation, not a finding, and cannot be reviewed. UNOWNED: a cross-discipline conflict with no au:owner has no addressee, and unaddressed cross-discipline conflicts are exactly the ones that survive for years. UNRESOLVED: reported so the count is visible; a standing au:Escalate resolution is a legitimate terminal state and clears this. EXPIRED-WAIVER: an au:Exempt resolution past its au:expires is treated as unresolved again, which is the entire point of making au:expires mandatory — an unbounded waiver is indistinguishable from having silently dropped the requirement."
+# ---
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+SELECT DISTINCT ?conflict ?defect ?detail
+WHERE {
+  {
+    ?conflict a au:Conflict .
+    FILTER NOT EXISTS { ?conflict au:witness ?w }
+    BIND("UNWITNESSED" AS ?defect)
+    BIND("no au:witness — cannot be reviewed" AS ?detail)
+  }
+  UNION
+  {
+    # Cross-discipline only: a within-discipline conflict has an obvious owner.
+    # The STR ordering makes the party pair canonical so one conflict yields one
+    # row rather than both (a,b) and (b,a).
+    ?conflict a au:Conflict ; au:party ?pa , ?pb .
+    ?pa au:discipline ?da .
+    ?pb au:discipline ?db .
+    FILTER(STR(?da) < STR(?db))
+    FILTER NOT EXISTS { ?conflict au:owner ?o }
+    BIND("UNOWNED" AS ?defect)
+    BIND(CONCAT("crosses ", STRAFTER(STR(?da), "#"), " x ", STRAFTER(STR(?db), "#"),
+                " with no au:owner") AS ?detail)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict .
+    FILTER NOT EXISTS { ?conflict au:resolvedBy ?r }
+    BIND("UNRESOLVED" AS ?defect)
+    BIND("no au:Resolution recorded" AS ?detail)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt ; au:expires ?exp .
+    FILTER(?exp < NOW())
+    BIND("EXPIRED-WAIVER" AS ?defect)
+    BIND(CONCAT("au:Exempt lapsed ", STR(?exp), " — unresolved again") AS ?detail)
+  }
+  UNION
+  {
+    # A waiver with no expiry should have been impossible to author; if one
+    # exists the authoring path was bypassed.
+    ?conflict a au:Conflict ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt .
+    FILTER NOT EXISTS { ?res au:expires ?e }
+    BIND("UNBOUNDED-WAIVER" AS ?defect)
+    BIND("au:Exempt with no au:expires — authored outside the write path" AS ?detail)
+  }
+}
+ORDER BY ?defect ?conflict

@@ -1,0 +1,23 @@
+{
+  "envelopes": [
+    {
+      "quantity": "q-telemetry-latency",
+      "unit": "ms",
+      "greatest_lower": 180.0,
+      "least_upper": 150.0,
+      "deficit": 30.0,
+      "disciplines": 2,
+      "recorded": true
+    },
+    {
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
+      "greatest_lower": 82.0,
+      "least_upper": 55.0,
+      "deficit": 27.0,
+      "disciplines": 5,
+      "recorded": true
+    }
+  ],
+  "unreachable_repos": []
+}

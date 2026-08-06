@@ -21,6 +21,15 @@ pub mod backend;
 pub mod http;
 pub mod json;
 pub mod mcp;
+pub mod proposal;
+pub mod readmodel;
+pub mod routes;
+
+/// The canonical gRPC service name for the RFC-002 authoring plane. The read model
+/// and the proposal routes are its HTTP projection, exactly as `spec.v1.SpecIndex`
+/// is the read-only index's — so a panel's `populate.service` and a form's
+/// `submit.service` resolve through the same `web_routes` mechanism.
+pub const AUTHORING_SERVICE: &str = "spec.v1.Authoring";
 
 /// prost-generated `spec.v1` message types (messages only; v1 is HTTP-only).
 pub mod proto {
