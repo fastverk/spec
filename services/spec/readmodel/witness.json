@@ -2,6 +2,8 @@
   "parties": [
     {
       "conflict_id": "INV-01",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
       "claim_id": "ctl-setpoint-clamp",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
@@ -12,6 +14,8 @@
     },
     {
       "conflict_id": "INV-01",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
       "claim_id": "warranty-sustained-cap",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST_NOT",
@@ -22,6 +26,8 @@
     },
     {
       "conflict_id": "INV-01",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
       "claim_id": "ahj-derived-sustained-cap",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
@@ -32,6 +38,8 @@
     },
     {
       "conflict_id": "INV-01",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
       "claim_id": "warranty-derate-curve",
       "discipline": "electrochemistry & thermal",
       "modality": "MUST_NOT",
@@ -42,6 +50,8 @@
     },
     {
       "conflict_id": "INV-01",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
       "claim_id": "mkt-b-must-deliver",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
@@ -52,6 +62,8 @@
     },
     {
       "conflict_id": "INV-01",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
       "claim_id": "lgia-max-injection",
       "discipline": "power-systems interconnection",
       "modality": "MUST_NOT",
@@ -62,6 +74,8 @@
     },
     {
       "conflict_id": "INV-02",
+      "quantity": "q-setpoint",
+      "unit": "MW",
       "claim_id": "mkt-a-emergency-override",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
@@ -72,6 +86,8 @@
     },
     {
       "conflict_id": "INV-02",
+      "quantity": "q-setpoint",
+      "unit": "MW",
       "claim_id": "ahj-no-override",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
@@ -82,6 +98,8 @@
     },
     {
       "conflict_id": "INV-02",
+      "quantity": "q-setpoint",
+      "unit": "MW",
       "claim_id": "ahj-soc-cap",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
@@ -92,6 +110,8 @@
     },
     {
       "conflict_id": "INV-03",
+      "quantity": "q-telemetry-latency",
+      "unit": "ms",
       "claim_id": "ctl-agc-latency",
       "discipline": "protection & controls",
       "modality": "MUST_NOT",
@@ -102,6 +122,8 @@
     },
     {
       "conflict_id": "INV-03",
+      "quantity": "q-telemetry-latency",
+      "unit": "ms",
       "claim_id": "cip-inspect-control-traffic",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
@@ -112,6 +134,8 @@
     },
     {
       "conflict_id": "INV-05",
+      "quantity": "q-noise",
+      "unit": "dBA",
       "claim_id": "fire-enclosure-separation",
       "discipline": "fire & life safety",
       "modality": "MUST",
@@ -122,6 +146,8 @@
     },
     {
       "conflict_id": "INV-05",
+      "quantity": "q-noise",
+      "unit": "dBA",
       "claim_id": "permit-setback",
       "discipline": "environmental permitting & land use",
       "modality": "MUST",
@@ -132,6 +158,8 @@
     },
     {
       "conflict_id": "INV-05",
+      "quantity": "q-noise",
+      "unit": "dBA",
       "claim_id": "permit-noise-limit",
       "discipline": "environmental permitting & land use",
       "modality": "MUST_NOT",
@@ -142,6 +170,8 @@
     },
     {
       "conflict_id": "INV-07",
+      "quantity": "q-setpoint",
+      "unit": "MW",
       "claim_id": "mkt-a-follow-dispatch",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
@@ -152,6 +182,8 @@
     },
     {
       "conflict_id": "INV-07",
+      "quantity": "q-setpoint",
+      "unit": "MW",
       "claim_id": "der-mode-exclusivity",
       "discipline": "power-systems interconnection",
       "modality": "MUST_NOT",
@@ -162,6 +194,8 @@
     },
     {
       "conflict_id": "INV-07",
+      "quantity": "q-setpoint",
+      "unit": "MW",
       "claim_id": "ctl-mode-arbitration",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
@@ -172,6 +206,8 @@
     },
     {
       "conflict_id": "INV-10",
+      "quantity": "q-station-power",
+      "unit": "MW",
       "claim_id": "mkt-a-station-power-netting",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
@@ -182,6 +218,8 @@
     },
     {
       "conflict_id": "INV-10",
+      "quantity": "q-station-power",
+      "unit": "MW",
       "claim_id": "acct-gross-vs-net",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",
@@ -192,6 +230,8 @@
     },
     {
       "conflict_id": "INV-11",
+      "quantity": "",
+      "unit": "",
       "claim_id": "warranty-firmware-current",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST",
@@ -202,6 +242,8 @@
     },
     {
       "conflict_id": "INV-11",
+      "quantity": "",
+      "unit": "",
       "claim_id": "lgia-protection-settings",
       "discipline": "power-systems interconnection",
       "modality": "MUST_NOT",
@@ -212,6 +254,8 @@
     },
     {
       "conflict_id": "INV-12",
+      "quantity": "",
+      "unit": "",
       "claim_id": "tax-placed-in-service",
       "discipline": "tax & project finance",
       "modality": "MUST",
@@ -222,6 +266,8 @@
     },
     {
       "conflict_id": "INV-12",
+      "quantity": "",
+      "unit": "",
       "claim_id": "acct-commencement",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",
@@ -232,6 +278,8 @@
     },
     {
       "conflict_id": "INV-13",
+      "quantity": "q-domestic-content",
+      "unit": "percent",
       "claim_id": "permit-local-procurement",
       "discipline": "environmental permitting & land use",
       "modality": "SHOULD",
@@ -242,6 +290,8 @@
     },
     {
       "conflict_id": "INV-13",
+      "quantity": "q-domestic-content",
+      "unit": "percent",
       "claim_id": "tax-domestic-content",
       "discipline": "tax & project finance",
       "modality": "MUST",
@@ -252,6 +302,8 @@
     },
     {
       "conflict_id": "INV-14",
+      "quantity": "",
+      "unit": "",
       "claim_id": "der-anti-islanding",
       "discipline": "power-systems interconnection",
       "modality": "MUST",
@@ -262,6 +314,8 @@
     },
     {
       "conflict_id": "INV-14",
+      "quantity": "",
+      "unit": "",
       "claim_id": "ctl-island-support",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
@@ -272,6 +326,8 @@
     },
     {
       "conflict_id": "INV-16",
+      "quantity": "",
+      "unit": "",
       "claim_id": "lgia-delivery-point",
       "discipline": "power-systems interconnection",
       "modality": "MUST",
@@ -282,6 +338,8 @@
     },
     {
       "conflict_id": "INV-16",
+      "quantity": "",
+      "unit": "",
       "claim_id": "settle-metering-point",
       "discipline": "metering & settlement",
       "modality": "MUST",
@@ -292,6 +350,8 @@
     },
     {
       "conflict_id": "INV-16",
+      "quantity": "",
+      "unit": "",
       "claim_id": "settle-loss-compensation",
       "discipline": "metering & settlement",
       "modality": "MUST",
@@ -302,6 +362,8 @@
     },
     {
       "conflict_id": "INV-19",
+      "quantity": "",
+      "unit": "",
       "claim_id": "mkt-b-accreditation",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
@@ -312,6 +374,8 @@
     },
     {
       "conflict_id": "INV-19",
+      "quantity": "",
+      "unit": "",
       "claim_id": "permit-capacity-cap",
       "discipline": "environmental permitting & land use",
       "modality": "MUST_NOT",
@@ -322,6 +386,8 @@
     },
     {
       "conflict_id": "INV-19",
+      "quantity": "",
+      "unit": "",
       "claim_id": "acct-capacity-revenue",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",

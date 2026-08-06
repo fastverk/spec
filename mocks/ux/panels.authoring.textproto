@@ -24,7 +24,7 @@
 #
 # The handler ids are the contract with the browser: each needs a matching entry
 # in the shell's ADHOC_HANDLERS registry, and each reads spec's own web routes
-# (mocks/ux/wire/*.json shows their payloads).
+# (services/spec/readmodel/*.json shows their payloads).
 
 # ============================================================
 # ATLAS — the discipline lattice. Faceted drill-down with

@@ -39,7 +39,8 @@ descriptors reference via `columns.field_path`.
 
 ## Usage
 
-    python3 tools/readmodel/emit_readmodel.py --out mocks/ux/wire
+    python3 tools/readmodel/emit_readmodel.py          # -> services/spec/readmodel/
+    python3 tools/readmodel/check_wiring.py            # assert every consumer agrees
     python3 tools/readmodel/emit_readmodel.py --out /tmp/rm --corpus corpus/ampere
 
 Requires rdflib. Verified against corpus/ampere; the same script runs over any
@@ -85,19 +86,20 @@ def rows(g, query, shape):
 # names; the plugin's /describe maps it to `path`.
 
 Q_CONFLICTS = """
-SELECT ?conflict ?kind ?owner ?resolution ?outcome
+SELECT ?conflict ?kind ?quantity ?owner ?resolution ?outcome
        (GROUP_CONCAT(DISTINCT ?discLabel; separator=" x ") AS ?disciplines)
        (COUNT(DISTINCT ?party) AS ?partyCount)
        (COUNT(DISTINCT ?order) AS ?blockedOrders)
 WHERE {
   ?conflict a au:Conflict .
   OPTIONAL { ?conflict au:conflictKind ?kind }
+  OPTIONAL { ?conflict au:onQuantity ?quantity }
   OPTIONAL { ?conflict au:owner ?owner }
   OPTIONAL { ?conflict au:resolvedBy ?resolution . ?resolution au:outcome ?outcome }
   OPTIONAL { ?conflict au:blocksWorkOrder ?order }
   OPTIONAL { ?conflict au:party ?party . ?party au:discipline ?d . ?d rdfs:label ?discLabel }
 }
-GROUP BY ?conflict ?kind ?owner ?resolution ?outcome
+GROUP BY ?conflict ?kind ?quantity ?owner ?resolution ?outcome
 ORDER BY DESC(?blockedOrders) ?conflict
 """
 
@@ -106,6 +108,7 @@ def shape_conflict(r):
     return {
         "id": local(r.conflict),
         "kind": local(r.kind) or "",
+        "quantity": local(r.quantity) or "",
         "disciplines": str(r.disciplines or ""),
         "party_count": int(r.partyCount or 0),
         "blocked_orders": int(r.blockedOrders or 0),
@@ -252,10 +255,14 @@ def shape_claim(r):
 
 
 Q_WITNESS = """
-SELECT ?conflict ?party ?discipline ?modality ?boundKind ?boundValue ?guard ?defeasible
+SELECT ?conflict ?quantity ?unit ?party ?discipline ?modality ?boundKind ?boundValue ?guard ?defeasible
 WHERE {
   ?conflict a au:Conflict ; au:party ?party .
   ?party rfc:modality ?modality .
+  # The join key to ListEnvelopes. Without it a witness row says "this claim binds
+  # at 55" with no way to know 55 of WHAT, which makes the constraint-bar axis
+  # (the one screen the whole read model exists for) impossible to draw.
+  OPTIONAL { ?conflict au:onQuantity ?quantity . OPTIONAL { ?quantity au:unit ?unit } }
   OPTIONAL { ?party au:discipline ?d . ?d rdfs:label ?discipline }
   OPTIONAL { ?party au:hasBound ?b . ?b au:boundKind ?boundKind ; au:boundValue ?boundValue .
              OPTIONAL { ?b au:boundGuard ?guard } }
@@ -268,6 +275,8 @@ ORDER BY ?conflict ?boundValue
 def shape_witness_party(r):
     return {
         "conflict_id": local(r.conflict),
+        "quantity": local(r.quantity) or "",
+        "unit": str(r.unit or ""),
         "claim_id": local(r.party),
         "discipline": str(r.discipline or ""),
         "modality": local(r.modality) or "",
@@ -294,7 +303,9 @@ SERVICE = "spec.v1.Authoring"
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", required=True, help="output directory for the JSON payloads")
+    ap.add_argument("--out", default="services/spec/readmodel",
+                    help="output directory for the JSON payloads (default: the directory\n"
+                         "services/spec serves — see src/readmodel.rs)")
     ap.add_argument("--corpus", default="corpus/ampere",
                     help="corpus directory whose *.ttl are loaded (default corpus/ampere)")
     ap.add_argument("--ontology", nargs="*",

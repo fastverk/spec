@@ -138,23 +138,66 @@ with a Rust 1.95.0 toolchain and an isolated `crate_universe` over the root
 Rust hot-path passes — is available today. The note in `compaction.md` should be
 corrected so the next reader does not re-litigate a settled question.
 
-### 3.3 The meridian descriptor vocabulary is `table` / `lro` / `adhoc`
+### 3.3 The meridian descriptor vocabulary — CORRECTED
 
-Across every `panels.textproto` in the estate — `spec/services/spec/ui`,
-`botnoc/proto/botnoc/ui/v1`, `plugin-mycelium/ui`, `agents/services/agent/ui` —
-exactly two panel kinds appear: `table` and `adhoc`. `botnoc/web/static/assets/main.js`
-dispatches on `body.case` for `table`, `lro`, and `adhoc`.
+> **This section was wrong as originally written, and the correction changes §8.**
+> It is kept, with the error visible, because the *way* it was wrong is the useful
+> part: it measured the right file in the wrong version.
+>
+> **What it claimed:** "there is no form, action, mutation, or confirmation
+> descriptor — point-and-click authoring is not expressible in the declarative
+> vocabulary," and therefore every write affordance needs a botnoc `ADHOC_HANDLERS`
+> entry or an upstream `meridian_schemas` extension.
+>
+> **What is actually true:** `botnoc/web/static/assets/main.js` at HEAD dispatches
+> `body.case` for `table`, `lro`, `adhoc`, **`gallery`**, and **`form`** — and
+> `renderFormPanelInto` is a complete declarative write path: it builds each field
+> from `FormField.kind` (`text` / `masked` / `integer` / `enum_selection`),
+> validates against `pattern`, assembles `{request_field: value}` from the
+> descriptor's `bindings`, and POSTs through
+> `makeInvoker(plugin).invoke(submit.service, submit.method, request)` — which
+> resolves the route from *the plugin's own* `web_routes`. Its own comment says so:
+> *"A FormPanel is a first-class plugin panel … This is what lets a plugin (e.g.
+> plugin-integrations' admin 'Define provider') own a native form without a
+> meridian bundle rebuild."*
+>
+> **Why the error happened, and it is not a careless one:** the enumeration was
+> taken from the descriptor set available at **`meridian_schemas` 0.5.0**, which is
+> what `spec/MODULE.bazel:158` pins. The repo that ships the *shell doing the
+> rendering* pins **0.19.0** (`meridian_web` 0.12.0 against spec's 0.5.0). Fourteen
+> minor versions of descriptor vocabulary were invisible from inside this repo, and
+> the conclusion drawn — "this needs a cross-repo negotiation" — was a conclusion
+> about a version pin mistaken for one about an architecture.
+>
+> **The lesson worth carrying:** when a capability appears to be missing upstream,
+> check the version the *consumer* pins before concluding the capability does not
+> exist. §12.1 records the same shape of error about CI.
 
-**There is no form, action, mutation, or confirmation descriptor.** Point-and-click
-authoring is not expressible in the declarative vocabulary.
+What survives the correction:
 
-Further, `meridian_schemas` is an **upstream bazel module** (`MODULE.bazel:158`,
-version `0.5.0`) that this repo does not own — and `botnoc` mirrors `v0.6.0`, so
-there is already a version skew we cannot unilaterally resolve.
+- The estate's own `panels.textproto` files really do use only `table` and `adhoc`.
+  That is a fact about how plugins were written, not about what the schema permits,
+  and reading it as the latter is what produced the error.
+- `meridian_schemas` really is an upstream module this repo does not own, and the
+  version skew is real. It just is not a *blocker* — it is a bump.
+- `ADHOC_HANDLERS` really does carry nine handlers, and `access_keys` really does
+  mutate. Adhoc panels can write. They are simply no longer the *only* way.
 
-**Consequence — and this is the delivery decision.** A design that requires
-extending the meridian descriptor vocabulary blocks on an upstream module and a
-version negotiation. It cannot be phase 1.
+**Consequence — the corrected delivery decision.** Declarative writes need no
+upstream change and no botnoc change; they need `meridian_schemas` bumped in
+`spec/MODULE.bazel` past the version that carries `FormPanel`. Three limitations
+found by actually writing the descriptors are recorded in
+[`mocks/ux/panels.authoring-form.textproto`](../mocks/ux/panels.authoring-form.textproto)
+and are the genuine upstream asks: no binding source can supply **server state**
+(so `parent`, the read point, cannot be prefilled — the worst of the three); there
+is no **decimal** field kind (so a physical bound is pattern-validated text); and a
+form submits **one flat record** (so multi-op proposals with per-op triage remain
+an adhoc surface, which is the right division anyway).
+
+Adhoc handlers remain necessary for exactly one class of surface: the ones whose
+content is a *relationship between rows* rather than rows — the constraint-bar
+axis, the faceted lattice, the per-op diff. That is a much smaller claim than the
+original section made, and it is the true one.
 
 But it does not need to be. `main.js` carries an `ADHOC_HANDLERS` registry keyed
 by `AdhocPanel.handler_id`, and `meridian-bridge.js`'s `renderPanelInto` takes an
@@ -441,17 +484,51 @@ and idempotent for the dedup pass (`mem_dedupE`, `dedupE_length_le`,
 
 ## 8. Point-and-click authoring (meridian)
 
-### 8.1 Delivery: adhoc-first
+### 8.1 Delivery: declarative-first, adhoc where a table cannot carry it
 
-Per §3.3, the declarative vocabulary is `table` / `lro` / `adhoc` with no write
-primitive, and `meridian_schemas` is upstream. So the authoring surfaces ship as
-**adhoc handlers** against spec's own web routes — the mechanism `chat`, `fleet`,
-`configs_manager`, `image_explorer` and the *mutating* `access_keys` already use.
-No upstream change, no version negotiation, week-one shippable.
+*Revised by the §3.3 correction. The original text said adhoc-first, on the
+strength of a descriptor vocabulary that turned out to be two years old.*
 
-The mutation surface collapses to two routes: `POST /proposal` and
-`POST /proposal/{pid}/verdict-preview`. Every write affordance anywhere composes
-an op and submits through them.
+Three tiers, and the ordering is now the opposite of what §8.2 assumed:
+
+1. **Declarative `table` panels — shipped.** Six of them, in
+   `services/spec/ui/panels.textproto`, populated from
+   `spec.v1.Authoring`'s six GET routes. No shell code. This is the conflict board,
+   the empty envelopes, the frontier, per-discipline coverage, the claim list and
+   the witness parties — most of the value, and it reached the browser without
+   touching another repo.
+2. **Declarative `form` panels — one version bump away.** Written, internally
+   checked, and *not* in the shipped bundle, because `form { }` fails to parse
+   against spec's pinned `meridian_schemas` and would break the plugin build for
+   everyone. See `mocks/ux/panels.authoring-form.textproto`.
+3. **Adhoc panels — for the surfaces whose content is a relationship.** The
+   constraint-bar axis, the faceted lattice with conflict heat, the per-op diff, the
+   draft bar. Four, not nine.
+
+The mutation surface is three routes, not two:
+
+| route | method | for |
+|---|---|---|
+| `POST /proposal` | `SubmitProposal` | the nested, multi-op form — an MCP client or an adhoc composer |
+| `POST /proposal/op` | `SubmitOp` | the **flat, one-op** form a declarative `FormPanel` can submit |
+| `POST /proposal/verdict-preview` | `PreviewProposal` | the structural check, written to nothing |
+
+`SubmitOp` exists because `buildRequestFromBindings` produces a flat object of
+strings, one level deep, and a `Proposal` is `{parent, ops: [...]}`. Rather than
+concede that declarative writes are impossible, the plugin accepts the flat shape
+of the common case and lifts it. The coercion is narrow and declared — only the
+named array / boolean / numeric fields, only on that route — and the property that
+matters is tested: **a form submission and an API submission of the same op produce
+identical canonical bytes**, which is §9.1's equal-citizen guarantee on the write
+side rather than a hope about it.
+
+What the plugin's write path deliberately does *not* do is decide. It validates
+against the closed vocabulary and appends to an append-only log; the content
+address, the parent check and the gate verdict happen in the build, where the SPARQL
+gates and the Lean kernel already are. **The build adjudicates, the plugin queues.**
+`verdict-preview` returns its own `limits` array saying exactly that, because a
+route with that name under-delivering silently is worse than one that states its
+scope.
 
 ### 8.2 The surfaces
 
@@ -463,10 +540,11 @@ claims across 12 disciplines there is no useful flat index.
 | `atlas` | adhoc | Discipline lattice with conflict-heat and **dark fraction** — the share of claims below R4, i.e. how much of the corpus an agent fleet may *not* build against. |
 | `scope` | adhoc | The same lattice keyed on scope: *"what constrains the thermal subsystem"* — pulls every obligation from every discipline binding that scope in one aligned vocabulary. **The query nobody can answer today.** |
 | `conflicts` | adhoc | The annunciator board, faceted by discipline pair, sorted by blocked work orders. |
-| `witness` | adhoc, read-only | The envelope: constraint bars on one axis, the intersection, the deficit, and per-party defeasibility. **No editing affordances at all** — you cannot fix a witness, only arbitrate the claims under it. |
+| `witness` | adhoc, read-only — **implemented**, `botnoc/web/static/assets/spec.js` | The envelope: constraint bars on one axis, the intersection, the deficit, and per-party defeasibility. **No editing affordances at all** — you cannot fix a witness, only arbitrate the claims under it. Also shipped as a plain `table` in the declarative bundle, so the finding is legible before the axis exists. |
 | `claim` | adhoc | Obligation normal form + the R0–R5 ladder with each rung's evidence and gate. |
 | `proposal` | adhoc | Per-op diff with accept / reject / defer, the `IntentRecord` prose alongside the ops, and for chat-authored proposals the **rejected** formalization attempts. |
 | `frontier` | table | Stalls ranked by how many binding claims depend on them. A plain table suffices. |
+| `author_claim` · `adjudicate` · `narrow_guard` · `bind_term` | **form** | Declarative write affordances — added by the §3.3 correction. Each composes exactly one op and submits through `SubmitOp`. Gated on the `meridian_schemas` bump, not on a botnoc change. |
 | `fanout` | table | Work orders, obligation counts, disciplines bound, hold reasons. |
 | `draft bar` | shell | Persistent staging with a live door-verdict chip. Composition spans screens and sessions; without it the door only speaks at submit time, which is the worst moment to learn you contradicted the safety discipline. |
 
@@ -494,7 +572,14 @@ stable get promoted **upstream** into `meridian_schemas` as declarative
 descriptors — from evidence, once, rather than by guessing now. The candidate set
 is `LatticePanel`, `DeltaPanel`, `WitnessPanel`, and an
 `Action.emits_proposal_op` field that would let a descriptor lint statically
-prove every write affordance composes an op. Deferring this is a sequencing
+prove every write affordance composes an op.
+
+Three *smaller* asks now precede that list, and they are worth making first
+because each is generic, each benefits every plugin in the estate, and each is
+cheaper than a new panel kind: a **`context` binding source** (or a `populate` on a
+form) so server state can reach a field; a **`decimal` field kind**; and a
+**parameterised `populate`** so a table can be populated from the selected row of
+another — the difference between a browsable read model and a drillable one. Deferring this is a sequencing
 decision, not an abandonment: it is the only path to design 1's "an illegal edit
 has no representation."
 

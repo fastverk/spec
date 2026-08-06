@@ -12,9 +12,8 @@ actually run on.
 | Artifact | What it shows |
 |---|---|
 | **[Interactive console mock](https://claude.ai/code/artifact/2483c84d-86f3-4ec9-b195-071c203d0206)** | Seven walkable screens: conflict board, the INV-01 witness with the empty envelope, the discipline atlas with dark fraction, a claim with its R0–R5 ladder, per-op proposal review, the chat grounding loop, and the fanout board |
-| [`panels.readmodel.textproto`](./panels.readmodel.textproto) | **Stage 1 — shippable.** Six declarative `table` panels needing *no* shell change. See [RFC-002a](../../docs/rfc-002a-browser-authoring-path.md) |
-| [`wire/`](./wire/) | **Real payloads**, generated from `corpus/ampere` by `tools/readmodel/emit_readmodel.py` — 12 conflicts, 2 envelopes, 5 stalls, 12 disciplines, 64 claims, 33 witness parties, plus the `/describe` `web_routes` fragment |
-| [`panels.authoring.textproto`](./panels.authoring.textproto) | **Stage 3 — aspirational.** 8 adhoc handlers + 2 tables; needs a botnoc `ADHOC_HANDLERS` entry |
+| [`panels.authoring-form.textproto`](./panels.authoring-form.textproto) | **Declarative WRITE affordances** — four forms, one op each. Also the record of the RFC-002 §3.3 correction: the descriptor vocabulary *does* have a write primitive, and §3.3 measured the wrong version. Gated on one `meridian_schemas` bump |
+| [`panels.authoring.textproto`](./panels.authoring.textproto) | **Aspirational.** 8 adhoc handlers + 2 tables. Now a much shorter list than it looks — most of it became declarative |
 | [`chat/01-ground-new-intent.md`](./chat/01-ground-new-intent.md) | A market-ops engineer authors a fire-safety claim. Includes a gate failure, the model refusing to adjudicate, and the split proposal routed to the fire marshal |
 | [`chat/02-conflict-adjudication.md`](./chat/02-conflict-adjudication.md) | INV-01 adjudicated — **and the model being wrong about INV-10 and refuted by the expert** |
 | [`chat/03-agent-fanout.md`](./chat/03-agent-fanout.md) | Fanout over the coherent slice, an agent's good failure, and the replay guarantee |
@@ -69,18 +68,30 @@ consequence, and the UI's job is to keep the overhead to the three points above.
 | Surface | State in `fastverk/spec` |
 |---|---|
 | Read-only table panels (Specs / Contracts / Proof Status) | **exists** — `services/spec/ui/panels.textproto` |
-| gRPC nav subtree, MCP read tools, `/describe` web routes | **exists** — `services/spec/src/{main,mcp,http}.rs` |
+| **The six authoring read-model table panels** | **exists, in the shipped bundle** — same file, merged (the shell fetches exactly one `panels.binpb`, so a second bundle would never be discovered) |
+| **The read model itself** (6 routes, 128 rows over AMPERE) | **exists** — `services/spec/readmodel/*.json`, emitted by `tools/readmodel/emit_readmodel.py`, served by `src/readmodel.rs` |
+| **The write path, queue-side** (`POST /proposal`, `/proposal/op`, `/proposal/verdict-preview`) | **exists, 32 tests pass** — `src/proposal.rs`. Validates against the closed 16-op vocabulary and appends to an append-only log. Does **not** admit: no content address, no gate verdict — the build adjudicates |
+| **The constraint-bar axis** | **exists** — `botnoc/web/static/assets/spec.js` + one `ADHOC_HANDLERS` entry. Parses; not yet rendered in a browser |
+| gRPC nav subtree, MCP read tools, `/describe` web routes | **exists** — `services/spec/src/{main,mcp,http,routes}.rs`. Nine nav leaves; six MCP tools |
 | Ten semantic gates + four consistency invariants | **exists** — `rdf/lint/semantic/`, `rdf/queries/consistency/` |
 | Corrector invariants (meaning-preserving, non-increasing, idempotent) | **exists** — `lean/Spec/Compaction/Projection.lean` |
 | Un-gameable grounding (fabricated `provenBy` rejected) | **exists** — `//grounding:grounding_verified` |
 | Authoring ontology (proposal, ladder, conflict, quantity, scope) | **written, validated, not gated** — `rdf/ontology/authoring.ttl` |
 | Five authoring gates with positive/negative controls | **written, executed** — `rdf/lint/authoring/`; see the discrimination table in `fixtures/README.md`. **Not yet wired into BUILD.bazel** |
 | AMPERE corpus | **written, SHACL-conformant, measured** — `corpus/ampere/` |
-| `Proposal` object, `Door.admit`, per-op review | **does not exist** — the core of the RFC |
-| Any adhoc authoring handler, `POST /proposal` | **does not exist** |
-| MCP write tools (`spec__preview_proposal`, `spec__apply_proposal`, …) | **does not exist** — tool names in the transcripts are proposed |
+| `Door.admit`, the content address, the gate verdict | **does not exist** — the core of the RFC, and deliberately not attempted in an environment that cannot build Lean |
+| Per-op review of a multi-op proposal (accept 3 of 5) | **does not exist** — the routes carry the verdict split; the review surface is adhoc work |
+| MCP **write** tools (`spec__preview_proposal`, …) | **does not exist** — tool names in the transcripts are proposed. The three *read* tools do exist |
 | Work orders, obligation closure, dispatch gating | **does not exist** |
-| Declarative write/form/action descriptors | **not available** — owned upstream in `meridian_schemas`; see RFC-002 §3.3 for why the mocks use `adhoc` instead |
+| Declarative write descriptors in the **shipped** bundle | **written, checked, not compiled** — `panels.authoring-form.textproto` needs `meridian_schemas` bumped past `FormPanel` in `spec/MODULE.bazel`. **RFC-002 §3.3's claim that no write descriptor exists was wrong** |
+
+One correction worth reading, because the *shape* of the error recurs: RFC-002 §3.3
+concluded that point-and-click authoring was not expressible declaratively and needed
+a botnoc change. It had enumerated the descriptor vocabulary at `meridian_schemas`
+**0.5.0** — spec's pin — while botnoc, whose shell does the rendering, pins
+**0.19.0**. `FormPanel` had been there the whole time. When a capability looks
+missing upstream, check the version the *consumer* pins before concluding it does not
+exist.
 
 The confirm-gated mutation pattern in the transcripts (`confirm:false` preview →
 user approves → `confirm:true`) **is** the real one `plugin-chat` implements

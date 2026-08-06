@@ -3,6 +3,7 @@
     {
       "id": "INV-01",
       "kind": "EmptyEnvelope",
+      "quantity": "q-sustained-discharge",
       "disciplines": "market microstructure & tariff x insurance, warranty & O&M x fire & life safety x electrochemistry & thermal x power-systems interconnection x software & DER fleet control",
       "party_count": 6,
       "blocked_orders": 3,
@@ -13,6 +14,7 @@
     {
       "id": "INV-02",
       "kind": "ModalityClash",
+      "quantity": "q-setpoint",
       "disciplines": "market microstructure & tariff x fire & life safety",
       "party_count": 3,
       "blocked_orders": 1,
@@ -23,6 +25,7 @@
     {
       "id": "INV-03",
       "kind": "EmptyEnvelope",
+      "quantity": "q-telemetry-latency",
       "disciplines": "cybersecurity & reliability compliance x protection & controls",
       "party_count": 2,
       "blocked_orders": 1,
@@ -33,6 +36,7 @@
     {
       "id": "INV-07",
       "kind": "ModalityClash",
+      "quantity": "q-setpoint",
       "disciplines": "market microstructure & tariff x power-systems interconnection x software & DER fleet control",
       "party_count": 3,
       "blocked_orders": 1,
@@ -43,6 +47,7 @@
     {
       "id": "INV-11",
       "kind": "PrecedenceUndefined",
+      "quantity": "",
       "disciplines": "insurance, warranty & O&M x power-systems interconnection",
       "party_count": 2,
       "blocked_orders": 1,
@@ -53,6 +58,7 @@
     {
       "id": "INV-13",
       "kind": "PrecedenceUndefined",
+      "quantity": "q-domestic-content",
       "disciplines": "tax & project finance x environmental permitting & land use",
       "party_count": 2,
       "blocked_orders": 1,
@@ -63,6 +69,7 @@
     {
       "id": "INV-05",
       "kind": "EmptyEnvelope",
+      "quantity": "q-noise",
       "disciplines": "fire & life safety x environmental permitting & land use",
       "party_count": 3,
       "blocked_orders": 0,
@@ -73,6 +80,7 @@
     {
       "id": "INV-10",
       "kind": "ModalityClash",
+      "quantity": "q-station-power",
       "disciplines": "market microstructure & tariff x accounting & revenue recognition",
       "party_count": 2,
       "blocked_orders": 0,
@@ -83,6 +91,7 @@
     {
       "id": "INV-12",
       "kind": "Homonym",
+      "quantity": "",
       "disciplines": "tax & project finance x accounting & revenue recognition",
       "party_count": 2,
       "blocked_orders": 0,
@@ -93,6 +102,7 @@
     {
       "id": "INV-14",
       "kind": "ModalityClash",
+      "quantity": "",
       "disciplines": "power-systems interconnection x software & DER fleet control",
       "party_count": 2,
       "blocked_orders": 0,
@@ -103,6 +113,7 @@
     {
       "id": "INV-16",
       "kind": "TopologyDisagreement",
+      "quantity": "",
       "disciplines": "power-systems interconnection x metering & settlement",
       "party_count": 3,
       "blocked_orders": 0,
@@ -113,6 +124,7 @@
     {
       "id": "INV-19",
       "kind": "Homonym",
+      "quantity": "",
       "disciplines": "market microstructure & tariff x environmental permitting & land use x accounting & revenue recognition",
       "party_count": 3,
       "blocked_orders": 0,
