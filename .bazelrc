@@ -31,3 +31,22 @@ try-import %workspace%/user.bazelrc
 common --enable_platform_specific_config
 build:linux --host_linkopt=-Wl,--no-gc-sections
 build:linux --linkopt=-Wl,--no-gc-sections
+
+# tectonic resolves fonts through fontconfig on Linux, and fontconfig needs a
+# writable cache directory. Inside the sandbox it has none, reports
+#
+#   Fontconfig error: No writable cache directories
+#
+# and then cannot find the Latin Modern OpenType face the `article` document
+# class asks for, failing with:
+#
+#   size11.clo:54: Font TU/lmr/m/n/10.95=[lmroman10-regular]:mapping=tex-text
+#   not loadable: Metric (TFM) file or installed font not found
+#
+# //deck (beamer) is unaffected because it never takes that lookup path, which
+# is exactly why this looked like a per-document LaTeX problem and is not one.
+# `\usepackage{lmodern}` was tried on the failing documents and does NOT fix it.
+#
+# Linux only, and invisible until this repo had CI at all.
+build:linux --sandbox_add_mount_pair=/tmp
+build:linux --action_env=XDG_CACHE_HOME=/tmp/xdg-cache
