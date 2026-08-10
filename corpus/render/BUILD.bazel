@@ -1,4 +1,4 @@
-load("@rules_graphviz//graphviz:defs.bzl", "dot_pdf", "dot_diagram", "svg_pdf")
+load("@rules_graphviz//graphviz:defs.bzl", "dot_diagram")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -37,11 +37,24 @@ dot_diagram(
     engine = "twopi",
 )
 
-# ── dot -> vector PDF (for the deck / tectonic) ────────────────────────────
-# Same twopi render, straight to vector PDF via rules_graphviz (dot -> svg ->
-# pdf, all hermetic).
-dot_pdf(
-    name = "hero_pdf",
+# ── dot -> TikZ (for the deck / tectonic) ──────────────────────────────────
+# This was `dot_pdf`, which cannot build for any consumer: rules_graphviz's
+# vendored bun bundle hardcodes an absolute `__dirname` into the machine that
+# built it and pdfkit reads its font metrics from there at run time. See
+# //graph:BUILD.bazel for the full failure. Same route as the //graph figures
+# now: graphviz computes the layout hermetically and emits `plain`;
+# //graph:plain_to_tikz turns that into TikZ tectonic can \input.
+dot_diagram(
+    name = "hero_plain",
     src = ":hero_dot",
     engine = "twopi",
+    output_format = "plain",
+)
+
+genrule(
+    name = "hero_tikz",
+    srcs = [":hero_plain"],
+    outs = ["hero_tikz.tex"],
+    cmd = "python3 $(location //graph:plain_to_tikz.py) --layout $< --output $@",
+    tools = ["//graph:plain_to_tikz.py"],
 )

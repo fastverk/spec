@@ -2,20 +2,24 @@ load("@rules_tectonic//tectonic:defs.bzl", "tectonic_pdf")
 
 package(default_visibility = ["//visibility:public"])
 
-# Crank-001 readout deck. The hero graph figures are the //graph .dot sources,
-# rendered to vector PDF entirely hermetically (rules_graphviz svg_pdf: bun +
-# the vendored converter — no host `dot`, no cairo). The data figures
-# (figures/*.tex) are native pgfplots/TikZ. tectonic stages every src at its
-# package-relative path and compiles from main.tex's dir, so the //graph PDFs
-# land at graph/<name>.pdf and main.tex includes them as ../graph/<name>.
+# Crank-001 readout deck. Every figure is now native TikZ: the data figures
+# (figures/*.tex) always were, and the graph figures are TikZ emitted from the
+# //graph .dot sources by //graph:plain_to_tikz — graphviz still computes the
+# layout hermetically in WASM, LaTeX draws it. They used to be PDFs via
+# rules_graphviz `svg_pdf`, which cannot build for any consumer; see
+# //graph:BUILD.bazel for the failure.
+#
+# tectonic stages every src at its package-relative path and compiles from
+# main.tex's dir, so the //graph TikZ lands at graph/<name>_tikz.tex and
+# main.tex \input's it as ../graph/<name>_tikz.tex.
 #
 #   bazel build //deck:crank001  ->  bazel-bin/deck/crank001.pdf
 tectonic_pdf(
     name = "crank001",
     main = "main.tex",
     srcs = glob(["figures/*.tex"]) + [
-        "//graph:crystal_pdf",
-        "//graph:collapse_before_pdf",
-        "//graph:collapse_after_pdf",
+        "//graph:crystal_tikz",
+        "//graph:collapse_before_tikz",
+        "//graph:collapse_after_tikz",
     ],
 )
