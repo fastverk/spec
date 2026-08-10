@@ -28,3 +28,9 @@ fastverk_plugin(
     ],
     deps = all_crate_deps(normal = True),
 )
+
+filegroup(
+    name = "src",
+    srcs = glob(["src/*.rs"]),
+    visibility = ["//visibility:public"],
+)

@@ -120,6 +120,7 @@ async fn main() -> Result<()> {
                     fastverk_layout::leaf("disciplines", "Disciplines"),
                     fastverk_layout::leaf("witness", "Witnesses"),
                     fastverk_layout::leaf("claims", "Claims"),
+                    fastverk_layout::leaf("requirements", "Requirements"),
                 ])
                 .with_panels(panels)
                 .into_server(),

@@ -19,3 +19,8 @@ meridian_panel_bundle(
 )
 
 exports_files(["panels.textproto"])
+
+# The COMPILED bundle, exported so //tools/readmodel:check_wiring_test can
+# assert it still matches panels.textproto. A bundle that drifted from its
+# descriptors renders yesterday's panels from today's source, silently.
+exports_files(["panels.binpb"])

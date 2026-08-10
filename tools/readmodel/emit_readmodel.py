@@ -300,6 +300,47 @@ def shape_witness_party(r):
     }
 
 
+Q_REQUIREMENTS = """
+SELECT ?claim ?discipline ?modality ?rung ?stall ?impl ?population ?outcome
+WHERE {
+  ?claim a rfc:NormativeStatement .
+  OPTIONAL { ?claim au:discipline ?d . ?d rdfs:label ?discipline }
+  OPTIONAL { ?claim rfc:modality ?modality }
+  OPTIONAL { ?claim au:rung ?rung }
+  OPTIONAL { ?claim au:stalledOn ?stall }
+  # LEFT JOIN, deliberately. A requirement with no evaluation must still appear —
+  # it is the single largest category and the one worth seeing. An inner join
+  # would show only the evaluated ones and make the table look healthy by
+  # hiding everything nothing has ever checked.
+  OPTIONAL {
+    ?claim au:evaluatedBy ?e .
+    OPTIONAL { ?e au:implementation ?impl }
+    OPTIONAL { ?e au:population ?population }
+    OPTIONAL { ?e au:outcomeOf ?outcome }
+  }
+}
+ORDER BY ?claim ?impl
+"""
+
+
+def shape_requirement(r):
+    evaluated = r.outcome is not None or r.population is not None
+    return {
+        "requirement_id": local(r.claim),
+        "discipline": str(r.discipline or ""),
+        "modality": local(r.modality) or "",
+        "rung": local(r.rung) or "",
+        # Which implementation answered. Empty when nothing has.
+        "implementation": str(r.impl or ""),
+        # ⛔ "—" and 0 are DIFFERENT and the distinction is the point: 0 means a
+        # check ran and examined nothing (vacuous); "—" means no check has ever
+        # run. Rendering both as 0 is how a requirement ends up looking guarded.
+        "population": "—" if r.population is None else str(int(r.population)),
+        "outcome": local(r.outcome) or ("NOT-EVALUATED" if not evaluated else ""),
+        "blocked_on": str(r.stall or ""),
+    }
+
+
 ROUTES = [
     ("conflicts",   "conflicts",  "ListConflicts",       Q_CONFLICTS,   shape_conflict),
     ("envelopes",   "envelopes",  "ListEnvelopes",       Q_ENVELOPES,   shape_envelope),
@@ -307,6 +348,7 @@ ROUTES = [
     ("disciplines", "disciplines", "ListDisciplines",    Q_DISCIPLINES, shape_discipline),
     ("claims",      "claims",     "ListClaims",          Q_CLAIMS,      shape_claim),
     ("witness",     "parties",    "GetConflictWitness",  Q_WITNESS,     shape_witness_party),
+    ("requirements", "requirements", "ListRequirements",  Q_REQUIREMENTS, shape_requirement),
 ]
 
 SERVICE = "spec.v1.Authoring"
