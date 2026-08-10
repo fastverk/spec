@@ -3,11 +3,11 @@ load("@rules_java//java:defs.bzl", "java_test")
 package(default_visibility = ["//visibility:public"])
 
 JENA_DEPS = [
-    "@maven//:org_apache_jena_jena_arq",
-    "@maven//:org_apache_jena_jena_core",
-    "@maven//:org_apache_jena_jena_base",
-    "@maven//:org_apache_jena_jena_iri",
-    "@maven//:org_slf4j_slf4j_simple",
+    "@spec_maven//:org_apache_jena_jena_arq",
+    "@spec_maven//:org_apache_jena_jena_core",
+    "@spec_maven//:org_apache_jena_jena_base",
+    "@spec_maven//:org_apache_jena_jena_iri",
+    "@spec_maven//:org_slf4j_slf4j_simple",
 ]
 
 # The adversarial control: the consistency gates must DETECT a planted cycle /

@@ -3,11 +3,11 @@ load("@rules_java//java:defs.bzl", "java_library")
 package(default_visibility = ["//visibility:public"])
 
 JENA_DEPS = [
-    "@maven//:org_apache_jena_jena_arq",
-    "@maven//:org_apache_jena_jena_core",
-    "@maven//:org_apache_jena_jena_base",
-    "@maven//:org_apache_jena_jena_iri",
-    "@maven//:org_slf4j_slf4j_simple",
+    "@spec_maven//:org_apache_jena_jena_arq",
+    "@spec_maven//:org_apache_jena_jena_core",
+    "@spec_maven//:org_apache_jena_jena_base",
+    "@spec_maven//:org_apache_jena_jena_iri",
+    "@spec_maven//:org_slf4j_slf4j_simple",
 ]
 
 # Shared corpus loader — loads the framework rfc: vocabulary (bundled as a
@@ -26,7 +26,7 @@ java_library(
 java_library(
     name = "aion_paths",
     srcs = ["kg/AionPaths.java"],
-    deps = ["@maven//:dev_dirs_directories"],
+    deps = ["@spec_maven//:dev_dirs_directories"],
 )
 
 # Deterministic Turtle serializer (byte-stable round-trip).
@@ -55,7 +55,7 @@ java_library(
         "//rdf/queries/consistency:inverse-edges.rq",
     ],
     resource_strip_prefix = "rdf",
-    deps = JENA_DEPS + ["@maven//:org_apache_jena_jena_shacl"],
+    deps = JENA_DEPS + ["@spec_maven//:org_apache_jena_jena_shacl"],
 )
 
 # Mutation primitive: load TTL -> mutate Model -> preflight gates ->

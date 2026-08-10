@@ -10,12 +10,44 @@ one copy instead of duplicated trees.
 Future scope (per narrative/rules-spec-kg-retirement-sequencing.md in the
 Aion repo): the lean_emit pipelines, the graph-integrity gate macros, and
 the narrative-site builder land here too as the kg retirement completes.
+
+## The framework / product split (0.7.0)
+
+This module ships two things: the FRAMEWORK a consumer depends on (the Lean
+spec libs, the RDF corpus toolkit + gate macros, the RFC vocabulary) and the
+PRODUCT this repo happens to also build from it (the Rust console plugin, its
+meridian UI, the LaTeX paper, the graph figures).
+
+Only the framework deps are non-dev. Everything the product needs is
+`dev_dependency = True`, which bzlmod does not propagate — so a consumer
+resolves five modules, not sixteen, and spec's own build is unaffected because
+dev deps still apply when spec is the root.
+
+This is not hypothetical tidiness. Aion pinned itself back to 0.5.2 and said
+why in its own MODULE.bazel:
+
+    0.5.2 is a PURE RENAME of 0.5.1 — identical deps — whereas 0.6.x adds a
+    Rust console plugin and a LaTeX paper, pulling rules_tectonic,
+    meridian_web and rules_fastverk_plugin into every consumer's module graph
+    for capabilities aion does not use.
+
+That was a correct reading of 0.6.x, and it made the framework unadoptable by
+the one repo with 1,313 normative statements in it. 0.7.0 is the answer, and
+it is the same reasoning the `register_toolchains` calls below already
+document — applied to the `bazel_dep`s, where it was missing.
 """
 
 module(
     name = "spec",
-    version = "0.6.3",
+    version = "0.7.0",
 )
+
+# ── FRAMEWORK deps: the surface consumers actually resolve ────────────────────
+# rules_java + rules_jvm_external back //java/kg (the Jena/RDF corpus toolkit);
+# rules_lean backs the //lean source labels a consumer lists in its lean_test
+# srcs; rules_rdf + rules_jena back the spec_corpus_gates / spec_authoring_gates
+# macros. Adding to this list widens every consumer's module graph — do it
+# deliberately.
 
 bazel_dep(name = "rules_java", version = "8.6.1")
 bazel_dep(name = "rules_jvm_external", version = "6.5")
@@ -25,7 +57,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.5")
 # mycelium so the lifted sources build unchanged.
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
-    name = "maven",
+    name = "spec_maven",
     artifacts = [
         "org.apache.jena:apache-jena-libs:5.0.0",
         "org.apache.jena:jena-shacl:5.0.0",
@@ -47,11 +79,20 @@ maven.install(
     # comment above depends on: coordinates that "mirror Aion + mycelium" cannot
     # drift out from under that claim if they are pinned.
     #
-    # Regenerate with:  bazel run @maven//:pin  (then rename the emitted
-    # rules_jvm_external++maven+maven_install.json back to maven_install.json)
+    # The repo is named `spec_maven`, not the default `maven`, and that is
+    # load-bearing for consumers rather than cosmetic. rules_jvm_external merges
+    # every module contributing to a same-named repo: with the default name a
+    # consumer resolves "the maven repository 'maven' has contributions from
+    # multiple bzlmod modules ... ['protobuf', 'spec']", silently mixing
+    # protobuf's artifacts into spec's, and — once a lock_file is set — failing
+    # outright inside maven.bzl. agora namespaces its repo `agora_maven` for the
+    # same reason.
+    #
+    # Regenerate with:  bazel run @spec_maven//:pin  (then rename the emitted
+    # rules_jvm_external++maven+spec_maven_install.json to maven_install.json)
     lock_file = "//:maven_install.json",
 )
-use_repo(maven, "maven")
+use_repo(maven, "spec_maven")
 
 # Lean toolchain — backs the generic spec-framework modules under lean/
 # (Aion.Spec.{Universe,Predicates,Kernel,Axioms}, Aion.Corpus.Schema,
@@ -94,9 +135,13 @@ bazel_dep(name = "rules_jena", version = "0.3.0")
 # (//paper:crystallization, formalizing docs/rfc-001b) to PDF. rules_*
 # modules don't propagate use_repo, so the extension + toolchain are wired
 # here. Resolves from the same fastverk registry as rules_lean/rdf/jena.
-bazel_dep(name = "rules_tectonic", version = "0.2.0")
+bazel_dep(name = "rules_tectonic", version = "0.2.0", dev_dependency = True)
 
-tectonic = use_extension("@rules_tectonic//tectonic:extensions.bzl", "tectonic")
+tectonic = use_extension(
+    "@rules_tectonic//tectonic:extensions.bzl",
+    "tectonic",
+    dev_dependency = True,
+)
 use_repo(tectonic, "tectonic")
 
 register_toolchains(
@@ -105,11 +150,14 @@ register_toolchains(
 )
 
 # Graph rendering: rules_graphviz renders the authored .dot spec-graph figures
-# (//graph) to SVG hermetically (WASM graphviz under a bun runtime — no host
-# `dot`), and converts those SVGs to vector PDF (svg_pdf) for the deck (//deck)
-# the same way. These SVGs are the canonical, web-/SPARQL-regenerable render of
-# the crank graph. rules_graphviz registers its own bun + graphviz toolchains at
-# module level, so a bare bazel_dep is all the consumer side needs.
+# (//graph) hermetically (WASM graphviz under a bun runtime — no host `dot`) to
+# SVG, the canonical web-/SPARQL-regenerable render, and to `plain`, which
+# //graph:plain_to_tikz turns into the TikZ the deck (//deck) embeds.
+#
+# NOT to PDF: `svg_pdf` and `dot_pdf` cannot build for any consumer — the
+# vendored bun bundle hardcodes an absolute `__dirname` into the machine that
+# built it and pdfkit reads its font metrics from there at run time. See
+# //graph:BUILD.bazel.
 #
 # 0.2.0 (the svg_pdf/dot_pdf vector-PDF path) is published to the registry, so it
 # resolves like every other module — no override. The old local_path_override
@@ -118,7 +166,7 @@ register_toolchains(
 # `The repository's path is "../rules_graphviz" (absolute: "/work/rules_graphviz")
 # but it does not exist`, which is why the spec plugin image could not be built by
 # CI and had to be produced by hand.
-bazel_dep(name = "rules_graphviz", version = "0.2.0")
+bazel_dep(name = "rules_graphviz", version = "0.2.0", dev_dependency = True)
 
 # The crank predict contract + its gRPC engine/services moved to the dedicated
 # `crank` repo (github:fastverk/crank — //proto, //engine, //deploy/helm). spec
@@ -134,10 +182,14 @@ bazel_dep(name = "rules_graphviz", version = "0.2.0")
 # own isolated crate_universe; plain `cargo` builds the same workspace for local
 # iteration against a source tree ($SPEC_SOURCE_ROOT).
 #
-# NOTE: these deps enlarge the module graph for spec's consumers (Aion, mycelium).
-# Publishing spec@0.6.x with the plugin requires rules_fastverk_plugin to be
-# published to the registry first — the local_path_override below is root-only, so
-# consumers ignore it (same caveat the rules_graphviz override above carries).
+# Every dep from here down is `dev_dependency = True`: the plugin is a PRODUCT
+# built in this repo, not part of the framework surface. bzlmod does not
+# propagate a dependency's dev deps, so Aion and mycelium resolve none of them,
+# while spec's own build is unaffected (dev deps apply when spec is root).
+#
+# This block used to carry the note "these deps enlarge the module graph for
+# spec's consumers (Aion, mycelium)" — accurate, and it cost the framework its
+# biggest consumer. See the module docstring.
 # ── Hermetic C++ (zig cc) ─────────────────────────────────────────────────────
 # services/spec compiles protoc/upb FROM SOURCE in the exec config (it has
 # proto_data). Without a hermetic exec C++ toolchain the host GCC compiles upb and
@@ -147,11 +199,27 @@ bazel_dep(name = "rules_graphviz", version = "0.2.0")
 # `--no-gc-sections` linkopts in .bazelrc (zig/lld otherwise GCs protobuf's upb
 # linkarr → `undefined reference upb_ExtensionRegistry_AddAllLinkedExtensions`).
 # Mirrors plugin-forge/plugin-tbzl/plugin-polyglot/botnoc/agents.
+# ⚠ NOT dev-scoped, unlike everything else in this block, and not by choice:
+# hermetic_cc_toolchain's extension declares a non-empty `root_module_direct_deps`
+# unconditionally, so a dev-only usage fails resolution outright with
+# "root_module_direct_deps must be empty if the root module contains no usages
+# with dev_dependency = False". So the module stays in a consumer's graph — but
+# only the module: `register_toolchains` below IS dev, so no consumer registers
+# or fetches the zig toolchain. One module of leakage, visible rather than
+# silent; fixable upstream in hermetic_cc_toolchain.
 bazel_dep(name = "hermetic_cc_toolchain", version = "4.1.0")
+
+# Two proxies, deliberately. The extension only generates `zig_sdk` for the ROOT
+# module, so a non-dev `use_repo` breaks every consumer with "module extension
+# ... does not generate repository zig_sdk". But a dev-ONLY usage trips the
+# assertion above. So: a bare non-dev proxy satisfies the assertion and imports
+# nothing, and the dev proxy carries the `use_repo` that only spec-as-root needs.
+_zig_nondev = use_extension("@hermetic_cc_toolchain//toolchain:ext.bzl", "toolchains")
 
 zig_toolchains = use_extension(
     "@hermetic_cc_toolchain//toolchain:ext.bzl",
     "toolchains",
+    dev_dependency = True,
 )
 use_repo(zig_toolchains, "zig_sdk")
 
@@ -161,22 +229,26 @@ register_toolchains(
     dev_dependency = True,
 )
 
-bazel_dep(name = "rules_rust", version = "0.70.0")
-bazel_dep(name = "protobuf", version = "33.4")
-bazel_dep(name = "rules_oci", version = "2.2.6")
-bazel_dep(name = "rules_pkg", version = "1.0.1")
-bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+bazel_dep(name = "rules_rust", version = "0.70.0", dev_dependency = True)
+bazel_dep(name = "protobuf", version = "33.4", dev_dependency = True)
+bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
+bazel_dep(name = "rules_pkg", version = "1.0.1", dev_dependency = True)
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5", dev_dependency = True)
 
 # The meridian PanelBundle rule + the uiview schema the bundle compiles against.
-bazel_dep(name = "meridian_web", version = "0.5.0")
-bazel_dep(name = "meridian_schemas", version = "0.5.0")
+bazel_dep(name = "meridian_web", version = "0.12.0", dev_dependency = True)
+bazel_dep(name = "meridian_schemas", version = "0.24.0", dev_dependency = True)
 
 # The portable fastverk_plugin macro + rust_service_image. Published to the
 # fastverk bazel-registry (github:tomato-bazel/rules_fastverk_plugin @ 0.0.1), so
 # it resolves from the registry like every other module — no override needed.
-bazel_dep(name = "rules_fastverk_plugin", version = "0.0.1")
+bazel_dep(name = "rules_fastverk_plugin", version = "0.0.1", dev_dependency = True)
 
-rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust = use_extension(
+    "@rules_rust//rust:extensions.bzl",
+    "rust",
+    dev_dependency = True,
+)
 rust.toolchain(
     edition = "2021",
     versions = ["1.95.0"],
@@ -194,6 +266,7 @@ crate = use_extension(
     "@rules_rust//crate_universe:extension.bzl",
     "crate",
     isolate = True,
+    dev_dependency = True,
 )
 crate.from_cargo(
     name = "crates",
