@@ -211,6 +211,11 @@ panels {
     item_noun: "conflicts"
     placeholder: "No cross-discipline conflicts recorded."
     columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
+    columns {
       header: "ID"
       field_path: "id"
       pref_width: 10
@@ -279,6 +284,11 @@ panels {
     item_noun: "empty envelopes"
     placeholder: "No empty feasible envelopes — every quantity's bounds intersect."
     columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
+    columns {
       header: "Quantity"
       field_path: "quantity"
       pref_width: 26
@@ -336,6 +346,11 @@ panels {
     item_noun: "stalls"
     placeholder: "No open stalls — every claim is at or above the binding rung."
     columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
+    columns {
       header: "Claim"
       field_path: "claim_id"
       pref_width: 30
@@ -388,6 +403,11 @@ panels {
     item_noun: "disciplines"
     placeholder: "No disciplines declared."
     columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
+    columns {
       header: "Discipline"
       field_path: "discipline"
       pref_width: 34
@@ -438,6 +458,11 @@ panels {
     rows_field: "claims"
     item_noun: "claims"
     placeholder: "No normative statements indexed."
+    columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
     columns {
       header: "Claim"
       field_path: "claim_id"
@@ -503,6 +528,11 @@ panels {
     rows_field: "parties"
     item_noun: "witness parties"
     placeholder: "No conflict parties to witness."
+    columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
     columns {
       header: "Conflict"
       field_path: "conflict_id"

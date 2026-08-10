@@ -75,9 +75,20 @@ def local(term):
     return s
 
 
-def rows(g, query, shape):
-    """Run `query`; map each result row through `shape` into a dict."""
-    return [shape(r) for r in g.query(PREFIX + query)]
+def rows(g, query, shape, project):
+    """Run `query`; map each row through `shape`, stamped with its project.
+
+    The project is carried on every ROW rather than kept as a per-file header,
+    because the console reads these as flat tables — a header would be dropped
+    on the way to a panel column, and a row that cannot say which product it
+    describes is not much use once more than one corpus is loaded.
+    """
+    out = []
+    for r in g.query(PREFIX + query):
+        d = shape(r)
+        d["project"] = project
+        out.append(d)
+    return out
 
 
 # ── the routes ───────────────────────────────────────────────────────────────
@@ -306,26 +317,47 @@ def main():
     ap.add_argument("--out", default="services/spec/readmodel",
                     help="output directory for the JSON payloads (default: the directory\n"
                          "services/spec serves — see src/readmodel.rs)")
-    ap.add_argument("--corpus", default="corpus/ampere",
-                    help="corpus directory whose *.ttl are loaded (default corpus/ampere)")
+    ap.add_argument("--corpus", action="append", default=None, metavar="NAME=DIR",
+                    help="a project's corpus, as name=directory. Repeatable — the\n"
+                         "payloads are the UNION across projects, with each row\n"
+                         "carrying its project. Defaults to the two that exist:\n"
+                         "ampere=corpus/ampere studio=corpus/studio")
     ap.add_argument("--ontology", nargs="*",
                     default=["rdf/ontology/aion-rfc.ttl", "rdf/ontology/authoring.ttl"],
                     help="ontology TTLs to fold in")
     args = ap.parse_args()
 
-    g = Graph()
-    srcs = list(args.ontology)
-    for name in sorted(os.listdir(args.corpus)):
-        if name.endswith(".ttl"):
-            srcs.append(os.path.join(args.corpus, name))
-    for f in srcs:
-        g.parse(f, format="turtle")
-    print(f"loaded {len(srcs)} files, {len(g)} triples", file=sys.stderr)
+    specs = args.corpus or ["ampere=corpus/ampere", "studio=corpus/studio"]
+    projects = []
+    for spec in specs:
+        if "=" not in spec:
+            sys.exit(f"--corpus expects name=directory, got {spec!r}")
+        name, path = spec.split("=", 1)
+        projects.append((name, path))
+
+    # One graph PER PROJECT, not one shared graph. Merging first would let two
+    # products' claims join to each other through the ontology and produce
+    # cross-project rows that are artifacts of the loader rather than findings.
+    # Cross-project comparison is a real feature and deserves to be built
+    # deliberately, not fall out of a parse order.
+    loaded = []
+    for name, path in projects:
+        g = Graph()
+        srcs = list(args.ontology)
+        for fn in sorted(os.listdir(path)):
+            if fn.endswith(".ttl"):
+                srcs.append(os.path.join(path, fn))
+        for f in srcs:
+            g.parse(f, format="turtle")
+        loaded.append((name, g))
+        print(f"loaded {name}: {len(srcs)} files, {len(g)} triples", file=sys.stderr)
 
     os.makedirs(args.out, exist_ok=True)
     routes_manifest = []
     for path, rows_field, method, query, shaper in ROUTES:
-        data = rows(g, query, shaper)
+        data = []
+        for name, g in loaded:
+            data.extend(rows(g, query, shaper, name))
         payload = {rows_field: data, "unreachable_repos": []}
         dest = os.path.join(args.out, f"{path}.json")
         with open(dest, "w") as fh:

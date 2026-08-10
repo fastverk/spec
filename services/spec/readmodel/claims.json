@@ -8,7 +8,8 @@
       "quantity": "q-cap-contracted",
       "instrument": "accounting-standard",
       "defeasible": "",
-      "predicate": "Capacity revenue MUST be recognized as the stand-ready obligation is satisfied over the delivery year."
+      "predicate": "Capacity revenue MUST be recognized as the stand-ready obligation is satisfied over the delivery year.",
+      "project": "ampere"
     },
     {
       "claim_id": "acct-commencement",
@@ -18,7 +19,8 @@
       "quantity": "",
       "instrument": "accounting-standard",
       "defeasible": "",
-      "predicate": "The commencement date MUST be the date the asset is made available for use by the counterparty."
+      "predicate": "The commencement date MUST be the date the asset is made available for use by the counterparty.",
+      "project": "ampere"
     },
     {
       "claim_id": "acct-gross-vs-net",
@@ -28,7 +30,8 @@
       "quantity": "q-station-power",
       "instrument": "accounting-standard",
       "defeasible": "",
-      "predicate": "Amounts collected on behalf of another party MUST be presented net rather than gross."
+      "predicate": "Amounts collected on behalf of another party MUST be presented net rather than gross.",
+      "project": "ampere"
     },
     {
       "claim_id": "acct-performance-obligation",
@@ -38,7 +41,8 @@
       "quantity": "",
       "instrument": "accounting-standard",
       "defeasible": "",
-      "predicate": "Distinct performance obligations in the offtake agreement MUST be identified and the transaction price allocated among them."
+      "predicate": "Distinct performance obligations in the offtake agreement MUST be identified and the transaction price allocated among them.",
+      "project": "ampere"
     },
     {
       "claim_id": "cip-asset-inventory",
@@ -48,7 +52,8 @@
       "quantity": "",
       "instrument": "mandatory-reliability-standard",
       "defeasible": "false",
-      "predicate": "The responsible entity MUST maintain a current inventory of cyber assets within the electronic security perimeter."
+      "predicate": "The responsible entity MUST maintain a current inventory of cyber assets within the electronic security perimeter.",
+      "project": "ampere"
     },
     {
       "claim_id": "cip-cert-rotation",
@@ -58,7 +63,8 @@
       "quantity": "",
       "instrument": "mandatory-reliability-standard",
       "defeasible": "",
-      "predicate": "Device certificates used for control-path authentication MUST be rotated before expiry without interrupting the reliability function."
+      "predicate": "Device certificates used for control-path authentication MUST be rotated before expiry without interrupting the reliability function.",
+      "project": "ampere"
     },
     {
       "claim_id": "cip-electronic-perimeter",
@@ -68,7 +74,8 @@
       "quantity": "",
       "instrument": "mandatory-reliability-standard",
       "defeasible": "false",
-      "predicate": "All external routable connectivity to control systems MUST traverse a defined electronic access point."
+      "predicate": "All external routable connectivity to control systems MUST traverse a defined electronic access point.",
+      "project": "ampere"
     },
     {
       "claim_id": "cip-evidence-retention",
@@ -78,7 +85,8 @@
       "quantity": "",
       "instrument": "mandatory-reliability-standard",
       "defeasible": "",
-      "predicate": "Evidence of compliance MUST be retained for the audit period specified by the applicable measure."
+      "predicate": "Evidence of compliance MUST be retained for the audit period specified by the applicable measure.",
+      "project": "ampere"
     },
     {
       "claim_id": "cip-inspect-control-traffic",
@@ -88,7 +96,8 @@
       "quantity": "q-telemetry-latency",
       "instrument": "mandatory-reliability-standard",
       "defeasible": "false",
-      "predicate": "Inbound and outbound control traffic at the electronic access point MUST be subject to malicious-communications detection."
+      "predicate": "Inbound and outbound control traffic at the electronic access point MUST be subject to malicious-communications detection.",
+      "project": "ampere"
     },
     {
       "claim_id": "cip-patch-assessment",
@@ -98,7 +107,8 @@
       "quantity": "",
       "instrument": "mandatory-reliability-standard",
       "defeasible": "",
-      "predicate": "Security patches for applicable cyber assets MUST be assessed within the prescribed period of release."
+      "predicate": "Security patches for applicable cyber assets MUST be assessed within the prescribed period of release.",
+      "project": "ampere"
     },
     {
       "claim_id": "warranty-derate-curve",
@@ -108,7 +118,8 @@
       "quantity": "q-sustained-discharge",
       "instrument": "warranty-agreement",
       "defeasible": "false",
-      "predicate": "Continuous discharge MUST NOT exceed 78 MW when ambient temperature is at or above 45 degrees Celsius, per the ambient derate curve."
+      "predicate": "Continuous discharge MUST NOT exceed 78 MW when ambient temperature is at or above 45 degrees Celsius, per the ambient derate curve.",
+      "project": "ampere"
     },
     {
       "claim_id": "permit-capacity-cap",
@@ -118,7 +129,8 @@
       "quantity": "q-cap-permitted",
       "instrument": "conditional-use-permit",
       "defeasible": "",
-      "predicate": "Permitted capacity MUST NOT exceed 100 MW at the point of interconnection."
+      "predicate": "Permitted capacity MUST NOT exceed 100 MW at the point of interconnection.",
+      "project": "ampere"
     },
     {
       "claim_id": "permit-local-procurement",
@@ -128,7 +140,8 @@
       "quantity": "",
       "instrument": "conditional-use-permit",
       "defeasible": "",
-      "predicate": "The applicant SHOULD give preference to local suppliers and labour where commercially reasonable."
+      "predicate": "The applicant SHOULD give preference to local suppliers and labour where commercially reasonable.",
+      "project": "ampere"
     },
     {
       "claim_id": "permit-noise-limit",
@@ -138,7 +151,8 @@
       "quantity": "q-noise",
       "instrument": "conditional-use-permit",
       "defeasible": "false",
-      "predicate": "Sound pressure level at the nearest property line MUST NOT exceed 45 dBA as a one-hour average during night hours."
+      "predicate": "Sound pressure level at the nearest property line MUST NOT exceed 45 dBA as a one-hour average during night hours.",
+      "project": "ampere"
     },
     {
       "claim_id": "permit-setback",
@@ -148,7 +162,8 @@
       "quantity": "",
       "instrument": "conditional-use-permit",
       "defeasible": "false",
-      "predicate": "Equipment MUST be set back from the property line by the distance stated in the permit condition."
+      "predicate": "Equipment MUST be set back from the property line by the distance stated in the permit condition.",
+      "project": "ampere"
     },
     {
       "claim_id": "ahj-cell-temp-limit",
@@ -158,7 +173,8 @@
       "quantity": "q-cell-temp",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "false",
-      "predicate": "Maximum cell temperature MUST NOT exceed the limit established in the accepted analysis."
+      "predicate": "Maximum cell temperature MUST NOT exceed the limit established in the accepted analysis.",
+      "project": "ampere"
     },
     {
       "claim_id": "ahj-deflagration-venting",
@@ -168,7 +184,8 @@
       "quantity": "",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "",
-      "predicate": "Each enclosure MUST provide deflagration venting sized per the accepted analysis."
+      "predicate": "Each enclosure MUST provide deflagration venting sized per the accepted analysis.",
+      "project": "ampere"
     },
     {
       "claim_id": "ahj-derived-sustained-cap",
@@ -178,7 +195,8 @@
       "quantity": "q-sustained-discharge",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "false",
-      "predicate": "Sustained discharge over a four-hour window MUST NOT exceed 70 MW, being the usable energy admitted by the 85/15 percent state-of-charge window divided by four hours."
+      "predicate": "Sustained discharge over a four-hour window MUST NOT exceed 70 MW, being the usable energy admitted by the 85/15 percent state-of-charge window divided by four hours.",
+      "project": "ampere"
     },
     {
       "claim_id": "ahj-no-override",
@@ -188,7 +206,8 @@
       "quantity": "",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "false",
-      "predicate": "The accepted state-of-charge and temperature conditions MUST NOT be overridden by any operational, economic, or grid-emergency instruction."
+      "predicate": "The accepted state-of-charge and temperature conditions MUST NOT be overridden by any operational, economic, or grid-emergency instruction.",
+      "project": "ampere"
     },
     {
       "claim_id": "ahj-soc-cap",
@@ -198,7 +217,8 @@
       "quantity": "q-soc-bms",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "false",
-      "predicate": "BMS-reported state of charge MUST NOT exceed 85 percent when ambient temperature is at or above 40 degrees Celsius."
+      "predicate": "BMS-reported state of charge MUST NOT exceed 85 percent when ambient temperature is at or above 40 degrees Celsius.",
+      "project": "ampere"
     },
     {
       "claim_id": "ahj-soc-floor",
@@ -208,7 +228,8 @@
       "quantity": "q-soc-bms",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "false",
-      "predicate": "BMS-reported state of charge MUST NOT fall below 15 percent, reserving energy for thermal management and emergency response."
+      "predicate": "BMS-reported state of charge MUST NOT fall below 15 percent, reserving energy for thermal management and emergency response.",
+      "project": "ampere"
     },
     {
       "claim_id": "fire-access-pathway",
@@ -218,7 +239,8 @@
       "quantity": "",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "",
-      "predicate": "An access pathway MUST be maintained to each enclosure for emergency response."
+      "predicate": "An access pathway MUST be maintained to each enclosure for emergency response.",
+      "project": "ampere"
     },
     {
       "claim_id": "fire-enclosure-separation",
@@ -228,7 +250,8 @@
       "quantity": "",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "false",
-      "predicate": "Enclosures MUST be separated by the minimum distance established by the applicable large-scale fire test, or by a listed barrier."
+      "predicate": "Enclosures MUST be separated by the minimum distance established by the applicable large-scale fire test, or by a listed barrier.",
+      "project": "ampere"
     },
     {
       "claim_id": "fire-group-energy-cap",
@@ -238,7 +261,8 @@
       "quantity": "",
       "instrument": "hazard-mitigation-acceptance",
       "defeasible": "",
-      "predicate": "The stored energy of a single group MUST NOT exceed the applicable maximum without additional protection measures."
+      "predicate": "The stored energy of a single group MUST NOT exceed the applicable maximum without additional protection measures.",
+      "project": "ampere"
     },
     {
       "claim_id": "ins-hma-compliance",
@@ -248,7 +272,8 @@
       "quantity": "",
       "instrument": "property-binder",
       "defeasible": "",
-      "predicate": "The insured MUST operate in compliance with the accepted hazard mitigation analysis as a condition of coverage."
+      "predicate": "The insured MUST operate in compliance with the accepted hazard mitigation analysis as a condition of coverage.",
+      "project": "ampere"
     },
     {
       "claim_id": "ins-notice-of-derate",
@@ -258,7 +283,8 @@
       "quantity": "",
       "instrument": "property-binder",
       "defeasible": "",
-      "predicate": "The insured MUST notify the insurer of any sustained derate attributable to thermal or degradation causes."
+      "predicate": "The insured MUST notify the insurer of any sustained derate attributable to thermal or degradation causes.",
+      "project": "ampere"
     },
     {
       "claim_id": "ins-soc-concurrence",
@@ -268,7 +294,8 @@
       "quantity": "q-soc-bms",
       "instrument": "property-binder",
       "defeasible": "false",
-      "predicate": "State of charge MUST NOT exceed the limit accepted in the hazard mitigation analysis; exceedance is a breach of a policy condition."
+      "predicate": "State of charge MUST NOT exceed the limit accepted in the hazard mitigation analysis; exceedance is a breach of a policy condition.",
+      "project": "ampere"
     },
     {
       "claim_id": "warranty-cycle-definition",
@@ -278,7 +305,8 @@
       "quantity": "q-cycle-efc",
       "instrument": "warranty-agreement",
       "defeasible": "",
-      "predicate": "Cycle counting for warranty purposes MUST use the equivalent-full-cycle definition, being throughput divided by nameplate energy."
+      "predicate": "Cycle counting for warranty purposes MUST use the equivalent-full-cycle definition, being throughput divided by nameplate energy.",
+      "project": "ampere"
     },
     {
       "claim_id": "warranty-firmware-current",
@@ -288,7 +316,8 @@
       "quantity": "",
       "instrument": "warranty-agreement",
       "defeasible": "true",
-      "predicate": "The battery management system MUST run the manufacturer's current released firmware revision to maintain warranty coverage."
+      "predicate": "The battery management system MUST run the manufacturer's current released firmware revision to maintain warranty coverage.",
+      "project": "ampere"
     },
     {
       "claim_id": "warranty-sustained-cap",
@@ -298,7 +327,8 @@
       "quantity": "q-sustained-discharge",
       "instrument": "warranty-agreement",
       "defeasible": "true",
-      "predicate": "Given 80 percent of the annual throughput budget consumed at 61 percent of the contract year, sustained discharge over a four-hour window MUST NOT exceed 55 MW for the remainder of the year."
+      "predicate": "Given 80 percent of the annual throughput budget consumed at 61 percent of the contract year, sustained discharge over a four-hour window MUST NOT exceed 55 MW for the remainder of the year.",
+      "project": "ampere"
     },
     {
       "claim_id": "warranty-throughput-budget",
@@ -308,7 +338,8 @@
       "quantity": "q-throughput-annual",
       "instrument": "warranty-agreement",
       "defeasible": "true",
-      "predicate": "Cumulative annual energy throughput MUST NOT exceed the warranted budget for the contract year, on pain of voiding cell coverage."
+      "predicate": "Cumulative annual energy throughput MUST NOT exceed the warranted budget for the contract year, on pain of voiding cell coverage.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-emergency-override",
@@ -318,7 +349,8 @@
       "quantity": "q-setpoint",
       "instrument": "tariff",
       "defeasible": "false",
-      "predicate": "During a declared system emergency the resource MUST follow the operator's instruction without curtailment for local economic or contractual reasons."
+      "predicate": "During a declared system emergency the resource MUST follow the operator's instruction without curtailment for local economic or contractual reasons.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-energy-limit-params",
@@ -328,7 +360,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "false",
-      "predicate": "A storage resource MUST submit upper and lower energy-limit parameters consistent with its physical capability for each market interval."
+      "predicate": "A storage resource MUST submit upper and lower energy-limit parameters consistent with its physical capability for each market interval.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-follow-dispatch",
@@ -338,7 +371,8 @@
       "quantity": "q-setpoint",
       "instrument": "tariff",
       "defeasible": "true",
-      "predicate": "A dispatchable resource MUST follow the operator's active-power setpoint within the prescribed response window."
+      "predicate": "A dispatchable resource MUST follow the operator's active-power setpoint within the prescribed response window.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-outage-reporting",
@@ -348,7 +382,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Derates and outages MUST be reported through the operator's outage system before the affected interval."
+      "predicate": "Derates and outages MUST be reported through the operator's outage system before the affected interval.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-regulation-submode",
@@ -358,7 +393,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "A storage resource MAY elect an energy-management sub-mode that restricts its offered range in exchange for relaxed state-of-charge management obligations."
+      "predicate": "A storage resource MAY elect an energy-management sub-mode that restricts its offered range in exchange for relaxed state-of-charge management obligations.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-soc-telemetry",
@@ -368,7 +404,8 @@
       "quantity": "q-soc-telemetered",
       "instrument": "tariff",
       "defeasible": "false",
-      "predicate": "A storage resource MUST telemeter state of charge to the market operator at the prescribed scan rate."
+      "predicate": "A storage resource MUST telemeter state of charge to the market operator at the prescribed scan rate.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-a-station-power-netting",
@@ -378,7 +415,8 @@
       "quantity": "q-station-power",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Station auxiliary load MUST be netted against delivered energy at the metering point rather than settled separately."
+      "predicate": "Station auxiliary load MUST be netted against delivered energy at the metering point rather than settled separately.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-b-accreditation",
@@ -388,7 +426,8 @@
       "quantity": "q-cap-accredited",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Accredited capacity MUST be determined by the operator's accreditation model and MUST NOT be assumed equal to nameplate rating."
+      "predicate": "Accredited capacity MUST be determined by the operator's accreditation model and MUST NOT be assumed equal to nameplate rating.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-b-four-hour-duration",
@@ -398,7 +437,8 @@
       "quantity": "q-sustained-discharge",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "A storage resource seeking a full capacity commitment MUST demonstrate four continuous hours of discharge at its committed level."
+      "predicate": "A storage resource seeking a full capacity commitment MUST demonstrate four continuous hours of discharge at its committed level.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-b-must-deliver",
@@ -408,7 +448,8 @@
       "quantity": "q-sustained-discharge",
       "instrument": "tariff",
       "defeasible": "true",
-      "predicate": "During a performance-assessment interval the resource MUST deliver at least its committed capacity obligation of 82 MW for four continuous hours."
+      "predicate": "During a performance-assessment interval the resource MUST deliver at least its committed capacity obligation of 82 MW for four continuous hours.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-b-must-offer",
@@ -418,7 +459,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "true",
-      "predicate": "A committed resource MUST offer its full committed capacity into the day-ahead market in every eligible hour."
+      "predicate": "A committed resource MUST offer its full committed capacity into the day-ahead market in every eligible hour.",
+      "project": "ampere"
     },
     {
       "claim_id": "mkt-b-nonperformance-charge",
@@ -428,7 +470,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Shortfall against the committed obligation MUST be assessed a non-performance charge per MWh not delivered."
+      "predicate": "Shortfall against the committed obligation MUST be assessed a non-performance charge per MWh not delivered.",
+      "project": "ampere"
     },
     {
       "claim_id": "settle-accuracy-class",
@@ -438,7 +481,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Revenue metering MUST meet the accuracy class specified for wholesale settlement."
+      "predicate": "Revenue metering MUST meet the accuracy class specified for wholesale settlement.",
+      "project": "ampere"
     },
     {
       "claim_id": "settle-loss-compensation",
@@ -448,7 +492,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Metered quantities MUST be loss-compensated to the contractual delivery point using the stated transformer loss factor."
+      "predicate": "Metered quantities MUST be loss-compensated to the contractual delivery point using the stated transformer loss factor.",
+      "project": "ampere"
     },
     {
       "claim_id": "settle-metering-point",
@@ -458,7 +503,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Settlement quantities MUST be read at the revenue metering point on the low side of the main power transformer."
+      "predicate": "Settlement quantities MUST be read at the revenue metering point on the low side of the main power transformer.",
+      "project": "ampere"
     },
     {
       "claim_id": "settle-telemetry-reconciliation",
@@ -468,7 +514,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Interval metered energy MUST be reconciled against control-path telemetry, with metered values governing on disagreement."
+      "predicate": "Interval metered energy MUST be reconciled against control-path telemetry, with metered values governing on disagreement.",
+      "project": "ampere"
     },
     {
       "claim_id": "der-anti-islanding",
@@ -478,7 +525,8 @@
       "quantity": "",
       "instrument": "interconnection-rule",
       "defeasible": "false",
-      "predicate": "The inverter MUST cease to energize the area network upon loss of the utility source."
+      "predicate": "The inverter MUST cease to energize the area network upon loss of the utility source.",
+      "project": "ampere"
     },
     {
       "claim_id": "der-mode-exclusivity",
@@ -488,7 +536,8 @@
       "quantity": "q-setpoint",
       "instrument": "interconnection-rule",
       "defeasible": "false",
-      "predicate": "A DER MUST NOT execute a retail-program control and a wholesale dispatch instruction for the same interval."
+      "predicate": "A DER MUST NOT execute a retail-program control and a wholesale dispatch instruction for the same interval.",
+      "project": "ampere"
     },
     {
       "claim_id": "der-ride-through",
@@ -498,7 +547,8 @@
       "quantity": "",
       "instrument": "interconnection-rule",
       "defeasible": "false",
-      "predicate": "The inverter MUST ride through voltage and frequency excursions within the specified envelope rather than tripping."
+      "predicate": "The inverter MUST ride through voltage and frequency excursions within the specified envelope rather than tripping.",
+      "project": "ampere"
     },
     {
       "claim_id": "lgia-delivery-point",
@@ -508,7 +558,8 @@
       "quantity": "",
       "instrument": "interconnection-agreement",
       "defeasible": "",
-      "predicate": "Energy MUST be delivered at the contractual delivery point on the high side of the main power transformer."
+      "predicate": "Energy MUST be delivered at the contractual delivery point on the high side of the main power transformer.",
+      "project": "ampere"
     },
     {
       "claim_id": "lgia-max-injection",
@@ -518,7 +569,8 @@
       "quantity": "q-sustained-discharge",
       "instrument": "interconnection-agreement",
       "defeasible": "false",
-      "predicate": "Net injection at the point of interconnection MUST NOT exceed 100 MW."
+      "predicate": "Net injection at the point of interconnection MUST NOT exceed 100 MW.",
+      "project": "ampere"
     },
     {
       "claim_id": "lgia-protection-settings",
@@ -528,7 +580,8 @@
       "quantity": "",
       "instrument": "interconnection-agreement",
       "defeasible": "false",
-      "predicate": "Certified protection settings MUST NOT be altered without written approval of the transmission provider."
+      "predicate": "Certified protection settings MUST NOT be altered without written approval of the transmission provider.",
+      "project": "ampere"
     },
     {
       "claim_id": "lgia-reactive-capability",
@@ -538,7 +591,8 @@
       "quantity": "q-reactive-power",
       "instrument": "interconnection-agreement",
       "defeasible": "",
-      "predicate": "The facility MUST maintain reactive capability across the specified power-factor range at the point of interconnection."
+      "predicate": "The facility MUST maintain reactive capability across the specified power-factor range at the point of interconnection.",
+      "project": "ampere"
     },
     {
       "claim_id": "ctl-agc-latency",
@@ -548,7 +602,8 @@
       "quantity": "q-telemetry-latency",
       "instrument": "interconnection-agreement",
       "defeasible": "false",
-      "predicate": "Control-signal round-trip latency MUST NOT exceed 150 milliseconds, so that the four-second regulation obligation is met with margin."
+      "predicate": "Control-signal round-trip latency MUST NOT exceed 150 milliseconds, so that the four-second regulation obligation is met with margin.",
+      "project": "ampere"
     },
     {
       "claim_id": "ctl-derate-publication",
@@ -558,7 +613,8 @@
       "quantity": "",
       "instrument": "tariff",
       "defeasible": "",
-      "predicate": "Any active derate MUST be published to the market operator's outage system and to the asset manager within the reporting window."
+      "predicate": "Any active derate MUST be published to the market operator's outage system and to the asset manager within the reporting window.",
+      "project": "ampere"
     },
     {
       "claim_id": "ctl-island-support",
@@ -568,7 +624,8 @@
       "quantity": "",
       "instrument": "capacity-and-energy-agreement",
       "defeasible": "",
-      "predicate": "The plant MUST be capable of supporting an intentional island for the site's critical loads on loss of the utility source."
+      "predicate": "The plant MUST be capable of supporting an intentional island for the site's critical loads on loss of the utility source.",
+      "project": "ampere"
     },
     {
       "claim_id": "ctl-mode-arbitration",
@@ -578,7 +635,8 @@
       "quantity": "q-setpoint",
       "instrument": "interconnection-rule",
       "defeasible": "",
-      "predicate": "The plant controller MUST arbitrate between wholesale dispatch and retail-program signals by a documented, deterministic priority."
+      "predicate": "The plant controller MUST arbitrate between wholesale dispatch and retail-program signals by a documented, deterministic priority.",
+      "project": "ampere"
     },
     {
       "claim_id": "ctl-setpoint-clamp",
@@ -588,7 +646,8 @@
       "quantity": "q-setpoint",
       "instrument": "interconnection-agreement",
       "defeasible": "",
-      "predicate": "The controller MUST clamp any received setpoint to the intersection of all active operating limits before acting on it."
+      "predicate": "The controller MUST clamp any received setpoint to the intersection of all active operating limits before acting on it.",
+      "project": "ampere"
     },
     {
       "claim_id": "der-default-control-mode",
@@ -598,7 +657,8 @@
       "quantity": "",
       "instrument": "interconnection-rule",
       "defeasible": "",
-      "predicate": "The default control mode SHOULD remain in effect whenever no higher-priority schedule or event is active."
+      "predicate": "The default control mode SHOULD remain in effect whenever no higher-priority schedule or event is active.",
+      "project": "ampere"
     },
     {
       "claim_id": "tax-cost-substantiation",
@@ -608,7 +668,8 @@
       "quantity": "",
       "instrument": "statute-and-regulation",
       "defeasible": "",
-      "predicate": "Claimed eligible cost MUST be substantiated by supplier certifications and procurement records."
+      "predicate": "Claimed eligible cost MUST be substantiated by supplier certifications and procurement records.",
+      "project": "ampere"
     },
     {
       "claim_id": "tax-domestic-content",
@@ -618,7 +679,8 @@
       "quantity": "q-domestic-content",
       "instrument": "statute-and-regulation",
       "defeasible": "false",
-      "predicate": "To qualify for the domestic-content bonus, domestic content MUST be at least the applicable percentage of eligible project cost."
+      "predicate": "To qualify for the domestic-content bonus, domestic content MUST be at least the applicable percentage of eligible project cost.",
+      "project": "ampere"
     },
     {
       "claim_id": "tax-placed-in-service",
@@ -628,7 +690,8 @@
       "quantity": "",
       "instrument": "statute-and-regulation",
       "defeasible": "",
-      "predicate": "The facility MUST be placed in service in the taxable year for which the credit is claimed."
+      "predicate": "The facility MUST be placed in service in the taxable year for which the credit is claimed.",
+      "project": "ampere"
     },
     {
       "claim_id": "tax-recapture-period",
@@ -638,7 +701,767 @@
       "quantity": "",
       "instrument": "statute-and-regulation",
       "defeasible": "",
-      "predicate": "The facility MUST NOT be disposed of or cease to be qualifying property during the recapture period."
+      "predicate": "The facility MUST NOT be disposed of or cease to be qualifying property during the recapture period.",
+      "project": "ampere"
+    },
+    {
+      "claim_id": "auth-20",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Every sponsor is treated as granted to the SAVVI WorkOS Organization with the full permission set (`sponsor:edit`, `sponsor:analytics`, `deploy:nonproduction`, `deploy:production`, plus future). Owning-org visibility does not constrain SAVVI (\u00a74.5.1).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-21",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Within SAVVI, auto-granted sponsors follow \u00a74.5 (arrive `public`, AUTH-39); SAVVI admins may tighten visibility and use SAVVI teams normally.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-22",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "The system grant is not revocable by other orgs; grant listings show it as a system grant (AUTH-34).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-23",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "System grant is a **rule, not rows** in the effective-permission function (AUTH-14, \u00a74.11).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-27",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Platform create, import, and the in-app Impersonate entry point require **SAVVI admin**.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-28",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Impersonation capability is WorkOS-only (environment opt-in + dashboard seats). The in-app entry point is a UX signal for SAVVI admins only.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-29",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Impersonation sessions surface via `impersonator` / `act` claim (in-app banner) and WorkOS `session.created` audit events.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-54",
+      "discipline": "SAVVI access and staff operations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "SAVVI WorkOS Organization requires MFA.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-66",
+      "discipline": "development access",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "The local dev login (`/dev/login`) bypasses WorkOS and is gated by the `DEV_AUTH_ENABLED` runtime flag. It must never be enabled outside local development.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-24",
+      "discipline": "environments and deployment",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "`sponsor:edit` never implies deploy. Public baseline never includes `deploy:*` (AUTH-41).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-25",
+      "discipline": "environments and deployment",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "`deploy:production` and `deploy:nonproduction` are distinct. Production envs require `deploy:production`; non-production accepts either.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-26",
+      "discipline": "environments and deployment",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "`deploy:*` comes only from team roles (\u00a72.5) and/or \u00a74.6 grants.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-49",
+      "discipline": "environments and deployment",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Deploy sponsor X to environment E iff effective permission on X includes `sponsor:edit` and the matching `deploy:*`, and E is on X's platform and visible to the user (AUTH-59).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-59",
+      "discipline": "environments and deployment",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "**Platform visibility**: a platform is visible to its owning org (as owner) and \u2014 as non-owner viewer \u2014 to orgs holding a \u00a74.6 grant on any of its sponsors or a reseller agreement for it. SAVVI sees all platforms as owner. **Environment visibility** follows platform visibility.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-60",
+      "discipline": "environments and deployment",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Platform create requires **SAVVI admin** (AUTH-27). Platform attribute edits and environment management (create/edit/delete) are reserved to the platform-owning organization (SAVVI acts as owner everywhere). Platform deletion requires SAVVI admin. An environment is **production** iff its stage is `production` (AUTH-25).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-30",
+      "discipline": "grants",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Who may grant a sponsor to another WorkOS Organization: platform users with `sponsor:edit`, org admins, SAVVI staff (AUTH-20), and **reseller admins** for stamped sponsors (AUTH-51, no escalation). Each grant carries an explicit permission set from \u00a72.4; orthogonal permissions (`sponsor:analytics`, `deploy:*`) only when listed. At most one grant exists per (sponsor, recipient org); granting again updates that grant's permission set (AUTH-32).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-31",
+      "discipline": "grants",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "In the recipient org, team roles and visibility baselines apply **intersected** with the grant (check-time, \u00a74.11). An orthogonal permission carried by a grant is therefore effective only where the derived side also confers it: `sponsor:analytics` via a team role or a public baseline listing it (AUTH-41), `deploy:*` via team roles only (AUTH-26). Example \u2014 grant `{sponsor:view}`: | Broker team role | Role would confer | Effective on Acme | | ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------- | | `implementor` | `sponsor:edit`, `sponsor:analytics`, `deploy:nonproduction` | `sponsor:view` (limited by grant; analytics/deploy not granted) | | `reporter` | `sponsor:report` | `sponsor:report` |",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-32",
+      "discipline": "grants",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Grants and their permission sets are editable/revocable by the same parties as AUTH-30. Revocation takes effect on the next check; recipient team assignments become inert (AUTH-17).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-33",
+      "discipline": "grants",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Grants are non-transferable except stamped reseller orgs (AUTH-50/51), which extend grants to collaborating orgs (brokers, the sponsor's own org) **on behalf of the platform**, capped **at issue time** to the reseller's own granted set (no escalation, including edits to its own grant). Once issued, such grants are ordinary platform grants \u2014 AUTH-30/32 parties edit or revoke them; creator provenance is `sponsor_grants.created_by_id`. Narrowing the reseller's own grant later does not retroactively narrow grants it already issued.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-34",
+      "discipline": "grants",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Platform-owning org, stamped reseller org, and recipient org can each list grants they respectively own or hold. Listing authority mirrors management (AUTH-30) on the owning side; on the recipient side, org admins may list grants held by their org.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-55",
+      "discipline": "identity mapping and audit",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Membership/user deletion removes corresponding `team_memberships`. Org lifecycle webhooks only maintain the `organizations` mirror.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-56",
+      "discipline": "identity mapping and audit",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Authorization-data changes are recorded in `authz_audit_log`. The log is append-only; reading it is reserved to SAVVI admins.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-1",
+      "discipline": "organizations and identity",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Every organization kind (\u00a72.1) may authenticate through SSO, email domain, or email invite. Each platform-owning org, reseller, broker, sponsor organization, and SAVVI is a distinct **WorkOS Organization**. WorkOS Organizations provide authentication (org-scoped sessions), SSO and other auth methods (domains, invitations, MFA where required \u2014 AUTH-54), and memberships with org-level roles such as `admin` (AUTH-53). Studio authorization is layered in the application database (\u00a74.11); it is not WorkOS FGA. On the SAVVI organization, org `admin` also covers AUTH-27.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-2",
+      "discipline": "organizations and identity",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A user is a single identity (one account, one email) that may hold memberships in **any number of WorkOS Organizations**, each with its own org-level role. Multi-org membership is the exception, not the collaboration mechanism \u2014 cross-org access flows through grants (\u00a74.6).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-2a",
+      "discipline": "organizations and identity",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A user always acts in exactly **one active WorkOS Organization**. Authorization is evaluated for (user, active org); switching org re-derives roles, permissions, and visibility.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-2b",
+      "discipline": "organizations and identity",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Each WorkOS Organization controls its own authentication policy. Access shared across organizations (\u00a74.6) never subjects a user to another organization's identity provider.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-53",
+      "discipline": "organizations and identity",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "An **org admin** holds AuthKit `admin` on their active membership (JWT claim, \u00a74.11). That claim gates team creation (AUTH-52), team management (AUTH-9), visibility (\u00a74.5.1), grant management (AUTH-30), and private-sponsor visibility (AUTH-12). Shorthand roles (\u00a72.3) are org admins of those organization kinds. Because the claim lives in the session JWT, org-role changes take effect when the token refreshes (login, org switch, session refresh) \u2014 not necessarily on the next request, unlike database-backed authorization (\u00a74.11).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-14",
+      "discipline": "permissions",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Effective permission on a sponsor = union(visibility baseline \u00a74.5.1, team-role permissions \u00a72.5) \u2229 grant set (AUTH-31). The union takes the max tier and keeps any orthogonal permission (`sponsor:analytics`, `deploy:*`) either side confers. Platform-owning org and SAVVI (\u00a74.8) use the full set as the grant cap. One pure function (\u00a74.11) answers point checks, lists, search, and deploy (AUTH-49).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-15",
+      "discipline": "permissions",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A user's sponsor list is their org's pool at effective permission per sponsor (excluding AUTH-12-hidden), filterable to \"my teams\" (AUTH-36). Broker orgs span granted platforms without org switching.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-16",
+      "discipline": "permissions",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Downstream entities (plan years, documents, products, comments) inherit from the parent sponsor's permission, with two named exceptions: task-level visibility and task-comment attachments (\u00a74.12).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-17",
+      "discipline": "permissions",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Unauthorized access returns not-found (no existence oracle).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-3",
+      "discipline": "platforms and sponsors",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A **sponsor** is owned by exactly one **platform**. Sponsors are never shared across platforms.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-42",
+      "discipline": "platforms and sponsors",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Sponsors are created under a platform by users who may create on that platform: any user of the platform-owning organization, SAVVI staff (\u00a74.8), and any user of an org with a **reseller agreement** for the platform (\u00a74.7). There is no per-user create designation. Regardless of who creates it, the sponsor is owned by the platform (AUTH-3). At create time the creator chooses team assignment(s) and the creating org's visibility; after creation, only an **org admin** of that org may change visibility (AUTH-41).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-50",
+      "discipline": "platforms and sponsors",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Sponsor ownership is a **two-level hierarchy**. Primary owner: the platform (AUTH-3) / platform-owning organization. Optional subordinate stamp: exactly one **reseller org** (`sponsors.reseller_organization_id`) for reseller-created sponsors (AUTH-44). Ownership is independent of team assignments (AUTH-48).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-51",
+      "discipline": "platforms and sponsors",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "The reseller stamp confers authority subordinate to the primary owner: - **Grant management** for the sponsor (\u00a74.6), never beyond the reseller org's own granted set. - **Lifecycle management** (archive/offboard, etc.), subject to primary-owner override. - The primary owner may edit/revoke any grant and reassign or clear the stamp. - The stamp is not transferable by the reseller and does not by itself confer sponsor permissions \u2014 access still flows through the \u00a74.6 grant and the reseller's own teams.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-57",
+      "discipline": "platforms and sponsors",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Sponsor attribute edits require effective `sponsor:edit` (AUTH-14). Sponsor **deletion** is reserved to users of the platform-owning organization and SAVVI staff, and removes downstream data. There is no sponsor archive state \u2014 retirement is modeled by archiving plan years (story 33). A stamped reseller's lifecycle authority (AUTH-51) covers archival/offboarding workflows, not deletion.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-58",
+      "discipline": "platforms and sponsors",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "**Task templates** are platform-scoped, optionally audienced to a reseller. Managing them (create/edit/delete) requires SAVVI staff or an org admin of the platform-owning organization. Instantiating a template follows normal task-creation rules (effective `sponsor:edit` on the target sponsor), and the template's platform/reseller audience must match the sponsor.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-43",
+      "discipline": "resellers",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A **platform admin** or **SAVVI admin** may establish a **reseller agreement** between a platform and another WorkOS Organization. **Platform admins** may add a reseller **only by name and domain** (reuse the WorkOS Organization that owns the domain, or create and mirror one); they must not be offered an organization picker that would disclose other platforms' reseller partners. **SAVVI admins** may add by selecting an existing mirrored organization **or** by name and domain. Webhooks never invent agreements. The agreement confers `sponsor:create` (AUTH-42) and specifies a platform-owned **book team** and default **grant permission set** (typically `{sponsor:edit}`). Platform admins see only their agreements; SAVVI admins may manage any platform's.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-44",
+      "discipline": "resellers",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Reseller-created sponsors: stamp `reseller_organization_id` (AUTH-50/51), assign to the book team, and \u00a74.6-grant to the reseller org (enters as `public`, AUTH-39). Immediate \u2014 no platform-owner approval. Platform admins may also create a sponsor and assign it to a reseller.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-45",
+      "discipline": "resellers",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Book team stays platform-owned (AUTH-4, AUTH-6); reseller users are never members. Reseller access is via the grant only. Cross-org team isolation holds (\u00a74.5.2): reseller users do not see platform teams; platform users do not see reseller teams.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-46",
+      "discipline": "resellers",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Removing an agreement drops `sponsor:create` only; stamps, grants, book-team assignments, and the reseller organization remain.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-18",
+      "discipline": "sponsor organizations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Onboarding a sponsor's WorkOS Organization: grant its sponsor to it (\u00a74.6, typically `{sponsor:edit}`), auto-provision a default team owned by that org with the sponsor assigned, and add sponsor-org users per the onboarding agreement.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-19",
+      "discipline": "sponsor organizations",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Sponsor-org users follow the same team/grant rules as any other organization.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-61",
+      "discipline": "tasks, documents and attachments",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Tasks carry their own visibility (`public` default / `restricted` / `private`), orthogonal to sponsor access. A task's **participants** \u2014 assignee, delegate, and subscribers \u2014 always see it in full detail, even without any permission on its sponsor. Non-participants need `sponsor:view` on the parent sponsor and see: | Task visibility | Participant | `sponsor:view` non-participant | | ------------------ | ----------- | ------------------------------ | | `public` (default) | full | full | | `restricted` | full | attributes only | | `private` | full | not-found (AUTH-17) | The attributes projection is an allowlist (title, type, status, priority, dates, assignment, hierarchy) \u2014 never description or comments. Full-detail access gates comments and related task operations.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-62",
+      "discipline": "tasks, documents and attachments",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Plan-year **documents** require `sponsor:view` via the parent sponsor (AUTH-16). Task-comment **attachments** are a distinct document kind and follow the visibility of the task whose comment carries them: full-detail access to that task is required; document rules never apply. S3 upload and download tokens are issued only after these same checks.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-10",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Team membership is admin-managed only (no self-service join). Roster presence is accountability, not the access gate for `public` sponsors (AUTH-35).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-4",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A **team** is owned by exactly one WorkOS Organization.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-5",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A sponsor may be assigned to any number of teams. Cross-org assignment requires a **sponsor grant** (\u00a74.6).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-52",
+      "discipline": "teams and team roles",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Teams are created and deleted by **org admins** of the owning org. Team admins manage existing teams (AUTH-8) but do not create or delete them. Deleting a team drops its sponsor assignments; if it was the only team assigned to a `private` sponsor, that sponsor remains visible only to org admins (AUTH-12). A team may be left with no team admin; org admins (AUTH-9) remain its management path.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-6",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Team members are always users of the team's owning organization. No guest membership.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-7",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Teams are flat (no nesting).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-8",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Team `admin`s can rename the team, change its visibility, manage membership (all roles), and assign/unassign sponsors.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-9",
+      "discipline": "teams and team roles",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Org admins can do everything a team admin can on any team in their org, including private teams.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-37",
+      "discipline": "unassigned",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "RETIRED \u2014 this identifier was removed when the document was restructured. Tombstoned so it is never reused.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-40",
+      "discipline": "unassigned",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "RETIRED \u2014 this identifier was removed when the document was restructured. Tombstoned so it is never reused.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-47",
+      "discipline": "unassigned",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "RETIRED \u2014 this identifier was removed when the document was restructured. Tombstoned so it is never reused.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-63",
+      "discipline": "users and organization directory",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A user's **collaborating organizations** are: their own org, the platform-owning org and every grant-holding org of each sponsor in their org's pool, and SAVVI (AUTH-23). The user directory lists active members of collaborating orgs only (default scope) or own-org members only (team pickers, AUTH-6); an all-users scope is SAVVI-staff-only. The directory is never a vehicle to enumerate unrelated organizations' users.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-64",
+      "discipline": "users and organization directory",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Direct user lookup succeeds for SAVVI staff, for active members of a collaborating org, and for users referenced on an entity the viewer can already see (plan-year contact/implementor/broker, task assignee/delegate); otherwise not-found (AUTH-17).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-65",
+      "discipline": "users and organization directory",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "The full organization catalog is browsable by **SAVVI staff** (including selecting existing orgs as resellers, AUTH-43) and by **org admins** of reseller orgs under agreement or holding stamped sponsors (grant recipient pickers). **Platform-owning org admins do not** receive the full catalog \u2014 they add resellers by name and domain only (AUTH-43) so other platforms' reseller partners are not disclosed. Everyone else sees only organizations they belong to.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-11",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "`restricted`: org-wide `sponsor:report`; view/edit require a sufficient team role on an assigned team.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-12",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "`private`: invisible (not-found) except to members of an assigned team (at their role's level), **org admins** of an org holding the sponsor in its pool (at that org's public baseline, still \u2229 grant \u2014 AUTH-31), and SAVVI staff (\u00a74.8).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-13",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Search covers the org's sponsor pool excluding AUTH-12-hidden sponsors; restricted surfaces at `sponsor:report`.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-35",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A `public` sponsor confers the org's public baseline on every org user (intersected with the grant for granted sponsors, AUTH-31).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-36",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Lists filterable to \"my teams\".",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-38",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "A public team's sponsor list is filtered by the viewer's own sponsor-visibility rights (AUTH-11/AUTH-12).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-39",
+      "discipline": "visibility",
+      "modality": "MAY",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Granted sponsors enter the recipient org as `public`; recipient admins may tighten afterwards. Mind the combined default: with AUTH-41's default baseline, granting `{sponsor:edit}` immediately gives every user of the recipient org edit on the sponsor \u2014 grant narrowly or have the recipient tighten visibility when that is not intended.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-41",
+      "discipline": "visibility",
+      "modality": "MUST_NOT",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Public baseline is org-level (`organizations.public_sponsor_permissions`); default `sponsor:edit`, may lower to `sponsor:view`, and may additionally include `sponsor:analytics`. Restricted baseline is always `sponsor:report`. Public baseline never includes `deploy:*`. After create, only an **org admin** may change a sponsor's visibility in that org.",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-48",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Lists groupable/filterable by platform, owner (AUTH-50), and associated teams of the viewer's org (\u00a74.5.2).",
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-67",
+      "discipline": "visibility",
+      "modality": "MUST",
+      "rung": "R0",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "SAVVI org admins can list and manage teams across all organizations (membership stays constrained to the team's own org, AUTH-6). SAVVI members see sponsor\u2013team assignments across organizations (stories 23, 27\u201329).",
+      "project": "studio"
     }
   ],
   "unreachable_repos": []
