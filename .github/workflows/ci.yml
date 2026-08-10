@@ -56,9 +56,10 @@ concurrency:
 env:
   # --nohome_rc drops ~/.bazelrc, which is where a maintainer's registry
   # overrides live. The registries are pinned in //.bazelrc; this proves it.
-  # --repo_env reaches crate_universe, which runs cargo in a repository rule;
-  # a plain env var on the step would not.
-  BAZEL_FLAGS: --nohome_rc --repo_env=CARGO_NET_GIT_FETCH_WITH_CLI=true
+  # Startup options only — this sits before the subcommand. --repo_env is a
+  # COMMAND option and lives in //.bazelrc instead; putting it here fails with
+  # "Unknown startup option", which is how the first attempt broke the gate.
+  BAZEL_FLAGS: --nohome_rc
 
 jobs:
   gate:
@@ -86,20 +87,18 @@ jobs:
       # so mint a short-lived installation token scoped to exactly one repo.
       #
       # 13 repos depend on those crates, so this block is worth copying verbatim.
-      # ⚠ continue-on-error, and NOT because this is optional. As of 2026-08-10
-      # the org credential itself is broken: this step fails with
+      # ⚠ @v2, not @v1 — @v1 fails against these secrets with
+      # "A JSON web token could not be decoded" (401). @v2 works, and matches
+      # what bazel-registry already uses.
       #
-      #   A JSON web token could not be decoded  (401)
+      # continue-on-error so a credential problem degrades instead of reddening
+      # the gate: the Rust step below is skipped and everything else still runs.
+      # A permanently red required check trains people to merge through it,
+      # which is how #16 and #17 landed unverified in the first place.
       #
-      # and so does bazel-registry's identical step on the same secrets — its
-      # conformance, ecosystem-report and dep-ratchet workflows have all been
-      # red since the last success at 2026-08-09T12:56Z. FASTVERK_APP_PRIVATE_KEY
-      # needs rotating, which is a browser-only action.
-      #
-      # Until then the gate stays green on everything that CAN be verified, and
-      # the Rust step below is skipped rather than failing the run — a
-      # permanently red required check trains people to merge through it, which
-      # is how #16 and #17 landed unverified in the first place.
+      # NB bazel-registry's equivalent step currently fails, but for a different
+      # reason — it mints for `owner: tomato-bazel`, where this App is evidently
+      # not installed. For `owner: fastverk` the credential is fine.
       - name: mint a token for the private plugin crates
         id: crates_token
         continue-on-error: true
@@ -115,7 +114,7 @@ jobs:
       # fetches (`CARGO_NET_GIT_FETCH_WITH_CLI`, set on the bazel steps via
       # --repo_env) or it uses its own transport and ignores this config.
       - name: let cargo use it
-        if: steps.crates_token.outputs.token != ''
+        if: steps.crates_token.outcome == 'success'
         run: |
           git config --global \
             url."https://x-access-token:${{ steps.crates_token.outputs.token }}@github.com/".insteadOf \
@@ -156,6 +155,6 @@ jobs:
       # /describe. Runs automatically the moment the App credential works again;
       # no edit needed here.
       - name: plugin (needs the private crates)
-        if: steps.crates_token.outputs.token != ''
+        if: steps.crates_token.outcome == 'success'
         run: |
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors //services/...
