@@ -147,6 +147,21 @@ jobs:
       # same defect stayed unknown for a whole round trip. One failure per run is
       # too slow a loop when the only way to test Linux is to push.
       # Everything that does not need the private crates. This is the gate.
+      # ⚠ Warm the tectonic bundle cache SERIALLY first. tectonic downloads its
+      # TeX bundle into XDG_CACHE_HOME (see //.bazelrc), and three tectonic
+      # targets building in parallel race to populate one cache — producing
+      # partial files and errors that name a font or a missing .tex rather than
+      # the cache:
+      #
+      #   expl3-code.tex: Font \c__fp_exp_intarray=cmr10 ... not loadable
+      #   failed to open input file "pgfmathfunctions.code.tex"
+      #
+      # Observed as a FLAKE: an identical config went green one run earlier.
+      # One serial build populates the cache completely; everything after finds
+      # it warm. Cheap, because the second build reuses the first's outputs.
+      - name: warm the tectonic cache
+        run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
+
       - name: build
         run: |
           bazel $BAZEL_FLAGS build --keep_going \
