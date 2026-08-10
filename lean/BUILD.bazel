@@ -1,6 +1,50 @@
 load("@rules_lean//lean:lean.bzl", "lean_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
+
+# ─── The proof gate ──────────────────────────────────────────────────────────
+#
+# ⛔ `lean_test` DOES NOT CHECK PROOFS. A `sorry` is a *warning* and `lean` exits
+# 0, so a file proving anything `by sorry` passes a `lean_test` cleanly. This was
+# MEASURED here, not inferred: a probe theorem appended to
+# Spec/Grounding/WriteDoor.lean left //lean:grounding_test green.
+#
+# That is worse than a normal gate gap, because the comment on :grounding_test
+# said "compiling (sorry-free) IS the verification that the grounding is real",
+# and //grounding:grounding_verified ties the corpus's `:provenBy` to precisely
+# that claim. The guarantee the whole grounding story rests on was asserted and
+# not enforced.
+#
+# Two layers close it:
+#   1. `set_option warningAsError true` in every Lean source (after the imports).
+#      Turns `declaration uses 'sorry'` into a hard error — verified in both
+#      directions: the probe now FAILS, and the tree still passes without it.
+#   2. This audit, for what the option cannot see, plus the axiom ratchet.
+#
+# On the ratchet: this tree declares 93 axioms ON PURPOSE — the universe of
+# discourse is opaque by design. Banning them (as the same gate does in agora)
+# would make this impossible to turn on. What must not happen is the trusted
+# base growing quietly, so the counts live in axiom_baseline.txt and a change
+# there is a visible decision.
+sh_test(
+    name = "audit_proofs_test",
+    size = "small",
+    srcs = ["audit_proofs.sh"],
+    args = ["$(rootpaths :lean_srcs)"] + ["$(rootpath axiom_baseline.txt)"],
+    data = [
+        "axiom_baseline.txt",
+        ":lean_srcs",
+    ],
+)
+
+filegroup(
+    name = "lean_srcs",
+    srcs = glob(
+        ["Spec/**/*.lean"],
+        exclude = ["lake/**"],
+    ),
+)
 
 # Generic spec-framework Lean modules. Exposed as source labels so cross-repo
 # consumers (Aion's lean_test targets) list them in their own `srcs` —
@@ -34,9 +78,14 @@ lean_test(
 )
 
 # The machine-checked grounding for the ratio corpus's write-door / conservation
-# claims — the proof object //corpus claims point at via :provenBy. Compiling
-# (sorry-free) IS the verification that the grounding is real; the
-# //corpus:grounding_verified gate ties the corpus's :provenBy to it.
+# claims — the proof object //corpus claims point at via :provenBy.
+#
+# ⚠ This comment used to read "Compiling (sorry-free) IS the verification that
+# the grounding is real". Compiling was NOT that verification: until the guard
+# above was added, this target passed with a `sorry` in the file. It is true now,
+# and only because of :audit_proofs_test — so the two move together.
+#
+# //corpus:grounding_verified ties the corpus's :provenBy to this target.
 lean_test(
     name = "grounding_test",
     srcs = ["Spec/Grounding/WriteDoor.lean"],

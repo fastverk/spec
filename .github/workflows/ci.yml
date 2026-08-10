@@ -1,0 +1,85 @@
+name: ci
+
+# Build + test gate. Until this file landed there was NO CI on this repo that
+# fired on a change: `spec` has never had a `.github/` directory, and its only
+# checks (`fastverk/build`, `fastverk/tbzl-ready`) come from the in-cluster build
+# plane, which last posted on 2026-08-06. So #16, #17, #18, #20 and #21 all
+# merged without any automated signal — for a repo whose entire job is gating
+# other people's builds.
+#
+# This does not replace the build plane. It is a signal that exists today, on
+# Linux, which is the point: everything here was previously verified only on a
+# maintainer's macOS laptop, and this estate has a documented history of
+# darwin-green / linux-red.
+#
+# What it gates:
+#
+#   proofs  — //lean:audit_proofs_test. LOAD-BEARING, not a nicety.
+#             `lean_test` does NOT check proofs: a `sorry` is a warning and
+#             `lean` exits 0. Measured here — a probe theorem left
+#             //lean:grounding_test green. That mattered because
+#             //grounding:grounding_verified ties the corpus's `:provenBy` to
+#             exactly that target. See lean/BUILD.bazel.
+#   build   — //... must build. Catches the class of failure that made
+#             `fastverk/build` red for weeks (an unpinned maven resolution
+#             needing an ambient JDK, and a graphviz PDF path that could not
+#             build for any consumer).
+#   test    — //... 50 tests, including the RDF gate suite and the adversarial
+#             fixtures that plant a defect and fail if it is NOT detected.
+#
+# ⚠ JDK. The maven fetch is pinned (//:maven_install.json) precisely so it no
+# longer needs an ambient JDK at fetch time — but the BUILD actions still need
+# a Java runtime, which setup-java provides. If this step is ever removed,
+# //java/... fails with "Unable to locate a Java Runtime" and the summary will
+# not mention Java.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Without this a merge burst stacks one full run per push. Keyed on event_name
+# as well as ref so a PR run and the push run for the same branch do not cancel
+# each other.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # --nohome_rc drops ~/.bazelrc, which is where a maintainer's registry
+  # overrides live. The registries are pinned in //.bazelrc; this proves it.
+  BAZEL_FLAGS: --nohome_rc
+
+jobs:
+  gate:
+    name: bazel build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      # Run FIRST. If the proof gate is broken, a green build below means
+      # nothing — which is the exact failure this repo just had.
+      - name: proofs (sorry, native_decide, axiom ratchet)
+        run: bazel $BAZEL_FLAGS test //lean:audit_proofs_test --test_output=all
+
+      - name: build
+        run: bazel $BAZEL_FLAGS build //...
+
+      - name: test
+        run: bazel $BAZEL_FLAGS test //... --test_output=errors
