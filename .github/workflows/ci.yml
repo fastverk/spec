@@ -107,16 +107,19 @@ jobs:
       # ⛔ Do NOT "fix" this by widening to //... without the credential — it
       # goes red on every PR and trains everyone to merge through it, which is
       # the exact habit that let #16 and #17 land unverified.
+      # --keep_going: the first real run aborted at //impact:needle while
+      # //paper:crystallization was still compiling, hiding whether it had the
+      # same defect. It did. One failure per round trip is too slow a loop.
       - name: build
         run: |
-          bazel $BAZEL_FLAGS build \
+          bazel $BAZEL_FLAGS build --keep_going \
             //corpus/... //crank/... //deck/... //examples/... //graph/... \
             //grounding/... //impact/... //java/... //lean/... //paper/... \
             //proto/... //rdf/... //tools/...
 
       - name: test
         run: |
-          bazel $BAZEL_FLAGS test --test_output=errors \
+          bazel $BAZEL_FLAGS test --keep_going --test_output=errors \
             //corpus/... //crank/... //deck/... //examples/... //graph/... \
             //grounding/... //impact/... //java/... //lean/... //paper/... \
             //proto/... //rdf/... //tools/...
