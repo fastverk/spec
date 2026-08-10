@@ -175,3 +175,31 @@ fx:res-reoffer a au:Resolution ;
     au:decidedBy fx:principal-asset-mgr ;
     au:decidedAt "2026-08-01T16:20:00Z"^^xsd:dateTime ;
     au:rationale "Re-offered the capacity commitment at 55 MW for the remainder of the contract year. The fire-safety cap and the thermal derate are non-defeasible, and breaching the warranty would have voided cell coverage for a priced-but-larger exposure than the reduced capacity revenue. Reviewed with the AHJ; no waiver required, so no expiry applies." .
+
+# ── The honest counterpart: evaluations that examined something ──────────────
+#
+# The negative control needs a REAL evaluation, not the absence of one. A gate
+# that only ever sees fixtures with no evaluations at all passes trivially — the
+# same vacuity it is meant to detect, one level up.
+
+fx:cap-notice-window a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "Every contracted resource MUST receive an outage notice at least 30 days before a planned derate." ;
+    au:discipline fx:market-tariff ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 ;
+    au:evaluatedBy fx:eval-notice-window , fx:eval-notice-window-target .
+
+fx:eval-notice-window a au:Evaluation ;
+    au:implementation "canonical" ;
+    au:population 12481 ;
+    au:queryFingerprint "q:9f2c1a" ;
+    au:outcomeOf au:Passes .
+
+# A lagging implementation with no referent for the term. Reported honestly:
+# NOT a pass, and its zero population is legitimately au:CannotBeGrounded rather
+# than au:Vacuous — the check never ran, as opposed to running over nothing.
+fx:eval-notice-window-target a au:Evaluation ;
+    au:implementation "target" ;
+    au:population 0 ;
+    au:queryFingerprint "q:00none" ;
+    au:outcomeOf au:CannotBeGrounded .

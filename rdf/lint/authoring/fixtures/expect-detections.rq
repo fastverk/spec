@@ -141,6 +141,34 @@ WHERE {
   }
   UNION
   {
+    # vacuous-invariant.rq must find BOTH planted shapes: a pass over an empty
+    # population, and an outcome with no population at all. Two, not one —
+    # a gate that only catches the zero and not the absence leaves the more
+    # audit-resistant of the two in place.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT DISTINCT ?c ?e
+          WHERE {
+            { ?c a rfc:NormativeStatement ; au:evaluatedBy ?e .
+              ?e au:population ?n ; au:outcomeOf ?o .
+              FILTER(?n = 0)
+              FILTER(?o IN (au:Passes, au:Fails)) }
+            UNION
+            { ?c a rfc:NormativeStatement ; au:evaluatedBy ?e .
+              ?e au:outcomeOf ?o2 .
+              FILTER NOT EXISTS { ?e au:population ?any } }
+          }
+        }
+      }
+    }
+    BIND("vacuous-invariant" AS ?check)
+    BIND(2 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
     # homonym-unregistered.rq must find the one planted unregistered pair.
     {
       SELECT (COUNT(*) AS ?actual)

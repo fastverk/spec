@@ -1,5 +1,5 @@
 load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
-load("@rules_rdf//sparql:defs.bzl", "sparql_query_test")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query", "sparql_query_test")
 load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
 load("//rdf:gates.bzl", "spec_corpus_gates")
 
@@ -80,3 +80,14 @@ exports_files(glob([
     "*.ttl",
     "*.rq",
 ]))
+
+
+# Diagnostic view of the vacuous gate over the conflict fixture. The gate itself
+# is wired by spec_authoring_gates above (zero-row on :clean); this makes the
+# planted rows readable when it fires.
+sparql_query(
+    name = "vacuous_detected",
+    dataset = ":conflict_fixture",
+    query = "//rdf/lint/authoring:vacuous-invariant.rq",
+    out_format = "tsv",
+)

@@ -396,3 +396,65 @@ au:Queued   a au:Verdict ; rdfs:label "queued" ;
 
 au:verdict a owl:ObjectProperty ; rdfs:domain au:Proposal ; rdfs:range au:Verdict ;
     rdfs:label "verdict" .
+
+# =============================================================================
+# Evaluation and population — RFC-002 §4, the vacuous-truth failure mode
+# =============================================================================
+#
+# ⛔ The failure this exists to make impossible: an invariant whose grounding
+# matched NOTHING reports PASS. "Every reseller-brought sponsor is shared within
+# cap" is trivially true if the grounding resolved to zero sponsors — a renamed
+# column, a filter that silently excludes everything, a field that never existed.
+#
+# That is exactly a green build that tested nothing: same shape, same seduction,
+# same consequence. A gate that has never been shown to reject anything is an
+# assertion, and an invariant that has never examined a record is the same thing
+# wearing a number.
+#
+# So an evaluation MUST report the population it examined, and a population of
+# zero is an exception (au:Vacuous) — never au:Passes. //rdf/lint/authoring:
+# vacuous-invariant.rq enforces it and the conflict fixture plants one.
+#
+# The count is the ONLY thing carried. Not the records, not a sample — spec never
+# holds a project's data (see proto/spec/v1/grounding_adapter.proto). The
+# fingerprint reproduces the count without storing what was counted.
+
+au:Evaluation a owl:Class ;
+    rdfs:label "Evaluation" ;
+    rdfs:comment "One run of one claim's check against one implementation. Carries the population it examined, the outcome, and a fingerprint of the query that produced the count — never the records themselves." .
+
+au:evaluatedBy a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range au:Evaluation ;
+    rdfs:label "evaluated by" ;
+    rdfs:comment "Links a claim to a run of its check. A claim may have several: one per implementation." .
+
+au:population a owl:DatatypeProperty ;
+    rdfs:domain au:Evaluation ; rdfs:range xsd:integer ;
+    rdfs:label "population" ;
+    rdfs:comment "How many records the evaluation actually examined. REQUIRED. Zero is an exception, never a pass — see au:Vacuous." .
+
+au:queryFingerprint a owl:DatatypeProperty ;
+    rdfs:domain au:Evaluation ; rdfs:range xsd:string ;
+    rdfs:label "query fingerprint" ;
+    rdfs:comment "Content address of the query defining the population, so a count is reproducible without retaining its results." .
+
+au:implementation a owl:DatatypeProperty ;
+    rdfs:domain au:Evaluation ; rdfs:range xsd:string ;
+    rdfs:label "implementation" ;
+    rdfs:comment "Which implementation answered. A claim is grounded once against the canonical one and evaluated against every other; the difference is a migration backlog, not a defect." .
+
+au:Outcome a owl:Class ; rdfs:label "Evaluation Outcome" .
+
+au:Passes a au:Outcome ; rdfs:label "passes" ;
+    rdfs:comment "The implementation satisfies the claim, over a non-empty population." .
+au:Fails a au:Outcome ; rdfs:label "fails" ;
+    rdfs:comment "The implementation violates the claim. A defect where the implementation is canonical." .
+au:CannotBeGrounded a au:Outcome ; rdfs:label "cannot be grounded" ;
+    rdfs:comment "A term has no referent in this implementation, so the check cannot run at all. ⛔ NOT a pass. Against a lagging implementation this is the migration backlog, enumerated rather than estimated." .
+au:Vacuous a au:Outcome ; rdfs:label "vacuous" ;
+    rdfs:comment "Evaluated over an EMPTY population. Reported honestly rather than as a pass, which is what it would otherwise look like." .
+
+au:outcomeOf a owl:ObjectProperty ;
+    rdfs:domain au:Evaluation ; rdfs:range au:Outcome ;
+    rdfs:label "outcome" ;
+    rdfs:comment "Deliberately distinct from au:outcome on a Resolution: that records what a person decided, this records what a machine measured." .

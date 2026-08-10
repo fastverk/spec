@@ -254,3 +254,41 @@ fx:res-unbounded a au:Resolution ;
     au:outcome au:Exempt ;
     au:decidedBy fx:principal-market ;
     au:rationale "Accepted indefinitely." .
+
+# ── PLANTED: the two vacuous-truth defects ───────────────────────────────────
+#
+# Both claims are deliberately inert with respect to every OTHER gate: rung R4
+# with a real au:promotedBy (so ladder-integrity stays silent), no bounds and no
+# quantity (so empty-envelope and homonym-unregistered stay silent), and no
+# conflict (so conflict-hygiene stays silent). They exist to trip
+# vacuous-invariant.rq and nothing else, which is what keeps the counts in
+# expect-detections.rq stable and meaningful.
+
+# VACUOUS-PASS: examined nothing, recorded as a pass. This is the shape that
+# costs the most — it reads exactly like a real result.
+fx:cap-notice-window a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "Every contracted resource MUST receive an outage notice at least 30 days before a planned derate." ;
+    au:discipline fx:market-tariff ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 ;
+    au:evaluatedBy fx:eval-notice-window .
+
+fx:eval-notice-window a au:Evaluation ;
+    au:implementation "canonical" ;
+    au:population 0 ;
+    au:queryFingerprint "q:9f2c1a" ;
+    au:outcomeOf au:Passes .
+
+# NO-POPULATION: an outcome with no count at all. Slips past a zero check
+# precisely because there is nothing to compare — a result nobody can audit.
+fx:cap-derate-approval a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "A planned derate MUST be approved by the asset manager before it is filed." ;
+    au:discipline fx:market-tariff ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 ;
+    au:evaluatedBy fx:eval-derate-approval .
+
+fx:eval-derate-approval a au:Evaluation ;
+    au:implementation "canonical" ;
+    au:queryFingerprint "q:41be07" ;
+    au:outcomeOf au:Passes .

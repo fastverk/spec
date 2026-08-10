@@ -52,6 +52,7 @@ _GATES = {
     "envelope_unrecorded": Label("//rdf/lint/authoring:envelope-unrecorded.rq"),
     "conflict_hygiene_strict": Label("//rdf/lint/authoring:conflict-hygiene-strict.rq"),
     "ladder_integrity": Label("//rdf/lint/authoring:ladder-integrity.rq"),
+    "vacuous_invariant": Label("//rdf/lint/authoring:vacuous-invariant.rq"),
 }
 
 # Reported measures. Non-empty output is normal and often the point.
