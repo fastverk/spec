@@ -42,3 +42,35 @@ sh_test(
         "//services/spec/ui:panels.textproto",
     ],
 )
+
+# ⛔ Byte-equality between panels.textproto and the COMMITTED panels.binpb.
+#
+# check_wiring_test above already spans this seam, but by panel ID — which catches a
+# panel present in one and absent from the other, and nothing finer. A renamed column
+# header, a changed pref_width, a reworded placeholder and a corrupted string all
+# leave the id list untouched, so none of them would fail that test.
+#
+# What makes the gap concrete rather than theoretical: byte equality is what caught a
+# bug in compile_panels.py ITSELF. Its textproto parser decoded string escapes via
+# `.encode("utf-8").decode("unicode_escape")`, which reads each UTF-8 byte as a
+# Latin-1 codepoint — so `Requires ≥` became `Requires â‰¥` and the emitted bundle came
+# out 12 bytes larger than protoc's. The committed bundle was correct throughout and
+# check_wiring_test was right to pass; the byte comparison was the only thing in the
+# repo sensitive enough to see the difference at all. A check that can find a fault in
+# its own toolchain will find one in a descriptor.
+#
+# The script verifies; it never writes. Regenerating is
+# `bazel build //services/spec/ui:panels` (the real compiler) or
+# `python3 tools/readmodel/compile_panels.py --write` for anyone without it — the
+# latter validates its own codec against protoc's committed output, and asserts its
+# parser preserves UTF-8, before emitting anything.
+sh_test(
+    name = "compile_panels_test",
+    size = "small",
+    srcs = ["compile_panels_test.sh"],
+    data = [
+        "compile_panels.py",
+        "//services/spec/ui:panels.binpb",
+        "//services/spec/ui:panels.textproto",
+    ],
+)
