@@ -7,7 +7,8 @@
       "least_upper": 150.0,
       "deficit": 30.0,
       "disciplines": 2,
-      "recorded": true
+      "recorded": true,
+      "project": "ampere"
     },
     {
       "quantity": "q-sustained-discharge",
@@ -16,7 +17,8 @@
       "least_upper": 55.0,
       "deficit": 27.0,
       "disciplines": 5,
-      "recorded": true
+      "recorded": true,
+      "project": "ampere"
     }
   ],
   "unreachable_repos": []

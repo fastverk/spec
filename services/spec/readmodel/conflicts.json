@@ -9,7 +9,8 @@
       "blocked_orders": 3,
       "owner": "p-asset-mgr",
       "state": "resolved",
-      "outcome": "Narrow"
+      "outcome": "Narrow",
+      "project": "ampere"
     },
     {
       "id": "INV-02",
@@ -20,7 +21,8 @@
       "blocked_orders": 1,
       "owner": "p-ahj",
       "state": "resolved",
-      "outcome": "Narrow"
+      "outcome": "Narrow",
+      "project": "ampere"
     },
     {
       "id": "INV-03",
@@ -31,7 +33,8 @@
       "blocked_orders": 1,
       "owner": "p-ciso",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-07",
@@ -42,7 +45,8 @@
       "blocked_orders": 1,
       "owner": "p-controls-sw",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-11",
@@ -53,7 +57,8 @@
       "blocked_orders": 1,
       "owner": "p-interconnection-eng",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-13",
@@ -64,7 +69,8 @@
       "blocked_orders": 1,
       "owner": "p-tax-counsel",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-05",
@@ -75,7 +81,8 @@
       "blocked_orders": 0,
       "owner": "p-permit-mgr",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-10",
@@ -86,7 +93,8 @@
       "blocked_orders": 0,
       "owner": "p-controller",
       "state": "resolved",
-      "outcome": "Refute"
+      "outcome": "Refute",
+      "project": "ampere"
     },
     {
       "id": "INV-12",
@@ -97,7 +105,8 @@
       "blocked_orders": 0,
       "owner": "p-tax-counsel",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-14",
@@ -108,7 +117,8 @@
       "blocked_orders": 0,
       "owner": "p-interconnection-eng",
       "state": "open",
-      "outcome": ""
+      "outcome": "",
+      "project": "ampere"
     },
     {
       "id": "INV-16",
@@ -119,7 +129,8 @@
       "blocked_orders": 0,
       "owner": "p-settlement-analyst",
       "state": "resolved",
-      "outcome": "Narrow"
+      "outcome": "Narrow",
+      "project": "ampere"
     },
     {
       "id": "INV-19",
@@ -130,7 +141,8 @@
       "blocked_orders": 0,
       "owner": "p-market-ops",
       "state": "resolved",
-      "outcome": "Narrow"
+      "outcome": "Narrow",
+      "project": "ampere"
     }
   ],
   "unreachable_repos": []

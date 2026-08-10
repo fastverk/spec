@@ -10,7 +10,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-01",
@@ -22,7 +23,8 @@
       "bound_kind": "UpperBound",
       "bound_value": 55.0,
       "guard": "throughput_budget_consumed >= 0.80",
-      "defeasible": "true"
+      "defeasible": "true",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-01",
@@ -34,7 +36,8 @@
       "bound_kind": "UpperBound",
       "bound_value": 70.0,
       "guard": "ambient_c >= 40",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-01",
@@ -46,7 +49,8 @@
       "bound_kind": "UpperBound",
       "bound_value": 78.0,
       "guard": "ambient_c >= 45",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-01",
@@ -58,7 +62,8 @@
       "bound_kind": "LowerBound",
       "bound_value": 82.0,
       "guard": "performance_assessment_interval",
-      "defeasible": "true"
+      "defeasible": "true",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-01",
@@ -70,7 +75,8 @@
       "bound_kind": "UpperBound",
       "bound_value": 100.0,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-02",
@@ -82,7 +88,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-02",
@@ -94,7 +101,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-02",
@@ -106,7 +114,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-03",
@@ -118,7 +127,8 @@
       "bound_kind": "UpperBound",
       "bound_value": 150.0,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-03",
@@ -130,7 +140,8 @@
       "bound_kind": "LowerBound",
       "bound_value": 180.0,
       "guard": "deep-inspection enabled at the electronic access point",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-05",
@@ -142,7 +153,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-05",
@@ -154,7 +166,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-05",
@@ -166,7 +179,8 @@
       "bound_kind": "UpperBound",
       "bound_value": 45.0,
       "guard": "night_hours",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-07",
@@ -178,7 +192,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "true"
+      "defeasible": "true",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-07",
@@ -190,7 +205,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-07",
@@ -202,7 +218,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-10",
@@ -214,7 +231,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-10",
@@ -226,7 +244,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-11",
@@ -238,7 +257,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "true"
+      "defeasible": "true",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-11",
@@ -250,7 +270,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-12",
@@ -262,7 +283,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-12",
@@ -274,7 +296,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-13",
@@ -286,7 +309,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-13",
@@ -298,7 +322,8 @@
       "bound_kind": "LowerBound",
       "bound_value": 45.0,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-14",
@@ -310,7 +335,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": "false"
+      "defeasible": "false",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-14",
@@ -322,7 +348,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-16",
@@ -334,7 +361,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-16",
@@ -346,7 +374,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-16",
@@ -358,7 +387,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-19",
@@ -370,7 +400,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-19",
@@ -382,7 +413,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     },
     {
       "conflict_id": "INV-19",
@@ -394,7 +426,8 @@
       "bound_kind": "",
       "bound_value": null,
       "guard": "",
-      "defeasible": ""
+      "defeasible": "",
+      "project": "ampere"
     }
   ],
   "unreachable_repos": []

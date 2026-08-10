@@ -8,7 +8,8 @@
       "non_defeasible_count": 3,
       "dark_count": 1,
       "dark_pct": 8.3,
-      "typed_pct": 58.3
+      "typed_pct": 58.3,
+      "project": "ampere"
     },
     {
       "discipline": "fire & life safety",
@@ -18,7 +19,8 @@
       "non_defeasible_count": 6,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 44.4
+      "typed_pct": 44.4,
+      "project": "ampere"
     },
     {
       "discipline": "power-systems interconnection",
@@ -28,7 +30,8 @@
       "non_defeasible_count": 5,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 42.9
+      "typed_pct": 42.9,
+      "project": "ampere"
     },
     {
       "discipline": "insurance, warranty & O&M",
@@ -38,7 +41,8 @@
       "non_defeasible_count": 1,
       "dark_count": 1,
       "dark_pct": 14.3,
-      "typed_pct": 57.1
+      "typed_pct": 57.1,
+      "project": "ampere"
     },
     {
       "discipline": "cybersecurity & reliability compliance",
@@ -48,7 +52,8 @@
       "non_defeasible_count": 3,
       "dark_count": 1,
       "dark_pct": 16.7,
-      "typed_pct": 16.7
+      "typed_pct": 16.7,
+      "project": "ampere"
     },
     {
       "discipline": "software & DER fleet control",
@@ -58,7 +63,8 @@
       "non_defeasible_count": 0,
       "dark_count": 1,
       "dark_pct": 20.0,
-      "typed_pct": 40.0
+      "typed_pct": 40.0,
+      "project": "ampere"
     },
     {
       "discipline": "tax & project finance",
@@ -68,7 +74,8 @@
       "non_defeasible_count": 1,
       "dark_count": 1,
       "dark_pct": 25.0,
-      "typed_pct": 25.0
+      "typed_pct": 25.0,
+      "project": "ampere"
     },
     {
       "discipline": "accounting & revenue recognition",
@@ -78,7 +85,8 @@
       "non_defeasible_count": 0,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 50.0
+      "typed_pct": 50.0,
+      "project": "ampere"
     },
     {
       "discipline": "environmental permitting & land use",
@@ -88,7 +96,8 @@
       "non_defeasible_count": 2,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 50.0
+      "typed_pct": 50.0,
+      "project": "ampere"
     },
     {
       "discipline": "metering & settlement",
@@ -98,7 +107,8 @@
       "non_defeasible_count": 0,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 0.0
+      "typed_pct": 0.0,
+      "project": "ampere"
     },
     {
       "discipline": "electrochemistry & thermal",
@@ -108,7 +118,8 @@
       "non_defeasible_count": 1,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 100.0
+      "typed_pct": 100.0,
+      "project": "ampere"
     },
     {
       "discipline": "protection & controls",
@@ -118,7 +129,173 @@
       "non_defeasible_count": 1,
       "dark_count": 0,
       "dark_pct": 0.0,
-      "typed_pct": 100.0
+      "typed_pct": 100.0,
+      "project": "ampere"
+    },
+    {
+      "discipline": "visibility",
+      "steward": "",
+      "claim_count": 10,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 10,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "teams and team roles",
+      "steward": "",
+      "claim_count": 8,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 8,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "SAVVI access and staff operations",
+      "steward": "",
+      "claim_count": 8,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 8,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "platforms and sponsors",
+      "steward": "",
+      "claim_count": 6,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 6,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "environments and deployment",
+      "steward": "",
+      "claim_count": 6,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 6,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "organizations and identity",
+      "steward": "",
+      "claim_count": 5,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 5,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "grants",
+      "steward": "",
+      "claim_count": 5,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 5,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "permissions",
+      "steward": "",
+      "claim_count": 4,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 4,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "resellers",
+      "steward": "",
+      "claim_count": 4,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 4,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "unassigned",
+      "steward": "",
+      "claim_count": 3,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 3,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "users and organization directory",
+      "steward": "",
+      "claim_count": 3,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 3,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "sponsor organizations",
+      "steward": "",
+      "claim_count": 2,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 2,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "identity mapping and audit",
+      "steward": "",
+      "claim_count": 2,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 2,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "tasks, documents and attachments",
+      "steward": "",
+      "claim_count": 2,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 2,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
+    },
+    {
+      "discipline": "development access",
+      "steward": "",
+      "claim_count": 1,
+      "typed_count": 0,
+      "non_defeasible_count": 0,
+      "dark_count": 1,
+      "dark_pct": 100.0,
+      "typed_pct": 0.0,
+      "project": "studio"
     }
   ],
   "unreachable_repos": []
