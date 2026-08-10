@@ -1,0 +1,40 @@
+# ---
+# title: "Vacuous invariant — passed over an empty population"
+# description: "A claim whose evaluation examined ZERO records but did not report au:Vacuous. An invariant that examined nothing succeeds trivially, so recording that as a pass is indistinguishable from a real result."
+# severity: error
+# tier: 3
+# rationale: "This is the failure mode that costs the most and shows the least. 'Every reseller-brought sponsor is shared within cap' is trivially true if the grounding matched zero sponsors — a renamed column, a filter that silently excludes everything, a field that never existed. It is exactly a green build that tested nothing: same shape, same seduction, same consequence. The estate already refuses that in the merge gate; it must refuse it here. Two things are checked, because either alone leaves a hole: an evaluation MUST report a population at all (a missing count is not a zero count — it is an evaluation nobody can audit), and a population of zero MUST be recorded as au:Vacuous rather than au:Passes. Deliberately a GATE and not a measure: unlike an empty feasible envelope, which is a true finding about the world, a vacuous pass is never information — it is the absence of information wearing a number."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?claim ?evaluation ?defect ?detail
+WHERE {
+  {
+    # An evaluation that examined nothing, recorded as anything other than
+    # vacuous. This is the one that matters: it reads as a result.
+    ?claim a rfc:NormativeStatement ; au:evaluatedBy ?evaluation .
+    ?evaluation au:population ?n ; au:outcomeOf ?outcome .
+    FILTER(?n = 0)
+    # Only a POSITIVE result over nothing is the defect. au:Vacuous is the
+    # honest recording of it, and au:CannotBeGrounded legitimately has a zero
+    # population — there the check never ran at all, as opposed to running over
+    # nothing, and conflating the two would make the gate impossible to satisfy
+    # for any lagging implementation.
+    FILTER(?outcome IN (au:Passes, au:Fails))
+    BIND("VACUOUS-PASS" AS ?defect)
+    BIND(CONCAT("examined 0 records but reports ", STR(?outcome)) AS ?detail)
+  }
+  UNION
+  {
+    # An evaluation with no population at all. A missing count is not a zero
+    # count — it is a result nobody can audit, and it would slip past the
+    # branch above precisely because there is nothing to compare.
+    ?claim a rfc:NormativeStatement ; au:evaluatedBy ?evaluation .
+    ?evaluation au:outcomeOf ?outcome .
+    FILTER NOT EXISTS { ?evaluation au:population ?any }
+    BIND("NO-POPULATION" AS ?defect)
+    BIND("evaluation reports an outcome but never says how many records it examined" AS ?detail)
+  }
+}
+ORDER BY ?claim ?defect
