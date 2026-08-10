@@ -87,29 +87,27 @@ jobs:
       # so mint a short-lived installation token scoped to exactly one repo.
       #
       # 13 repos depend on those crates, so this block is worth copying verbatim.
-      # ⛔ THIS CURRENTLY FAILS, and the cause is the credential, not this file.
+      # Mints a short-lived installation token scoped to one repository, so
+      # //services/spec can resolve its cargo git-deps on the PRIVATE
+      # fastverk/fastverk-plugin-crates. `secrets.GITHUB_TOKEN` is scoped to this
+      # repository and cannot read another private repo in the org.
       #
-      #   A JSON web token could not be decoded  (401)   →  "Token is not set"
+      # 13 repos depend on those crates and every one of them has this same hole,
+      # so this block is worth copying verbatim.
       #
-      # Measured on both @v1 and @v2, and for `owner: fastverk` as well as
-      # `owner: tomato-bazel`, so it is not the action version and not one org's
-      # installation. bazel-registry's identical step fails the same way; its
-      # conformance, ecosystem-report and dep-ratchet workflows have been red
-      # since the last success at 2026-08-09T12:56Z.
+      # ⚠ HISTORY, because it cost several round trips: this failed for a day
+      # with `A JSON web token could not be decoded` (401) on BOTH @v1 and @v2 and
+      # for both orgs — the App private key behind FASTVERK_APP_PRIVATE_KEY had
+      # gone bad. Rotated 2026-08-10.
       #
-      # FASTVERK_APP_PRIVATE_KEY needs rotating — an App private key cannot be
-      # re-read after generation, so that is a browser-only action.
+      # ⚠ When checking whether this worked, read the step LOG or `outcome`,
+      # never `conclusion`: continue-on-error rewrites `conclusion` to success, so
+      # the jobs API shows this green while it is failing.
       #
-      # ⚠ Read `outcome`, never `conclusion`, when checking whether this worked:
-      # continue-on-error rewrites `conclusion` to success, so the jobs API shows
-      # this step green while it is in fact failing. That is exactly how it
-      # looked fine here for one round trip.
-      #
-      # continue-on-error is deliberate: the gate stays green on the 51 targets
-      # that can be verified and the Rust step below skips itself. A permanently
-      # red required check trains people to merge through it, which is how #16
-      # and #17 landed unverified in the first place. It turns itself on the
-      # moment the key is rotated — no edit needed here.
+      # continue-on-error is kept deliberately. If the credential breaks again the
+      # gate stays green on everything else and only the Rust step skips — a
+      # permanently red required check trains people to merge through it, which is
+      # how #16 and #17 landed unverified.
       - name: mint a token for the private plugin crates
         id: crates_token
         continue-on-error: true
