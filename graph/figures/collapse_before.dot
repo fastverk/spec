@@ -10,7 +10,15 @@
 // //graph:collapse_before_svg.
 digraph claim_gas {
   layout = sfdp;
-  overlap = prism;
+  // `overlap = prism` (the previous setting) makes this graph's sfdp layout
+  // emit `nan nan` for spec15 and NaN control points for both of its edges —
+  // i.e. one of the sixteen duplicated specs silently vanishes, which is the
+  // one thing this figure exists to count. `voronoi` and `false` do the same;
+  // `scale` and `true` do not. `scale` removes overlap by uniform expansion,
+  // so the force-directed scatter this figure wants is preserved exactly.
+  // //graph:plain_to_tikz now also refuses to emit a non-finite node, so a
+  // regression here fails the build instead of dropping a node.
+  overlap = scale;
   splines = false;
   bgcolor = "transparent";
   K = 0.7;

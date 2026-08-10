@@ -152,7 +152,12 @@
   \begin{columns}[c]
     \begin{column}{0.66\textwidth}
       \centering
-      \includegraphics[height=0.78\textheight]{../graph/crystal_pdf}
+      % TikZ, not \includegraphics: rules_graphviz's svg_pdf/dot_pdf cannot
+      % build for any consumer (see //graph:BUILD.bazel). \resizebox is exact
+      % here rather than an approximation of keepaspectratio -- the layout is
+      % 11.24x10.49in against a 0.66\textwidth column, so height is the
+      % binding constraint, as it was for the PDF.
+      \resizebox{!}{0.78\textheight}{\input{../graph/crystal_tikz.tex}}
     \end{column}
     \begin{column}{0.33\textwidth}
       {\footnotesize
@@ -177,7 +182,9 @@
   \begin{columns}[c]
     \begin{column}{0.47\textwidth}
       \centering
-      \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{../graph/collapse_before_pdf}\\[2pt]
+      % 11.66x8.63in in a 0.47\textwidth column: height binds, so the single
+      % \resizebox dimension reproduces width+height+keepaspectratio exactly.
+      \resizebox{!}{0.60\textheight}{\input{../graph/collapse_before_tikz.tex}}\\[2pt]
       {\scriptsize\textbf{before} --- ``claim gas'': boilerplate duplicated 16$\times$ ($R$ high, $S$ low)}
     \end{column}
     \begin{column}{0.06\textwidth}
@@ -185,7 +192,8 @@
     \end{column}
     \begin{column}{0.47\textwidth}
       \centering
-      \includegraphics[width=\linewidth,height=0.60\textheight,keepaspectratio]{../graph/collapse_after_pdf}\\[2pt]
+      % 6.59x7.98in -- taller than wide, so height binds here too.
+      \resizebox{!}{0.60\textheight}{\input{../graph/collapse_after_tikz.tex}}\\[2pt]
       {\scriptsize\textbf{after} --- 7 templates + 1 kernel; 16 thin instances. $S$ banked, $R$ cut, meaning-preserving.}
     \end{column}
   \end{columns}

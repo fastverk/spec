@@ -36,6 +36,20 @@ maven.install(
     repositories = [
         "https://repo1.maven.org/maven2",
     ],
+    # Pinned so the fetch REPLAYS a lockfile instead of resolving. Coursier runs
+    # as a repository rule, i.e. outside the build's Java toolchain, so the
+    # `remotejdk_21` pin in .bazelrc never reaches it and `--repo_env=JAVA_HOME`
+    # only forwards whatever the ambient environment happens to have. On a build
+    # image with no JDK on PATH that resolution fails with "Unable to locate a
+    # Java Runtime" — which is why `fastverk/build` was red on main and #16/#17
+    # were both merged through it (issue #19). Replaying the lockfile needs no
+    # JDK at fetch time. It also makes the maven graph reproducible, which the
+    # comment above depends on: coordinates that "mirror Aion + mycelium" cannot
+    # drift out from under that claim if they are pinned.
+    #
+    # Regenerate with:  bazel run @maven//:pin  (then rename the emitted
+    # rules_jvm_external++maven+maven_install.json back to maven_install.json)
+    lock_file = "//:maven_install.json",
 )
 use_repo(maven, "maven")
 

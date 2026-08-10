@@ -8,26 +8,70 @@
 PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
 PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
 
-SELECT ?quantity ?unit
-       (MAX(?lo) AS ?greatestLower)
-       (MIN(?hi) AS ?leastUpper)
-       (MAX(?lo) - MIN(?hi) AS ?deficit)
-       (COUNT(DISTINCT ?discipline) AS ?disciplines)
+# The lower and upper families are aggregated in SEPARATE sub-selects, and that
+# is load-bearing rather than stylistic.
+#
+# This was one flat pattern that split the families with an unbound sentinel:
+#
+#     BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
+#     BIND(IF(?kind = au:UpperBound, ?v, ?unbound) AS ?hi)
+#     ...
+#     HAVING (MAX(?lo) > MIN(?hi))
+#
+# so every solution left exactly one of ?lo / ?hi unbound. ARQ's MAX/MIN return
+# UNBOUND for a group in which any row lacks the variable, so both aggregates
+# came back empty, `HAVING` compared two unbounds, and the gate returned ZERO
+# rows against a fixture purpose-built to trip it. The payload gate of RFC-002
+# detected nothing, silently, under the only engine that runs it. (rdflib
+# evaluates the same query as intended and returns the expected row, which is
+# how the form survived review — it was validated against a different engine
+# than the one in the build.)
+#
+# Splitting into sub-selects means each aggregate only ever sees bound values,
+# which is portable and needs no error-to-unbound semantics at all. Verified
+# under ARQ: deficit 27.0 MW across 4 disciplines on the conflict fixture.
+SELECT ?quantity ?unit ?greatestLower ?leastUpper
+       (?greatestLower - ?leastUpper AS ?deficit)
+       ?disciplines
 WHERE {
+  # Greatest lower bound asserted on the quantity, across all disciplines.
+  {
+    SELECT ?quantity (MAX(?v) AS ?greatestLower)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound .
+      ?bound au:boundKind au:LowerBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # Least upper bound.
+  {
+    SELECT ?quantity (MIN(?v) AS ?leastUpper)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound .
+      ?bound au:boundKind au:UpperBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # How many distinct disciplines assert a bound here — a 1-discipline conflict
+  # is an authoring slip; an n-discipline one is the finding this gate exists for.
+  {
+    SELECT ?quantity (COUNT(DISTINCT ?discipline) AS ?disciplines)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound ;
+             au:discipline ?discipline .
+    }
+    GROUP BY ?quantity
+  }
+
   ?quantity a au:Quantity .
   OPTIONAL { ?quantity au:unit ?unit }
 
-  # Every bound asserted on this quantity, with the discipline that asserted it.
-  ?claim a rfc:NormativeStatement ;
-         au:constrains ?quantity ;
-         au:hasBound   ?bound ;
-         au:discipline ?discipline .
-  ?bound au:boundValue ?v ; au:boundKind ?kind .
-
-  # Split into the lower and upper families. A claim contributes to exactly one.
-  BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
-  BIND(IF(?kind = au:UpperBound, ?v, ?unbound) AS ?hi)
+  FILTER(?greatestLower > ?leastUpper)
 }
-GROUP BY ?quantity ?unit
-HAVING (MAX(?lo) > MIN(?hi))
 ORDER BY DESC(?deficit)
