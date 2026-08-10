@@ -78,8 +78,45 @@ jobs:
       - name: proofs (sorry, native_decide, axiom ratchet)
         run: bazel $BAZEL_FLAGS test //lean:audit_proofs_test --test_output=all
 
+      # ⚠ NOT `//...`, and the exclusion is a credential problem rather than a
+      # choice. //services/spec consumes the shared plugin crates as cargo
+      # git-deps on fastverk/fastverk-plugin-crates, which is PRIVATE. A default
+      # runner cannot clone it, and crate_universe fails during module-extension
+      # evaluation — before any target is analysed, so it cannot be skipped with
+      # a target exclusion:
+      #
+      #   error: failed to get `fastverk-layout` as a dependency of `spec-server`
+      #     revision 875823d0... not found
+      #     failed to authenticate when downloading repository
+      #
+      # `secrets.GITHUB_TOKEN` is scoped to this repository only, so it cannot
+      # read another private repo in the org. Making the Rust build run here
+      # needs `CARGO_NET_GIT_FETCH_WITH_CLI=true` plus a cross-repo credential
+      # (an App installation token or a PAT) that does not exist today.
+      #
+      # Everything else is gated, which is the majority of what has actually
+      # broken: the maven/JDK fetch, the graphviz PDF path, the RDF gate suite
+      # with its adversarial fixtures, and the Lean proof audit above.
+      #
+      # ⛔ WHAT THIS MISSES, exactly — stated so it cannot read as full coverage:
+      # one test target, //services/spec:spec_test (5 #[cfg(test)] modules,
+      # including the routes.rs assertions that every served route is declared
+      # in /describe and that no (service, method) pair is duplicated). 51 of 52
+      # test targets run here. That one comes back the day the credential exists.
+      #
+      # ⛔ Do NOT "fix" this by widening to //... without the credential — it
+      # goes red on every PR and trains everyone to merge through it, which is
+      # the exact habit that let #16 and #17 land unverified.
       - name: build
-        run: bazel $BAZEL_FLAGS build //...
+        run: |
+          bazel $BAZEL_FLAGS build \
+            //corpus/... //crank/... //deck/... //examples/... //graph/... \
+            //grounding/... //impact/... //java/... //lean/... //paper/... \
+            //proto/... //rdf/... //tools/...
 
       - name: test
-        run: bazel $BAZEL_FLAGS test //... --test_output=errors
+        run: |
+          bazel $BAZEL_FLAGS test --test_output=errors \
+            //corpus/... //crank/... //deck/... //examples/... //graph/... \
+            //grounding/... //impact/... //java/... //lean/... //paper/... \
+            //proto/... //rdf/... //tools/...

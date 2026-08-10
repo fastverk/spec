@@ -1,0 +1,122 @@
+// spec.v1 GroundingAdapter — the contract a project implements so its terms can
+// be grounded WITHOUT its data ever entering spec.
+//
+// ## The shape, and why it is this shape
+//
+// Grounding has to show a person what each reading would actually match —
+// populations, not schemas. "Three fields could mean *a sponsor they brought*,
+// and they disagree by 47 sponsors" is a question anyone can answer; "pick a
+// column" is not. That needs counts, and to be useful it needs a few example
+// rows.
+//
+// But spec must never hold a customer's data. So the project runs the candidate
+// queries IN ITS OWN ENVIRONMENT and returns:
+//
+//   * a COUNT and a query fingerprint          → stored by spec, forever
+//   * a few DISPLAY EXAMPLES                   → rendered, then discarded
+//
+// ## ⛔ The separation is a file boundary, deliberately
+//
+// `DisplayExample` is declared HERE and nowhere else, and `invariant.proto`
+// imports NOTHING. So no message reachable from `spec.v1.Invariant` — the type
+// spec actually persists — has any field that could hold a row. It is not a
+// convention anyone has to remember; it is a shape the type system forbids, and
+// `//proto/spec/v1:data_boundary_test` asserts the import graph stays that way.
+//
+// If a future change needs an example to be stored, it will have to add an
+// import, and that import is the review conversation.
+
+syntax = "proto3";
+
+package spec.v1;
+
+import "spec/v1/invariant.proto";
+
+// ============================================================
+// Probing: what would each reading match?
+// ============================================================
+
+// Ask the project to evaluate candidate readings of one term.
+message GroundingProbeRequest {
+  // Which invariant and term this is for — echoed back for correlation.
+  string invariant_id = 1;
+  string term_id = 2;
+  // The candidate readings to evaluate, in the project's own vocabulary. The
+  // project decides what a locator means; spec never parses one.
+  repeated string candidate_locators = 3;
+  // How many example rows to return for display. The project MAY return fewer,
+  // and SHOULD return none if it cannot do so safely.
+  uint32 max_examples = 4;
+}
+
+// One row, rendered for a human choosing between readings.
+//
+// ⛔ TRANSIT ONLY. Never stored by spec, never referenced from `Invariant`.
+// The project decides what is safe to show and is expected to redact — spec
+// treats every field here as opaque display text and keeps none of it.
+message DisplayExample {
+  // An identifier the person will recognise — "SPN-4471". The project chooses
+  // what is safe to use here.
+  string label = 1;
+  // Short human-readable context — "stamped Northwind · created by PlanSource
+  // admin". Prose, not fields; spec does not parse it.
+  string detail = 2;
+}
+
+// What one candidate reading would match.
+message Candidate {
+  string locator = 1;
+  // The number of records this reading matches.
+  //
+  // ⛔ Zero is not a small number here — it is a refusal. A reading that matches
+  // nothing produces an invariant that examines nothing and passes forever.
+  uint64 count = 2;
+  // Reproduces the count later without storing what was counted.
+  string query_fingerprint = 3;
+  // For display while choosing. Discarded after.
+  repeated DisplayExample examples = 4;
+  // Anything the project wants the person to know — "misses 47 sponsors a
+  // platform admin created", "self-reported and updated late".
+  string caveat = 5;
+}
+
+message GroundingProbeResponse {
+  string invariant_id = 1;
+  string term_id = 2;
+  repeated Candidate candidates = 3;
+}
+
+// ============================================================
+// Evaluating: does it hold, and over how many?
+// ============================================================
+
+message EvaluateRequest {
+  string invariant_id = 1;
+  // The grounded referents, by term. The project resolves these against its own
+  // store; spec does not know how.
+  Grounding grounding = 2;
+  Check check = 3;
+}
+
+message EvaluateResponse {
+  string invariant_id = 1;
+  // Which implementation answered — "studio-nextjs", "aion".
+  string implementation = 2;
+  Outcome outcome = 3;
+  Population population = 4;
+  // Terms this implementation has no referent for. Non-empty implies
+  // OUTCOME_CANNOT_BE_GROUNDED, and IS the migration backlog for it.
+  repeated string ungrounded_terms = 5;
+  // Human-readable, for the failure case only. Not evidence, not stored as data.
+  string detail = 6;
+}
+
+// Implemented BY THE PROJECT, called by spec. The direction matters: spec never
+// reaches into a store, and a project can implement this without granting spec
+// any credential.
+service GroundingAdapter {
+  // What would each reading match? Drives the grounding conversation.
+  rpc Probe(GroundingProbeRequest) returns (GroundingProbeResponse);
+  // Does the invariant hold, and over how many records?
+  rpc Evaluate(EvaluateRequest) returns (EvaluateResponse);
+}

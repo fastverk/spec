@@ -6,3 +6,34 @@
 package(default_visibility = ["//visibility:public"])
 
 exports_files(["spec.proto"])
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+exports_files([
+    "invariant.proto",
+    "grounding_adapter.proto",
+])
+
+# ⛔ The data boundary, asserted rather than remembered.
+#
+# spec stores invariants; it must never store a customer's rows. The grounding
+# UI does need example rows (populations, not schemas — that is what makes the
+# question answerable), so they exist in grounding_adapter.proto and are
+# rendered and discarded.
+#
+# Enforced through the IMPORT GRAPH: invariant.proto imports nothing, so no type
+# it can reach is declared in the adapter file. Adding a data-bearing field to
+# the stored type means adding an import, and that import is the review.
+sh_test(
+    name = "data_boundary_test",
+    size = "small",
+    srcs = ["data_boundary_test.sh"],
+    args = [
+        "$(rootpath invariant.proto)",
+        "$(rootpath grounding_adapter.proto)",
+    ],
+    data = [
+        "grounding_adapter.proto",
+        "invariant.proto",
+    ],
+)

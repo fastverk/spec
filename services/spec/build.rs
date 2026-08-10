@@ -11,7 +11,26 @@
 
 fn main() {
     prost_build::Config::new()
-        .compile_protos(&["../../proto/spec/v1/spec.proto"], &["../../proto"])
+        .compile_protos(
+            &[
+                "../../proto/spec/v1/spec.proto",
+                // The intent-grounding types. `invariant.proto` is what spec
+                // PERSISTS; `grounding_adapter.proto` is the contract a project
+                // implements so its terms can be grounded without its data ever
+                // reaching here. Compiling both is also what proves the one-way
+                // import boundary between them actually resolves —
+                // //proto/spec/v1:data_boundary_test asserts it stays that way.
+                "../../proto/spec/v1/invariant.proto",
+                "../../proto/spec/v1/grounding_adapter.proto",
+            ],
+            &["../../proto"],
+        )
         .expect("prost compile spec.v1");
-    println!("cargo:rerun-if-changed=../../proto/spec/v1/spec.proto");
+    for p in [
+        "../../proto/spec/v1/spec.proto",
+        "../../proto/spec/v1/invariant.proto",
+        "../../proto/spec/v1/grounding_adapter.proto",
+    ] {
+        println!("cargo:rerun-if-changed={p}");
+    }
 }
