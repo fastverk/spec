@@ -1,0 +1,295 @@
+// spec.v1 Invariant — an intent, carried far enough that a machine can refuse it.
+//
+// ## The pipeline this encodes
+//
+//   01 Intent        a sentence in business language, ambiguous  ─ THE PERSON
+//   02 Proposition   named terms + a quantifier                  ─ MACHINE PROPOSES
+//   03 Grounding     every term bound to a real referent         ─ THE PERSON CONFIRMS
+//   04 Check         a decision procedure                        ─ COMPILED
+//   05 Attachment    continuous over data, or at a merge gate    ─ THE PLATFORM
+//
+// Grounding is the only step needing judgement, and the only one a non-technical
+// person is uniquely qualified for — they are the one who knows whether "a
+// sponsor they brought" means the one stamped to the reseller or the one it
+// created. Everything after that is compilation.
+//
+// ## ⛔ This file cannot carry project data, and that is structural
+//
+// spec never holds a customer's rows. The project evaluates in its own
+// environment and returns a COUNT and a query fingerprint; spec stores those.
+//
+// The grounding UI does need example rows to be usable — showing populations
+// rather than schemas is the whole point — but those are TRANSIT ONLY. They live
+// in `GroundingProbeResponse` (grounding_adapter.proto), which is rendered and
+// discarded. Nothing reachable from `Invariant` has a field that can hold a row,
+// and `//proto/spec/v1:no_data_in_invariant_test` asserts it, so the guarantee is
+// checked rather than remembered.
+//
+// ## Why a proto and not a string
+//
+// The predecessor of this type is a `repeated string failing_criteria` — free
+// text, carried along and never checked by anything. Promoting it to a grounded
+// proposition is the smallest change that turns a comment into a control.
+
+syntax = "proto3";
+
+package spec.v1;
+
+// ============================================================
+// Enums
+// ============================================================
+
+// RFC-2119 modal force. What kind of obligation this is.
+enum Modality {
+  MODALITY_UNSPECIFIED = 0;
+  MODALITY_MUST = 1;
+  MODALITY_MUST_NOT = 2;
+  MODALITY_SHOULD = 3;
+  MODALITY_SHOULD_NOT = 4;
+  MODALITY_MAY = 5;
+}
+
+// How the proposition ranges over its population. A MUST with FOR_ALL is the
+// common case; FOR_NO is how a prohibition is stated without negating a MUST.
+enum Quantifier {
+  QUANTIFIER_UNSPECIFIED = 0;
+  QUANTIFIER_FOR_ALL = 1;
+  QUANTIFIER_FOR_NO = 2;
+  QUANTIFIER_EXISTS = 3;
+}
+
+// Where a term's referent is resolved. Three sources, one grounding step — the
+// person answering never sees which one was used.
+enum ReferentSource {
+  REFERENT_SOURCE_UNSPECIFIED = 0;
+  // The data model: terms naming records. "sponsors stamped to a reseller".
+  REFERENT_SOURCE_DATA_MODEL = 1;
+  // The code: terms naming behaviour. Which path actually implements this.
+  REFERENT_SOURCE_CODE = 2;
+  // Outside: terms owned by someone else — a regulator, a standards body.
+  REFERENT_SOURCE_EXTERNAL = 3;
+}
+
+// How the check is discharged once the terms are grounded.
+enum CheckKind {
+  CHECK_KIND_UNSPECIFIED = 0;
+  // A query over the project's own store, run in the project's environment.
+  CHECK_KIND_QUERY = 1;
+  // A test in the project's suite.
+  CHECK_KIND_TEST = 2;
+  // A constraint the store itself enforces.
+  CHECK_KIND_CONSTRAINT = 3;
+  // A proposition something can settle — the case for compiling to a prover
+  // rather than a query, because conflicts between propositions are decidable.
+  CHECK_KIND_PROPOSITION = 4;
+}
+
+// Where the check runs.
+enum Attachment {
+  ATTACHMENT_UNSPECIFIED = 0;
+  // Continuously over live data.
+  ATTACHMENT_CONTINUOUS = 1;
+  // At the gate, before a merge.
+  ATTACHMENT_GATE = 2;
+  ATTACHMENT_CONTINUOUS_AND_GATE = 3;
+}
+
+// The lifecycle a product owner actually sees. R0–R5 stays internal; this is
+// the vocabulary on screen.
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_DRAFT = 1;
+  // Blocked on a person: an ungrounded term, or a conflict to decide.
+  STATE_IN_QUESTION = 2;
+  // Signed off. The team is bound by it; it appears in the project's document.
+  STATE_AGREED = 3;
+  // A machine checks it. Breaking it fails the build.
+  STATE_IN_FORCE = 4;
+  // Was in force and no longer holds.
+  STATE_BREACHED = 5;
+}
+
+// What an implementation is to this invariant.
+enum ImplementationRole {
+  IMPLEMENTATION_ROLE_UNSPECIFIED = 0;
+  // The desired end state. Grounding is resolved against this one, and a
+  // failure here is a defect.
+  IMPLEMENTATION_ROLE_CANONICAL = 1;
+  // A lagging implementation expected to conform later. A failure here is
+  // migration backlog, not a defect.
+  IMPLEMENTATION_ROLE_TARGET = 2;
+}
+
+// The result of evaluating one invariant against one implementation.
+//
+// ⛔ CANNOT_BE_GROUNDED is NOT a pass, and that distinction is the point. An
+// invariant whose terms have no referent in an implementation examines nothing
+// and would otherwise report success forever — the same shape as a green build
+// that tested nothing. Reported honestly, it is the migration backlog: run the
+// canonical invariants against a lagging implementation and every term it has
+// no concept for comes back here, enumerated rather than estimated.
+enum Outcome {
+  OUTCOME_UNSPECIFIED = 0;
+  OUTCOME_PASSES = 1;
+  OUTCOME_FAILS = 2;
+  OUTCOME_CANNOT_BE_GROUNDED = 3;
+  // Evaluated, but over an empty population. Never a pass — see Population.
+  OUTCOME_VACUOUS = 4;
+}
+
+// ============================================================
+// 01 — Intent
+// ============================================================
+
+// What was said, verbatim. Never rewritten; every later stage points back here.
+message Statement {
+  // The original words, unedited.
+  string text = 1;
+  // Where it came from — a document section, a conversation, a ticket.
+  string source_uri = 2;
+  // Who said it.
+  string author = 3;
+  // Content address over `text`, so a silent edit is detectable.
+  string fingerprint = 4;
+  // ISO-8601.
+  string stated_at = 5;
+}
+
+// ============================================================
+// 02 — Proposition
+// ============================================================
+
+// One term the proposition ranges over or refers to. A term is not grounded
+// until someone confirms what it points at.
+message Term {
+  // Stable id within the invariant.
+  string id = 1;
+  // The words as the author wrote them — "a sponsor they brought onto the
+  // platform". Deliberately not normalized: the person confirming needs to
+  // recognise their own phrase.
+  string phrase = 2;
+}
+
+// The decomposition: something that can be true or false.
+message Proposition {
+  Modality modality = 1;
+  Quantifier quantifier = 2;
+  // A readable rendering of the obligation, for display.
+  string predicate = 3;
+  repeated Term terms = 4;
+  // Ids of invariants this one references or depends on.
+  repeated string depends_on = 5;
+}
+
+// ============================================================
+// 03 — Grounding
+// ============================================================
+
+// What a term points at.
+//
+// ⛔ Carries a LOCATOR and a FINGERPRINT — never data. The count that came back
+// lives in Population; the example rows a person saw while choosing live only in
+// the adapter's response and are never stored.
+message Referent {
+  ReferentSource source = 1;
+  // What was chosen, in the project's own vocabulary:
+  // "sponsors.reseller_organization_id", or a code path, or an external id.
+  string locator = 2;
+  // Content address of the query that defines the population, so a count can be
+  // reproduced without storing the query's results.
+  string query_fingerprint = 3;
+  // Why this reading rather than the others — the disagreement that made the
+  // question worth asking. Free text, written by the machine, confirmed by the
+  // person.
+  string rationale = 4;
+}
+
+// A term, bound.
+message TermBinding {
+  string term_id = 1;
+  Referent referent = 2;
+  // Readings that were considered and NOT chosen, with their locators. Kept so a
+  // meaning cannot be quietly substituted later, and so the next person can see
+  // that the question was genuinely close.
+  repeated Referent rejected = 3;
+}
+
+// The grounding, as confirmed by a person.
+message Grounding {
+  repeated TermBinding bindings = 1;
+  // Who confirmed. A machine may propose; only a person confirms.
+  string confirmed_by = 2;
+  string confirmed_at = 3;
+  // True once every term in the proposition has a binding.
+  bool complete = 4;
+}
+
+// ============================================================
+// 04/05 — Check, attachment, and what evaluating it produced
+// ============================================================
+
+// How many records the evaluation actually examined.
+//
+// ⛔ A count of zero is an EXCEPTION, never a pass. An invariant whose grounding
+// matched nothing reports success trivially — a renamed column, a filter that
+// excludes everything, a field that never existed. That is precisely a green
+// build that tested nothing: same shape, same seduction, same consequence.
+message Population {
+  uint64 count = 1;
+  // Reproduces the count without storing what was counted.
+  string query_fingerprint = 2;
+  string evaluated_at = 3;
+}
+
+// The decision procedure, once the terms are grounded.
+message Check {
+  CheckKind kind = 1;
+  // Where the check lives — a target, a test name, a constraint name.
+  string locator = 2;
+  // The place in the project's code that discharges this invariant. If the
+  // citation stops resolving, the invariant leaves IN_FORCE on its own.
+  string discharger = 3;
+  bool cited = 4;
+}
+
+// One implementation's answer.
+message Binding {
+  // "studio-nextjs", "aion". The project names these.
+  string implementation = 1;
+  ImplementationRole role = 2;
+  Outcome outcome = 3;
+  Population population = 4;
+  // When CANNOT_BE_GROUNDED: which terms have no referent here. This list IS
+  // the migration backlog for that implementation.
+  repeated string ungrounded_terms = 5;
+  string evaluated_at = 6;
+}
+
+// ============================================================
+// The invariant
+// ============================================================
+
+message Invariant {
+  // Stable id — "AUTH-33". Retired ids are tombstoned, never reused.
+  string id = 1;
+  // Project it belongs to. An invariant always has exactly one.
+  string project = 2;
+  // The project's own grouping — "Grants", "Visibility".
+  string area = 3;
+
+  Statement statement = 4;      // 01
+  Proposition proposition = 5;  // 02
+  Grounding grounding = 6;      // 03
+  Check check = 7;              // 04
+  Attachment attachment = 8;    // 05
+
+  // One per implementation. The canonical one decides correctness; the targets
+  // measure how far a migration has to go.
+  repeated Binding bindings = 9;
+
+  State state = 10;
+  // Who can move this to AGREED.
+  string owner = 11;
+  // Set when the id is retired. An id hole is not an absence.
+  bool retired = 12;
+}

@@ -19,6 +19,13 @@ When and if we want to *prove* an axiom (rather than accept it),
 we can replace its declaration with a refinement type and a real
 proof. For now, axioms are accepted; theorems compose them.
 -/
+-- ⛔ MUST stay. `lean_test` DOES NOT CHECK PROOFS on its own: a `sorry` is a
+-- *warning* and `lean` exits 0, so a file proving anything `by sorry` passes a
+-- `lean_test` cleanly. Measured on this repo, not inferred. This option turns
+-- `declaration uses 'sorry'` into a hard error; //lean:audit_proofs_test asserts
+-- every source still carries it, so it cannot be removed one file at a time.
+set_option warningAsError true
+
 
 namespace Spec
 

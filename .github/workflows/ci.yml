@@ -1,0 +1,184 @@
+name: ci
+
+# Build + test gate. Until this file landed there was NO CI on this repo that
+# fired on a change: `spec` has never had a `.github/` directory, and its only
+# checks (`fastverk/build`, `fastverk/tbzl-ready`) come from the in-cluster build
+# plane, which last posted on 2026-08-06. So #16, #17, #18, #20 and #21 all
+# merged without any automated signal — for a repo whose entire job is gating
+# other people's builds.
+#
+# This does not replace the build plane. It is a signal that exists today, on
+# Linux, which is the point: everything here was previously verified only on a
+# maintainer's macOS laptop, and this estate has a documented history of
+# darwin-green / linux-red.
+#
+# What it gates:
+#
+#   proofs  — //lean:audit_proofs_test. LOAD-BEARING, not a nicety.
+#             `lean_test` does NOT check proofs: a `sorry` is a warning and
+#             `lean` exits 0. Measured here — a probe theorem left
+#             //lean:grounding_test green. That mattered because
+#             //grounding:grounding_verified ties the corpus's `:provenBy` to
+#             exactly that target. See lean/BUILD.bazel.
+#   build   — everything that does not need the private plugin crates. Catches
+#             the class of failure that made `fastverk/build` red for weeks: an
+#             unpinned maven resolution needing an ambient JDK, and a graphviz
+#             PDF path that could not build for any consumer.
+#   test    — 51 of 52 test targets, including the RDF gate suite and its
+#             adversarial fixtures, which plant a defect and fail if it is NOT
+#             detected.
+#   plugin  — the 52nd, //services/spec:spec_test. Conditional on an App token,
+#             because the org credential is currently broken (see that step).
+#             Turns itself on when the credential is fixed.
+#
+# ⚠ JDK. The maven fetch is pinned (//:maven_install.json) precisely so it no
+# longer needs an ambient JDK at fetch time — but the BUILD actions still need
+# a Java runtime, which setup-java provides. If this step is ever removed,
+# //java/... fails with "Unable to locate a Java Runtime" and the summary will
+# not mention Java.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Without this a merge burst stacks one full run per push. Keyed on event_name
+# as well as ref so a PR run and the push run for the same branch do not cancel
+# each other.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # --nohome_rc drops ~/.bazelrc, which is where a maintainer's registry
+  # overrides live. The registries are pinned in //.bazelrc; this proves it.
+  # Startup options only — this sits before the subcommand. --repo_env is a
+  # COMMAND option and lives in //.bazelrc instead; putting it here fails with
+  # "Unknown startup option", which is how the first attempt broke the gate.
+  BAZEL_FLAGS: --nohome_rc
+
+jobs:
+  gate:
+    name: bazel build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # //services/spec consumes the shared plugin crates as cargo git-deps on
+      # fastverk/fastverk-plugin-crates, which is PRIVATE. crate_universe resolves
+      # them during module-extension evaluation — before any target is analysed —
+      # so without credentials the whole build dies at
+      #
+      #   error: failed to get `fastverk-layout` as a dependency of `spec-server`
+      #     failed to authenticate when downloading repository
+      #
+      # `secrets.GITHUB_TOKEN` is scoped to this repository and cannot read
+      # another private repo in the org. The org already carries an App for this,
+      # so mint a short-lived installation token scoped to exactly one repo.
+      #
+      # 13 repos depend on those crates, so this block is worth copying verbatim.
+      # Mints a short-lived installation token scoped to one repository, so
+      # //services/spec can resolve its cargo git-deps on the PRIVATE
+      # fastverk/fastverk-plugin-crates. `secrets.GITHUB_TOKEN` is scoped to this
+      # repository and cannot read another private repo in the org.
+      #
+      # 13 repos depend on those crates and every one of them has this same hole,
+      # so this block is worth copying verbatim.
+      #
+      # ⚠ HISTORY, because it cost several round trips: this failed for a day
+      # with `A JSON web token could not be decoded` (401) on BOTH @v1 and @v2 and
+      # for both orgs — the App private key behind FASTVERK_APP_PRIVATE_KEY had
+      # gone bad. Rotated 2026-08-10.
+      #
+      # ⚠ When checking whether this worked, read the step LOG or `outcome`,
+      # never `conclusion`: continue-on-error rewrites `conclusion` to success, so
+      # the jobs API shows this green while it is failing.
+      #
+      # continue-on-error is kept deliberately. If the credential breaks again the
+      # gate stays green on everything else and only the Rust step skips — a
+      # permanently red required check trains people to merge through it, which is
+      # how #16 and #17 landed unverified.
+      - name: mint a token for the private plugin crates
+        id: crates_token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.FASTVERK_APP_ID }}
+          private-key: ${{ secrets.FASTVERK_APP_PRIVATE_KEY }}
+          owner: fastverk
+          repositories: fastverk-plugin-crates
+
+      # The deps are https:// URLs, so rewriting the prefix is enough — no ssh
+      # keys, no per-dep URL edits. cargo must be told to shell out to git for
+      # fetches (`CARGO_NET_GIT_FETCH_WITH_CLI`, set on the bazel steps via
+      # --repo_env) or it uses its own transport and ignores this config.
+      - name: let cargo use it
+        if: steps.crates_token.outcome == 'success'
+        run: |
+          git config --global \
+            url."https://x-access-token:${{ steps.crates_token.outputs.token }}@github.com/".insteadOf \
+            "https://github.com/"
+
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      # Run FIRST. If the proof gate is broken, a green build below means
+      # nothing — which is the exact failure this repo just had.
+      - name: proofs (sorry, native_decide, axiom ratchet)
+        run: bazel $BAZEL_FLAGS test //lean:audit_proofs_test --test_output=all
+
+      # --keep_going: the first real run aborted at //impact:needle while
+      # //paper:crystallization was still compiling, so whether that doc had the
+      # same defect stayed unknown for a whole round trip. One failure per run is
+      # too slow a loop when the only way to test Linux is to push.
+      # Everything that does not need the private crates. This is the gate.
+      # ⚠ Warm the tectonic bundle cache SERIALLY first. tectonic downloads its
+      # TeX bundle into XDG_CACHE_HOME (see //.bazelrc), and three tectonic
+      # targets building in parallel race to populate one cache — producing
+      # partial files and errors that name a font or a missing .tex rather than
+      # the cache:
+      #
+      #   expl3-code.tex: Font \c__fp_exp_intarray=cmr10 ... not loadable
+      #   failed to open input file "pgfmathfunctions.code.tex"
+      #
+      # Observed as a FLAKE: an identical config went green one run earlier.
+      # One serial build populates the cache completely; everything after finds
+      # it warm. Cheap, because the second build reuses the first's outputs.
+      - name: warm the tectonic cache
+        run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
+
+      - name: build
+        run: |
+          bazel $BAZEL_FLAGS build --keep_going \
+            //corpus/... //crank/... //deck/... //examples/... //graph/... \
+            //grounding/... //impact/... //java/... //lean/... //paper/... \
+            //proto/... //rdf/... //tools/...
+
+      - name: test
+        run: |
+          bazel $BAZEL_FLAGS test --keep_going --test_output=errors \
+            //corpus/... //crank/... //deck/... //examples/... //graph/... \
+            //grounding/... //impact/... //java/... //lean/... //paper/... \
+            //proto/... //rdf/... //tools/...
+
+      # The remaining test target — //services/spec:spec_test, whose 5 modules
+      # include the routes.rs assertions that every served route is declared in
+      # /describe. Runs automatically the moment the App credential works again;
+      # no edit needed here.
+      - name: plugin (needs the private crates)
+        if: steps.crates_token.outcome == 'success'
+        run: |
+          bazel $BAZEL_FLAGS test --keep_going --test_output=errors //services/...

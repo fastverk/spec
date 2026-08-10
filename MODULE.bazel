@@ -135,6 +135,11 @@ bazel_dep(name = "rules_jena", version = "0.3.0")
 # (//paper:crystallization, formalizing docs/rfc-001b) to PDF. rules_*
 # modules don't propagate use_repo, so the extension + toolchain are wired
 # here. Resolves from the same fastverk registry as rules_lean/rdf/jena.
+# sh_test for //lean:audit_proofs_test (the proof gate). Native sh_test was
+# removed in Bazel 9. Dev-scoped: consumers use spec's Lean SOURCES, never its
+# own gates.
+bazel_dep(name = "rules_shell", version = "0.6.1", dev_dependency = True)
+
 bazel_dep(name = "rules_tectonic", version = "0.2.0", dev_dependency = True)
 
 tectonic = use_extension(

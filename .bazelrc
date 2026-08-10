@@ -31,3 +31,32 @@ try-import %workspace%/user.bazelrc
 common --enable_platform_specific_config
 build:linux --host_linkopt=-Wl,--no-gc-sections
 build:linux --linkopt=-Wl,--no-gc-sections
+
+# tectonic resolves fonts through fontconfig on Linux, and fontconfig needs a
+# writable cache directory. Inside the sandbox it has none, reports
+#
+#   Fontconfig error: No writable cache directories
+#
+# and then cannot find the Latin Modern OpenType face the `article` document
+# class asks for, failing with:
+#
+#   size11.clo:54: Font TU/lmr/m/n/10.95=[lmroman10-regular]:mapping=tex-text
+#   not loadable: Metric (TFM) file or installed font not found
+#
+# //deck (beamer) is unaffected because it never takes that lookup path, which
+# is exactly why this looked like a per-document LaTeX problem and is not one.
+# `\usepackage{lmodern}` was tried on the failing documents and does NOT fix it.
+#
+# Linux only, and invisible until this repo had CI at all.
+build:linux --sandbox_add_mount_pair=/tmp
+build:linux --action_env=XDG_CACHE_HOME=/tmp/xdg-cache
+
+# crate_universe runs cargo inside a repository rule, so cargo's own git
+# transport is what fetches the private fastverk-plugin-crates deps. Telling it
+# to shell out to git instead means it uses whatever credentials git already has
+# — a developer's gh login locally, an App installation token in CI.
+#
+# `common` and not a CI flag: --repo_env is a COMMAND option, so it cannot be
+# passed in the startup-option position (that is what --nohome_rc is), and
+# putting it here means both places get it the same way.
+common --repo_env=CARGO_NET_GIT_FETCH_WITH_CLI=true

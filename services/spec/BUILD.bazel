@@ -21,6 +21,10 @@ fastverk_plugin(
     exposed_ports = ["8080/tcp"],
     image_repository = "ghcr.io/fastverk/spec-server",
     panels = "//services/spec/ui:panels",
-    proto_data = ["//proto/spec/v1:spec.proto"],
+    proto_data = [
+        "//proto/spec/v1:grounding_adapter.proto",
+        "//proto/spec/v1:invariant.proto",
+        "//proto/spec/v1:spec.proto",
+    ],
     deps = all_crate_deps(normal = True),
 )
