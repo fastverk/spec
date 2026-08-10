@@ -20,12 +20,13 @@ name: ci
 #             //lean:grounding_test green. That mattered because
 #             //grounding:grounding_verified ties the corpus's `:provenBy` to
 #             exactly that target. See lean/BUILD.bazel.
-#   build   — //... must build. Catches the class of failure that made
-#             `fastverk/build` red for weeks (an unpinned maven resolution
-#             needing an ambient JDK, and a graphviz PDF path that could not
-#             build for any consumer).
-#   test    — //... 50 tests, including the RDF gate suite and the adversarial
-#             fixtures that plant a defect and fail if it is NOT detected.
+#   build   — every package except //services (see the note on that step).
+#             Catches the class of failure that made `fastverk/build` red for
+#             weeks: an unpinned maven resolution needing an ambient JDK, and a
+#             graphviz PDF path that could not build for any consumer.
+#   test    — the same patterns: 51 of 52 test targets, including the RDF gate
+#             suite and its adversarial fixtures, which plant a defect and fail
+#             if it is NOT detected.
 #
 # ⚠ JDK. The maven fetch is pinned (//:maven_install.json) precisely so it no
 # longer needs an ambient JDK at fetch time — but the BUILD actions still need
@@ -108,8 +109,9 @@ jobs:
       # goes red on every PR and trains everyone to merge through it, which is
       # the exact habit that let #16 and #17 land unverified.
       # --keep_going: the first real run aborted at //impact:needle while
-      # //paper:crystallization was still compiling, hiding whether it had the
-      # same defect. It did. One failure per round trip is too slow a loop.
+      # //paper:crystallization was still compiling, so whether that doc had the
+      # same defect stayed unknown for a whole round trip. One failure per run is
+      # too slow a loop when the only way to test Linux is to push.
       - name: build
         run: |
           bazel $BAZEL_FLAGS build --keep_going \
