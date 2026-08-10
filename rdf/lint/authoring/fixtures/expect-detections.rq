@@ -7,6 +7,7 @@
 # ---
 PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
 PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 
 SELECT ?check ?expected ?actual
 WHERE {
@@ -17,18 +18,23 @@ WHERE {
       SELECT (COUNT(*) AS ?actual)
       WHERE {
         {
-          SELECT ?q (MAX(?lo) AS ?gl) (MIN(?hi) AS ?lu)
+          SELECT ?q (MAX(?v) AS ?gl)
           WHERE {
-            ?q a au:Quantity .
-            ?c a rfc:NormativeStatement ;
-               au:constrains ?q ; au:hasBound ?b ; au:discipline ?d .
-            ?b au:boundValue ?v ; au:boundKind ?k .
-            BIND(IF(?k = au:LowerBound, ?v, ?unb) AS ?lo)
-            BIND(IF(?k = au:UpperBound, ?v, ?unb) AS ?hi)
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:LowerBound ; au:boundValue ?v .
           }
           GROUP BY ?q
-          HAVING (MAX(?lo) > MIN(?hi))
         }
+        {
+          SELECT ?q (MIN(?v) AS ?lu)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:UpperBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        ?q a au:Quantity .
+        FILTER(?gl > ?lu)
       }
     }
     BIND("empty-envelope" AS ?check)
@@ -43,18 +49,23 @@ WHERE {
       SELECT (COUNT(*) AS ?actual)
       WHERE {
         {
-          SELECT ?q (MAX(?lo) - MIN(?hi) AS ?deficit)
+          SELECT ?q (MAX(?v) AS ?gl)
           WHERE {
-            ?q a au:Quantity ; au:unit "MW" .
-            ?c a rfc:NormativeStatement ;
-               au:constrains ?q ; au:hasBound ?b ; au:discipline ?d .
-            ?b au:boundValue ?v ; au:boundKind ?k .
-            BIND(IF(?k = au:LowerBound, ?v, ?unb) AS ?lo)
-            BIND(IF(?k = au:UpperBound, ?v, ?unb) AS ?hi)
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:LowerBound ; au:boundValue ?v .
           }
           GROUP BY ?q
-          HAVING (MAX(?lo) - MIN(?hi) = 27.0)
         }
+        {
+          SELECT ?q (MIN(?v) AS ?lu)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:UpperBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        ?q a au:Quantity ; au:unit "MW" .
+        FILTER(?gl - ?lu = 27.0)
       }
     }
     BIND("empty-envelope-deficit-27MW" AS ?check)
@@ -82,7 +93,7 @@ WHERE {
             UNION
             { ?conflict a au:Conflict ; au:resolvedBy ?r .
               ?r au:outcome au:Exempt ; au:expires ?e .
-              FILTER(?e < NOW())
+              FILTER(?e < xsd:date(NOW()))
               BIND("EXPIRED-WAIVER" AS ?defect) }
             UNION
             { ?conflict a au:Conflict ; au:resolvedBy ?r .

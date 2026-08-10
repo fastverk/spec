@@ -42,7 +42,12 @@ WHERE {
   {
     ?conflict a au:Conflict ; au:resolvedBy ?res .
     ?res au:outcome au:Exempt ; au:expires ?exp .
-    FILTER(?exp < NOW())
+    # `?exp < NOW()` compares an xsd:date against an xsd:dateTime, which strict
+    # SPARQL leaves undefined: ARQ raises a type error, the FILTER drops the
+    # row, and an EXPIRED waiver is never reported. Cast NOW() down to a date
+    # so both operands share a datatype. Verified under ARQ against
+    # fixtures/envelope-conflict.ttl, whose waiver lapsed 2026-04-30.
+    FILTER(?exp < xsd:date(NOW()))
     BIND("EXPIRED-WAIVER" AS ?defect)
     BIND(CONCAT("au:Exempt lapsed ", STR(?exp), " — unresolved again") AS ?detail)
   }

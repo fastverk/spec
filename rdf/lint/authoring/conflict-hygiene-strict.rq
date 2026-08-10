@@ -7,6 +7,7 @@
 # ---
 PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
 PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
 
 SELECT DISTINCT ?conflict ?defect ?detail
 WHERE {
@@ -31,7 +32,10 @@ WHERE {
   {
     ?conflict a au:Conflict ; au:resolvedBy ?res .
     ?res au:outcome au:Exempt ; au:expires ?exp .
-    FILTER(?exp < NOW())
+    # See conflict-hygiene.rq: `?exp < NOW()` compares xsd:date to
+    # xsd:dateTime, which ARQ treats as a type error, so this gate silently
+    # never fired on an expired waiver.
+    FILTER(?exp < xsd:date(NOW()))
     BIND("EXPIRED-WAIVER" AS ?defect)
     BIND(CONCAT("au:Exempt lapsed ", STR(?exp), " — unresolved again") AS ?detail)
   }
