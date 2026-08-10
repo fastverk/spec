@@ -5,16 +5,6 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-% ⚠ lmodern is load-bearing on Linux, not a style choice. tectonic runs XeTeX,
-% where `\usepackage[T1]{fontenc}` alone leaves the default font resolving to the
-% Latin Modern OPENTYPE face, and on a Linux runner that is not present in the
-% bundle:
-%   size11.clo:54: Font TU/lmr/m/n/10.95=[lmroman10-regular]:mapping=tex-text
-%   not loadable: Metric (TFM) file or installed font not found
-% It builds on macOS regardless, which is why this went unnoticed until the repo
-% had CI. //deck already carried lmodern and was the only tectonic doc that built.
-\usepackage{lmodern}
-
 \usepackage[margin=0.7in,landscape]{geometry}
 \usepackage{tikz}
 \usepackage{pgfplots}
