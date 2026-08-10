@@ -1,0 +1,87 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+
+package(default_visibility = ["//visibility:public"])
+
+# STUDIO — SAVVI Studio's authorization requirements, imported from the product's
+# own AuthRequirements.md. 66 claims across the document's 14 sections, plus 3
+# tombstoned identifiers.
+#
+#   bazel test  //corpus/studio/...
+#   bazel build //corpus/studio:measure && cat bazel-bin/corpus/studio/measure.tsv
+#
+# ── What makes this corpus different from //corpus/ampere ────────────────────
+#
+# ampere is a worked example, authored to exercise the mechanisms. This one is a
+# REAL product's requirements, and it arrives in the state real requirements are
+# actually in: every claim at R0, none decomposed, none grounded, none proven.
+# The dark fraction is 100%.
+#
+# That is the honest posture for prose that has just been read in, and it is the
+# number the whole system exists to move. A corpus that imported at R2 because
+# the sentences "looked structured" would be inventing the thing being measured.
+#
+# ⚠ GENERATED. Re-run the importer rather than hand-editing:
+#
+#   python3 tools/import/authreq_to_ttl.py \
+#       --source <path>/AuthRequirements.md --out corpus/studio
+#
+# corpus.ttl carries a sha256 of the source. The document is live — it changed
+# 674 lines across 19 commits in the week before the first import — so a
+# corpus that cannot be regenerated would be stale within days. The one
+# previously internalized document here (corpus/nav-sec-2a4.ttl) was
+# hand-transcribed, which is exactly the thing that does not survive that.
+
+rdf_dataset(
+    name = "studio",
+    srcs = [
+        "corpus.ttl",
+        "disciplines.ttl",
+    ],
+    in_format = "turtle",
+    # //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the authoring gates
+    # key on au: terms and pass VACUOUSLY without them, which is the same defect
+    # they are meant to catch.
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# The structural suite: SHACL conformance plus the consistency invariants.
+spec_corpus_gates(
+    name = "studio_gates",
+    dataset = ":studio",
+)
+
+# The RFC-002 authoring suite.
+#
+# These pass, and it is worth being precise about what that does and does not
+# mean. It means the corpus is COHERENT: every claim names the blocker holding
+# it at R0 (ladder-integrity), no conflict is recorded without a witness and an
+# owner, no invariant claims a result over an empty population. It does NOT mean
+# anything about Studio's authorization model is verified — nothing here has been
+# decomposed, grounded, or proven, and the gates say so by leaving every claim
+# stalled.
+spec_authoring_gates(
+    name = "studio_authoring",
+    dataset = ":studio",
+)
+
+# The rung histogram, i.e. the dark fraction. Expected to read 100% on import.
+sparql_query(
+    name = "measure",
+    dataset = ":studio",
+    query = "//corpus/ampere:queries/ampere-measure.rq",
+    out_format = "tsv",
+)
+
+# Every stalled claim with the blocker it names. On a fresh import this is the
+# whole corpus, and it is the work queue.
+sparql_query(
+    name = "frontier",
+    dataset = ":studio",
+    query = "//corpus/ampere:queries/frontier.rq",
+    out_format = "tsv",
+)
+
+exports_files(glob(["*.ttl"]))
