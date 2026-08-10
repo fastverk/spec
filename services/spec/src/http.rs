@@ -107,6 +107,7 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/disciplines", get(list_disciplines))
         .route("/claims", get(list_claims))
         .route("/witness", get(get_conflict_witness))
+        .route("/requirements", get(list_requirements))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
         .route("/proposal/verdict-preview", post(preview_proposal))
@@ -246,6 +247,7 @@ readmodel_route!(list_envelopes, "envelopes");
 readmodel_route!(list_stalls, "frontier");
 readmodel_route!(list_disciplines, "disciplines");
 readmodel_route!(list_claims, "claims");
+readmodel_route!(list_requirements, "requirements");
 readmodel_route!(get_conflict_witness, "witness");
 
 /// Per-route availability + row counts. The operator's answer to "is the read model

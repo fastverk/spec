@@ -53,6 +53,7 @@ pub const ROUTES: &[(&str, &str)] = &[
     ("disciplines", "disciplines"),
     ("claims", "claims"),
     ("witness", "parties"),
+    ("requirements", "requirements"),
 ];
 
 /// The `rows_field` for a route name, or `None` if the route isn't one of ours.

@@ -35,6 +35,12 @@
       "method": "GetConflictWitness",
       "http_method": "GET",
       "path": "witness"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListRequirements",
+      "http_method": "GET",
+      "path": "requirements"
     }
   ]
 }

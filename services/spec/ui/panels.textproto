@@ -580,3 +580,77 @@ panels {
     }
   }
 }
+
+# ============================================================
+# REQUIREMENTS — every normative claim with what, if anything,
+# has ever checked it.
+#
+# The column that carries the argument is `population`, and the
+# distinction it preserves is between "—" and "0":
+#
+#   —   no check has ever run against this requirement
+#   0   a check ran and examined nothing (vacuous)
+#
+# Rendering both as 0 — or omitting unevaluated rows — is how a
+# requirements table comes to look guarded when nothing guards it.
+# //rdf/lint/authoring:vacuous-invariant.rq gates the second case;
+# this panel is where the first one becomes visible.
+# ============================================================
+panels {
+  panel_id: "requirements"
+  title: "Requirements"
+  table {
+    populate {
+      service: "spec.v1.Authoring"
+      method: "ListRequirements"
+    }
+    rows_field: "requirements"
+    item_noun: "requirements"
+    placeholder: "No requirements indexed."
+    columns {
+      header: "Project"
+      field_path: "project"
+      pref_width: 10
+    }
+    columns {
+      header: "Requirement"
+      field_path: "requirement_id"
+      pref_width: 14
+    }
+    columns {
+      header: "Area"
+      field_path: "discipline"
+      pref_width: 26
+    }
+    columns {
+      header: "Modality"
+      field_path: "modality"
+      pref_width: 10
+    }
+    columns {
+      header: "Rung"
+      field_path: "rung"
+      pref_width: 6
+    }
+    columns {
+      header: "Checked by"
+      field_path: "implementation"
+      pref_width: 14
+    }
+    columns {
+      header: "Examined"
+      field_path: "population"
+      pref_width: 9
+    }
+    columns {
+      header: "Outcome"
+      field_path: "outcome"
+      pref_width: 16
+    }
+    columns {
+      header: "Blocked on"
+      field_path: "blocked_on"
+      pref_width: 40
+    }
+  }
+}

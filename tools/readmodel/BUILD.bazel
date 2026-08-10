@@ -1,0 +1,44 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "check_wiring.py",
+    "compile_panels.py",
+    "emit_readmodel.py",
+])
+
+# ⛔ This check was written, is good, and had never run automatically.
+#
+# It asserts that every part of the authoring plane agrees with every other:
+# the emitter's routes, the JSON payloads, /describe's web_routes, the axum
+# router, the Rust ROUTES table, the nav leaves, the panel descriptors, and the
+# COMPILED panel bundle. Adding one route touches seven places and the failure
+# from missing any of them is a browser console reading
+#
+#   no gateway route for spec.v1.Authoring/ListRequirements
+#
+# which looks like a console bug rather than a plugin one.
+#
+# Running it by hand is not a gate. Adding the Requirements route in this same
+# change, it caught FOUR real mistakes in one pass — a missing axum route, a
+# missing nav leaf, two stale counts, and a panel bundle that had not been
+# recompiled. Every one of those would have shipped.
+#
+# ⚠ It reads committed source, not build outputs — panels.binpb included, so it
+# also catches a bundle that drifted from its textproto. That is why the data
+# list looks broad: the check's whole value is spanning the seam.
+sh_test(
+    name = "check_wiring_test",
+    size = "small",
+    srcs = ["check_wiring_test.sh"],
+    data = [
+        "check_wiring.py",
+        "emit_readmodel.py",
+        "//mocks/ux:panels.authoring-form.textproto",
+        "//services/spec:src",
+        "//services/spec/readmodel:payloads",
+        "//services/spec/ui:panels.binpb",
+        "//services/spec/ui:panels.textproto",
+    ],
+)

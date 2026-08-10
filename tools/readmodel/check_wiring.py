@@ -70,7 +70,7 @@ emitter = read(EMITTER)
 emit_routes = re.findall(
     r'\(\s*"([a-z_]+)",\s*"([a-z_]+)",\s*"(\w+)",\s*Q_\w+,\s*shape_\w+\s*\)', emitter
 )
-check(len(emit_routes) == 6, f"{EMITTER}: found {len(emit_routes)} routes, expected 6")
+check(len(emit_routes) == 7, f"{EMITTER}: found {len(emit_routes)} routes, expected 7")
 emit_by_path = {p: (rows, method) for p, rows, method in emit_routes}
 
 emit_service = re.search(r'^SERVICE\s*=\s*"([^"]+)"', emitter, re.M)
@@ -171,11 +171,11 @@ panels = re.findall(
     textproto,
     re.S,
 )
-check(len(panels) == 9, f"{PANELS_TEXTPROTO}: parsed {len(panels)} table panels, expected 9")
+check(len(panels) == 10, f"{PANELS_TEXTPROTO}: parsed {len(panels)} table panels, expected 10")
 authoring_panels = [p for p in panels if p[1] == SERVICE]
 check(
-    len(authoring_panels) == 6,
-    f"{PANELS_TEXTPROTO}: {len(authoring_panels)} authoring panels, expected 6",
+    len(authoring_panels) == 7,
+    f"{PANELS_TEXTPROTO}: {len(authoring_panels)} authoring panels, expected 7",
 )
 for panel_id, _svc, method, rows_field in authoring_panels:
     # the panel_id is the route path for every authoring panel except `frontier`,

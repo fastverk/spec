@@ -34,10 +34,12 @@ discharger (*
 *
 Sorriessorry_count *
 Specs
-spec_count ¶
-	conflicts	Conflictsç
+spec_count º
+	conflicts	Conflicts£
 "
-spec.v1.AuthoringListConflicts	conflicts	conflicts"'No cross-discipline conflicts recorded.*
+spec.v1.AuthoringListConflicts	conflicts	conflicts"'No cross-discipline conflicts recorded.*
+Projectproject 
+*
 
 IDid 
 *
@@ -48,22 +50,26 @@ spec_count ¶
 Ownerowner *
 Statestate 	*
 Outcomeoutcome 
-‘
-	envelopes	Envelopesª
+·
+	envelopes	Envelopes»
 "
-spec.v1.AuthoringListEnvelopes	envelopesempty envelopes"ENo empty feasible envelopes √¢¬Ä¬î every quantity's bounds intersect.*
+spec.v1.AuthoringListEnvelopes	envelopesempty envelopes"BNo empty feasible envelopes ‚Äî every quantity's bounds intersect.*
+Projectproject 
+*
 Quantityquantity *
-Unitunit *#
-Requires √¢¬â¬•greatest_lower *
-Permits √¢¬â¬§least_upper 
+Unitunit * 
+Requires ‚â•greatest_lower *
+Permits ‚â§least_upper 
 *
 Deficitdeficit 	*
 Disc.disciplines *
-Recordedrecorded 	Ñ
-frontierFrontierÌ
+Recordedrecorded 	ó
+frontierFrontierÄ
 
 spec.v1.Authoring
-ListStallsstallsstalls"BNo open stalls √¢¬Ä¬î every claim is at or above the binding rung.*
+ListStallsstallsstalls"?No open stalls ‚Äî every claim is at or above the binding rung.*
+Projectproject 
+*
 Claimclaim_id *
 Rungrung *
 
@@ -72,10 +78,12 @@ discipline *
 
 Blocked on
 stalled_on 8*
-Depsdependent_count ê
-disciplinesDisciplinesÛ
+Depsdependent_count ¶
+disciplinesDisciplinesâ
 $
-spec.v1.AuthoringListDisciplinesdisciplinesdisciplines"No disciplines declared.*
+spec.v1.AuthoringListDisciplinesdisciplinesdisciplines"No disciplines declared.*
+Projectproject 
+*
 
 Discipline
 discipline "*
@@ -83,11 +91,13 @@ discipline "*
 Claimsclaim_count *
 Typed %	typed_pct *
 Hardnon_defeasible_count *
-Dark %dark_pct è
-claimsClaims¸
+Dark %dark_pct •
+claimsClaimsí
 
 spec.v1.Authoring
-ListClaimsclaimsclaims" No normative statements indexed.*
+ListClaimsclaimsclaims" No normative statements indexed.*
+Projectproject 
+*
 Claimclaim_id *
 
 Discipline
@@ -102,10 +112,12 @@ instrument *
 
 Defeasible
 defeasible 
-‘
-witness	WitnessesΩ
+Í
+witness	Witnesses”
 '
-spec.v1.AuthoringGetConflictWitnesspartieswitness parties"No conflict parties to witness.*
+spec.v1.AuthoringGetConflictWitnesspartieswitness parties"No conflict parties to witness.*
+Projectproject 
+*
 Conflictconflict_id 
 *
 Quantityquantity *
@@ -122,3 +134,23 @@ bound_kind *
 
 Defeasible
 defeasible 
+›
+requirementsRequirementsæ
+%
+spec.v1.AuthoringListRequirementsrequirementsrequirements"No requirements indexed.*
+Projectproject 
+*
+Requirementrequirement_id *
+Area
+discipline *
+Modalitymodality 
+*
+Rungrung *
+
+Checked byimplementation *
+Examined
+population 	*
+Outcomeoutcome *
+
+Blocked on
+blocked_on (
