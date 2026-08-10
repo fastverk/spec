@@ -20,13 +20,13 @@ name: ci
 #             //lean:grounding_test green. That mattered because
 #             //grounding:grounding_verified ties the corpus's `:provenBy` to
 #             exactly that target. See lean/BUILD.bazel.
-#   build   — every package except //services (see the note on that step).
-#             Catches the class of failure that made `fastverk/build` red for
-#             weeks: an unpinned maven resolution needing an ambient JDK, and a
-#             graphviz PDF path that could not build for any consumer.
-#   test    — the same patterns: 51 of 52 test targets, including the RDF gate
-#             suite and its adversarial fixtures, which plant a defect and fail
-#             if it is NOT detected.
+#   build   — //... in full. Catches the class of failure that made
+#             `fastverk/build` red for weeks: an unpinned maven resolution
+#             needing an ambient JDK, and a graphviz PDF path that could not
+#             build for any consumer.
+#   test    — //... all 52 test targets, including the RDF gate suite and its
+#             adversarial fixtures, which plant a defect and fail if it is NOT
+#             detected.
 #
 # ⚠ JDK. The maven fetch is pinned (//:maven_install.json) precisely so it no
 # longer needs an ambient JDK at fetch time — but the BUILD actions still need
@@ -53,7 +53,9 @@ concurrency:
 env:
   # --nohome_rc drops ~/.bazelrc, which is where a maintainer's registry
   # overrides live. The registries are pinned in //.bazelrc; this proves it.
-  BAZEL_FLAGS: --nohome_rc
+  # --repo_env reaches crate_universe, which runs cargo in a repository rule;
+  # a plain env var on the step would not.
+  BAZEL_FLAGS: --nohome_rc --repo_env=CARGO_NET_GIT_FETCH_WITH_CLI=true
 
 jobs:
   gate:
@@ -68,6 +70,38 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # //services/spec consumes the shared plugin crates as cargo git-deps on
+      # fastverk/fastverk-plugin-crates, which is PRIVATE. crate_universe resolves
+      # them during module-extension evaluation — before any target is analysed —
+      # so without credentials the whole build dies at
+      #
+      #   error: failed to get `fastverk-layout` as a dependency of `spec-server`
+      #     failed to authenticate when downloading repository
+      #
+      # `secrets.GITHUB_TOKEN` is scoped to this repository and cannot read
+      # another private repo in the org. The org already carries an App for this,
+      # so mint a short-lived installation token scoped to exactly one repo.
+      #
+      # 13 repos depend on those crates, so this block is worth copying verbatim.
+      - name: mint a token for the private plugin crates
+        id: crates_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.FASTVERK_APP_ID }}
+          private-key: ${{ secrets.FASTVERK_APP_PRIVATE_KEY }}
+          owner: fastverk
+          repositories: fastverk-plugin-crates
+
+      # The deps are https:// URLs, so rewriting the prefix is enough — no ssh
+      # keys, no per-dep URL edits. cargo must be told to shell out to git for
+      # fetches (`CARGO_NET_GIT_FETCH_WITH_CLI`, set on the bazel steps via
+      # --repo_env) or it uses its own transport and ignores this config.
+      - name: let cargo use it
+        run: |
+          git config --global \
+            url."https://x-access-token:${{ steps.crates_token.outputs.token }}@github.com/".insteadOf \
+            "https://github.com/"
+
       - uses: bazel-contrib/setup-bazel@0.9.1
         with:
           bazelisk-cache: true
@@ -79,49 +113,14 @@ jobs:
       - name: proofs (sorry, native_decide, axiom ratchet)
         run: bazel $BAZEL_FLAGS test //lean:audit_proofs_test --test_output=all
 
-      # ⚠ NOT `//...`, and the exclusion is a credential problem rather than a
-      # choice. //services/spec consumes the shared plugin crates as cargo
-      # git-deps on fastverk/fastverk-plugin-crates, which is PRIVATE. A default
-      # runner cannot clone it, and crate_universe fails during module-extension
-      # evaluation — before any target is analysed, so it cannot be skipped with
-      # a target exclusion:
-      #
-      #   error: failed to get `fastverk-layout` as a dependency of `spec-server`
-      #     revision 875823d0... not found
-      #     failed to authenticate when downloading repository
-      #
-      # `secrets.GITHUB_TOKEN` is scoped to this repository only, so it cannot
-      # read another private repo in the org. Making the Rust build run here
-      # needs `CARGO_NET_GIT_FETCH_WITH_CLI=true` plus a cross-repo credential
-      # (an App installation token or a PAT) that does not exist today.
-      #
-      # Everything else is gated, which is the majority of what has actually
-      # broken: the maven/JDK fetch, the graphviz PDF path, the RDF gate suite
-      # with its adversarial fixtures, and the Lean proof audit above.
-      #
-      # ⛔ WHAT THIS MISSES, exactly — stated so it cannot read as full coverage:
-      # one test target, //services/spec:spec_test (5 #[cfg(test)] modules,
-      # including the routes.rs assertions that every served route is declared
-      # in /describe and that no (service, method) pair is duplicated). 51 of 52
-      # test targets run here. That one comes back the day the credential exists.
-      #
-      # ⛔ Do NOT "fix" this by widening to //... without the credential — it
-      # goes red on every PR and trains everyone to merge through it, which is
-      # the exact habit that let #16 and #17 land unverified.
       # --keep_going: the first real run aborted at //impact:needle while
       # //paper:crystallization was still compiling, so whether that doc had the
       # same defect stayed unknown for a whole round trip. One failure per run is
       # too slow a loop when the only way to test Linux is to push.
       - name: build
         run: |
-          bazel $BAZEL_FLAGS build --keep_going \
-            //corpus/... //crank/... //deck/... //examples/... //graph/... \
-            //grounding/... //impact/... //java/... //lean/... //paper/... \
-            //proto/... //rdf/... //tools/...
+          bazel $BAZEL_FLAGS build --keep_going //...
 
       - name: test
         run: |
-          bazel $BAZEL_FLAGS test --keep_going --test_output=errors \
-            //corpus/... //crank/... //deck/... //examples/... //graph/... \
-            //grounding/... //impact/... //java/... //lean/... //paper/... \
-            //proto/... //rdf/... //tools/...
+          bazel $BAZEL_FLAGS test --keep_going --test_output=errors //...
