@@ -117,16 +117,12 @@ export default function App() {
         </Box>
 
         <Box sx={{ flex: 1, p: 4, maxWidth: 1040 }}>
-          {pane === "overview" && <Overview project={project} reqs={reqs} disc={disc} confs={confs} />}
+          {pane === "overview" && <Overview project={project} reqs={reqs} disc={disc} confs={confs} terms={termRows} />}
           {pane === "requirements" && (
-            <Requirements project={project} reqs={reqs}
-              onGround={(id) => {
-                // Jump to the first term this requirement waits on. A claim with
-                // no terms has nothing to ground, so the jump does not happen —
-                // silently landing on someone else's term would be worse.
-                const first = myTerms.find((x) => x.requirement_id === id);
-                if (first) { setGroundSurface(first.surface); setPane("grounding"); }
-              }} />
+            <Requirements
+              project={project} reqs={reqs} terms={myTerms}
+              onGround={(surface) => { setGroundSurface(surface); setPane("grounding"); }}
+            />
           )}
           {pane === "grounding" && (
             <Grounding terms={myTerms} requirements={mine} initialSurface={groundSurface} />

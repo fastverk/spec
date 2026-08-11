@@ -30,11 +30,46 @@ export function PaneHead({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
+/**
+ * Render the author's inline markup: `**bold**` and `` `code` ``.
+ *
+ * ⛔ These marks are not decoration here — they are exactly what the decomposer
+ * reads to find terms, so they are the most load-bearing characters in the
+ * corpus. Printing them raw ("a distinct **WorkOS Organization**") made the
+ * generated document look like a file someone forgot to render, and hid the
+ * fact that the emphasis is what the machine acted on.
+ */
+export function inlineMarkup(src: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /\*\*(.+?)\*\*|`(.+?)`/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let k = 0;
+
+  while ((m = re.exec(src)) !== null) {
+    if (m.index > last) out.push(src.slice(last, m.index));
+    if (m[1] !== undefined) {
+      out.push(<b key={k++}>{m[1]}</b>);
+    } else {
+      out.push(
+        <Box key={k++} component="code"
+             sx={{ fontFamily: MONO, fontSize: "0.87em", bgcolor: "action.hover",
+                   px: 0.5, py: 0.1, borderRadius: 0.5 }}>
+          {m[2]}
+        </Box>,
+      );
+    }
+    last = m.index + m[0].length;
+  }
+  if (last < src.length) out.push(src.slice(last));
+  return out;
+}
+
 /** A requirement's sentence. Serif, because it is the thing people argue over. */
 export function Promise_({ children }: { children: ReactNode }) {
   return (
     <Typography sx={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.5, maxWidth: "62ch" }}>
-      {children}
+      {typeof children === "string" ? inlineMarkup(children) : children}
     </Typography>
   );
 }

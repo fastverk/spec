@@ -1,18 +1,49 @@
 import { Alert, Box, Paper, Stack, Typography } from "@mui/material";
-import type { Conflict, Discipline, Requirement } from "../api";
+import type { Conflict, Discipline, Requirement, Term } from "../api";
 import { stateOf } from "../api";
 import { Bar, PaneHead, Tile } from "../ui";
 import { MONO } from "../theme";
 
+/**
+ * ⛔ The four state tiles replaced a funnel, and were worse.
+ *
+ * They read Draft 0 / In question 69 / Agreed 0 / Enforced 0 — one bucket
+ * holding everything, three empty, and no way to tell the 23 requirements
+ * nobody has even broken into terms from the 46 that are waiting on a person to
+ * say what a word means. Those are different jobs for different people, and the
+ * tiles said neither.
+ *
+ * A funnel says where the work actually is, in the order it has to happen.
+ */
 export function Overview({
-  project, reqs, disc, confs,
-}: { project: string; reqs: Requirement[]; disc: Discipline[]; confs: Conflict[] }) {
+  project, reqs, disc, confs, terms,
+}: {
+  project: string; reqs: Requirement[]; disc: Discipline[];
+  confs: Conflict[]; terms: Term[];
+}) {
   const mine = reqs.filter((r) => r.project === project);
   const byState = { Draft: 0, "In question": 0, Agreed: 0, Enforced: 0 } as Record<string, number>;
   for (const r of mine) byState[stateOf(r)] = (byState[stateOf(r)] ?? 0) + 1;
   const unchecked = mine.filter((r) => r.outcome === "NOT-EVALUATED").length;
   const areas = disc.filter((d) => d.project === project);
   const myConfs = confs.filter((c) => c.project === project);
+
+  const myTerms = terms.filter((t) => t.project === project);
+  const withTerms = new Set(myTerms.map((t) => t.requirement_id));
+  const decomposed = mine.filter((r) => withTerms.has(r.requirement_id)).length;
+  const surfaces = new Set(myTerms.map((t) => t.surface));
+  const bound = new Set(myTerms.filter((t) => !t.open).map((t) => t.surface));
+  const checked = mine.filter((r) => r.population !== "\u2014").length;
+
+  // Per-area: the share NOT yet broken into terms. The old bar showed "not
+  // backed by evidence", which is 100% for every area and therefore tells you
+  // nothing about where to go next.
+  const undecomposedPct = new Map<string, number>();
+  for (const d of areas) {
+    const rows = mine.filter((r) => r.discipline === d.discipline);
+    const n = rows.filter((r) => !withTerms.has(r.requirement_id)).length;
+    undecomposedPct.set(d.discipline, rows.length ? Math.round((n / rows.length) * 100) : 0);
+  }
 
   return (
     <Box>
@@ -21,12 +52,21 @@ export function Overview({
         sub={`${mine.length} requirements across ${areas.length} areas.`}
       />
 
-      <Stack direction="row" spacing={1.5} sx={{ mb: 3 }} flexWrap="wrap" useFlexGap>
-        <Tile n={byState.Draft ?? 0} label="Draft" />
-        <Tile n={byState["In question"] ?? 0} label="In question" tone="warn" />
-        <Tile n={byState.Agreed ?? 0} label="Agreed" />
-        <Tile n={byState.Enforced ?? 0} label="Enforced" tone={byState.Enforced ? "good" : "warn"} />
+      <Stack direction="row" spacing={1.5} sx={{ mb: 1 }} flexWrap="wrap" useFlexGap>
+        <Tile n={mine.length} label="Written down" />
+        <Tile n={decomposed} label="Broken into terms"
+              tone={decomposed < mine.length ? "warn" : "good"} />
+        <Tile n={bound.size} label="Terms pinned down"
+              tone={bound.size ? "good" : "warn"} />
+        <Tile n={checked} label="Actually checked"
+              tone={checked ? "good" : "warn"} />
       </Stack>
+      <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
+        Each step needs the one before it. {mine.length - decomposed} requirement
+        {mine.length - decomposed === 1 ? " has" : "s have"} no terms yet;{" "}
+        {surfaces.size - bound.size} of {surfaces.size} terms are still waiting for
+        someone to say which records they point at.
+      </Typography>
 
       {/* The headline, stated as a risk rather than a proof-theory metric. */}
       <Alert severity={unchecked === mine.length ? "warning" : "info"} sx={{ mb: 3 }}>
@@ -47,17 +87,17 @@ export function Overview({
                 <Typography sx={{ fontFamily: MONO, fontSize: 13, width: 34, textAlign: "right" }}>
                   {d.claim_count}
                 </Typography>
-                <Bar pct={d.dark_pct} />
+                <Bar pct={undecomposedPct.get(d.discipline) ?? 0} />
                 <Typography sx={{ fontFamily: MONO, fontSize: 12, width: 52, textAlign: "right", color: "text.secondary" }}>
-                  {d.dark_pct}%
+                  {undecomposedPct.get(d.discipline) ?? 0}%
                 </Typography>
               </Stack>
             </Paper>
           ))}
       </Stack>
       <Typography variant="body2" sx={{ color: "text.secondary", mt: 1.5 }}>
-        The bar is the share not yet backed by evidence. 100% is the correct
-        reading for requirements that have only ever been prose.
+        The bar is the share not yet broken into terms — the first step, and the
+        one that decides where grounding can even begin.
       </Typography>
 
       {myConfs.length ? (

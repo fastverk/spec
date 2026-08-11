@@ -8,6 +8,7 @@ import {
   type Candidate, type ProbeResult, type Requirement, type Term,
 } from "../api";
 import { MONO, SERIF } from "../theme";
+import { inlineMarkup } from "../ui";
 
 /**
  * The grounding conversation.
@@ -262,15 +263,26 @@ export function Grounding({
         </Box>
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
+          {/* ⚠ ONE of the claims, labelled as such. This used to render bare, so a
+              term carrying eleven claims showed a single arbitrary sentence with
+              nothing marking it as a sample — which reads as the term's
+              definition rather than one place it is used. */}
           {promise ? (
-            <Typography sx={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.5, maxWidth: "58ch" }}>
-              {promise}
-            </Typography>
+            <>
+              <Typography variant="body2" sx={{ color: "text.secondary", mb: 0.5 }}>
+                {hole.claims.length === 1
+                  ? "The claim that uses it:"
+                  : `One of the ${hole.claims.length} claims that use it — ${(hole.claims[0] ?? "").toUpperCase()}:`}
+              </Typography>
+              <Typography sx={{ fontFamily: SERIF, fontSize: 19, lineHeight: 1.5, maxWidth: "58ch" }}>
+                {inlineMarkup(promise)}
+              </Typography>
+            </>
           ) : null}
 
           <Stack direction="row" spacing={1} sx={{ mt: 1.5, mb: 3, flexWrap: "wrap", gap: 0.75 }}>
             {hole.claims.map((c) => (
-              <Chip key={c} size="small" label={c} sx={{ fontFamily: MONO }} />
+              <Chip key={c} size="small" label={c.toUpperCase()} sx={{ fontFamily: MONO }} />
             ))}
           </Stack>
 
