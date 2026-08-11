@@ -4,7 +4,7 @@ import {
   Select, Stack, TextField, Typography,
 } from "@mui/material";
 import type { OpKind, Requirement, Term } from "../api";
-import { corpusVersion, stateOf, submitOp } from "../api";
+import { corpusVersion, evaluate, measurement, recordEvaluation, stateOf, submitOp } from "../api";
 import { PaneHead, StateChip } from "../ui";
 import { MONO, SERIF } from "../theme";
 
@@ -97,6 +97,7 @@ function Detail({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [checked, setChecked] = useState<string | null>(null);
 
   useEffect(() => {
     if (!req) return;
@@ -106,11 +107,45 @@ function Detail({
     setText(req.predicate);
     setModality(req.modality);
     setArea(req.discipline);
+    setChecked(null);
   }, [req?.requirement_id]);
 
   if (!req) return null;
   const mine = terms.filter((t) => t.requirement_id === req.requirement_id);
   const blocker = blockerOf(req);
+  // Only a BOUND term has a referent to measure. An unbound one has nothing to
+  // point a query at, which is why grounding comes first.
+  const bound = mine.filter((t) => !t.open && t.bound_to);
+
+  /**
+   * Ask the project what this check would examine, and record the answer.
+   *
+   * ⚠ The result is a POPULATION, not a verdict. Nothing here decides whether
+   * the requirement holds — that needs the predicate half, which does not exist
+   * yet. What it does establish is whether a check would examine anything at
+   * all, which is what decides if a future pass would mean anything.
+   */
+  async function check(referent: string) {
+    setBusy(true);
+    setErr(null);
+    setChecked(null);
+    try {
+      const r = await evaluate(req!.requirement_id, referent);
+      await recordEvaluation(r, req!.project);
+      setChecked(
+        r.outcome === "VACUOUS"
+          ? "It would examine NO records. A pass here would mean nothing."
+          : r.outcome === "CANNOT_BE_GROUNDED"
+            ? "This product has no referent for that reading — the check could never run."
+            : `It would examine ${r.population?.count.toLocaleString()} records.`,
+      );
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   /**
    * Amendments are PROPOSALS, never in-place edits. The corpus is generated from
@@ -215,6 +250,41 @@ function Detail({
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
         <b>{blocker.label}.</b> {blocker.hint}
       </Typography>
+
+      {/* The check. Offered only once something is bound, because until then
+          there is no referent to point a query at. */}
+      {bound.length ? (
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h2" sx={{ fontSize: 13, mb: 0.5 }}>
+            What would this examine?
+          </Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+            The product runs the query in its own environment and returns a count.
+            No records leave it.
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", gap: 1 }}>
+            {bound.map((t) => (
+              <Button key={t.term_id} size="small" variant="outlined" disabled={busy}
+                      onClick={() => check(t.bound_to)}>
+                Check via {t.surface}
+              </Button>
+            ))}
+          </Stack>
+          {checked ? (
+            <Alert severity={checked.startsWith("It would examine NO") ? "warning"
+                             : checked.startsWith("This product has no") ? "error" : "success"}
+                   sx={{ mt: 1.5 }}>
+              {checked}
+            </Alert>
+          ) : null}
+          {req.population !== "—" ? (
+            <Typography variant="body2" sx={{ color: "text.secondary", mt: 1.5 }}>
+              Last measured: <b>{req.population}</b> records · {req.outcome}
+              {req.evaluation_pending ? ` · by ${req.evaluated_by}, not yet adopted` : ""}
+            </Typography>
+          ) : null}
+        </Box>
+      ) : null}
 
       <Typography variant="h2" sx={{ fontSize: 13, mb: 1 }}>
         Terms it depends on {mine.length ? `(${mine.length})` : ""}
@@ -455,6 +525,13 @@ export function Requirements({
                   {n ? (
                     <Chip size="small" variant="outlined" label={`${n} term${n === 1 ? "" : "s"}`}
                           sx={{ fontSize: 11 }} />
+                  ) : null}
+                  {measurement(r) ? (
+                    <Chip size="small" sx={{ fontSize: 11 }}
+                          color={measurement(r)!.tone === "bad" ? "error"
+                                 : measurement(r)!.tone === "warn" ? "warning" : "success"}
+                          variant={measurement(r)!.tone === "ok" ? "filled" : "outlined"}
+                          label={measurement(r)!.label} />
                   ) : null}
                   {r.pending ? (
                     <Chip size="small" color="info" sx={{ fontSize: 11 }}

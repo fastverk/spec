@@ -77,6 +77,15 @@ async fn main() -> Result<()> {
     }
 
     let log = Arc::new(spec::proposal::ProposalLog::from_env());
+    // A SEPARATE file. Replaying judgements and measurements from one log would
+    // make "who decided this" and "what did it measure" the same question.
+    let evaluations = Arc::new(spec::proposal::AppendLog::new(
+        std::env::var("SPEC_EVALUATION_LOG")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(std::path::PathBuf::from),
+    ));
 
     let panels = load_panels(args.panel_bundle);
     let gateway_token = std::env::var("FASTVERK_PLUGIN_TOKEN").ok();
@@ -85,6 +94,7 @@ async fn main() -> Result<()> {
             backend,
             readmodel,
             log,
+            evaluations,
             panels: panels.clone(),
         },
         gateway_token,

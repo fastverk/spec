@@ -226,7 +226,7 @@ fn degraded(field: &str, why: &str) -> Value {
 /// to `ROUTES` — doing so would make it try to load a file that will never exist
 /// and degrade every request. It is still asserted to be DECLARED below, so a
 /// log-backed route cannot quietly go missing from /describe either.
-pub const LOG_BACKED_ROUTES: &[&str] = &["proposals"];
+pub const LOG_BACKED_ROUTES: &[&str] = &["proposals", "evaluations"];
 
 pub fn routes_match_describe(web_routes: &[Value]) -> Result<(), String> {
     let all: Vec<&str> = web_routes

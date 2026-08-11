@@ -33,7 +33,7 @@ export function Overview({
   const decomposed = mine.filter((r) => withTerms.has(r.requirement_id)).length;
   const surfaces = new Set(myTerms.map((t) => t.surface));
   const bound = new Set(myTerms.filter((t) => !t.open).map((t) => t.surface));
-  const checked = mine.filter((r) => r.population !== "\u2014").length;
+  const measured = mine.filter((r) => r.population !== "\u2014").length;
 
   // Per-area: the share NOT yet broken into terms. The old bar showed "not
   // backed by evidence", which is 100% for every area and therefore tells you
@@ -58,8 +58,13 @@ export function Overview({
               tone={decomposed < mine.length ? "warn" : "good"} />
         <Tile n={bound.size} label="Terms pinned down"
               tone={bound.size ? "good" : "warn"} />
-        <Tile n={checked} label="Actually checked"
-              tone={checked ? "good" : "warn"} />
+        {/* ⚠ "Measured", not "checked". A population is how many records a check
+            WOULD examine; nothing here decides whether the requirement holds,
+            because the predicate half does not exist yet. Labelling this
+            "checked" would let the most important column in the product read as
+            further along than it is. */}
+        <Tile n={measured} label="Population measured"
+              tone={measured ? "good" : "warn"} />
       </Stack>
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
         Each step needs the one before it. {mine.length - decomposed} requirement

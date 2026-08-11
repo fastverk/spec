@@ -49,6 +49,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::json as spec_json;
+use crate::evaluation::{self, Evaluated};
 use crate::overlay::Pending;
 use crate::proposal::{self, Principal, ProposalLog};
 use crate::proto::SpecLang;
@@ -63,6 +64,8 @@ pub struct HttpState {
     pub backend: Arc<SpecBackend>,
     pub readmodel: Arc<ReadModel>,
     pub log: Arc<ProposalLog>,
+    /// Measurements, not judgements — see `crate::evaluation`.
+    pub evaluations: Arc<ProposalLog>,
     pub panels: Option<Arc<Vec<u8>>>,
 }
 
@@ -111,6 +114,8 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/requirements", get(list_requirements))
         .route("/terms", get(list_terms))
         .route("/proposals", get(list_proposals))
+        .route("/evaluations", get(list_evaluations))
+        .route("/evaluation", post(submit_evaluation))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
         .route("/proposal/verdict-preview", post(preview_proposal))
@@ -275,8 +280,90 @@ macro_rules! overlaid_route {
     };
 }
 
-overlaid_route!(list_requirements, "requirements", apply_requirements);
+async fn list_requirements(State(s): State<HttpState>) -> ApiResult {
+    let rm = s.readmodel.clone();
+    let log = s.log.clone();
+    let evals = s.evaluations.clone();
+    run(move || {
+        let mut payload = rm.route("requirements");
+        let pending = Pending::read(log.path());
+        let measured = Evaluated::read(evals.path());
+        if pending.is_empty() && measured.is_empty() {
+            return payload;
+        }
+        if let Some(rows) = payload.get_mut("requirements").and_then(|v| v.as_array_mut()) {
+            pending.apply_requirements(rows);
+            measured.apply(rows);
+        }
+        payload
+    })
+    .await
+}
 overlaid_route!(list_terms, "terms", apply_terms);
+
+/// `GET /evaluations` — every measurement, latest per (claim, implementation).
+async fn list_evaluations(State(s): State<HttpState>) -> ApiResult {
+    let evals = s.evaluations.clone();
+    run(move || {
+        let measured = Evaluated::read(evals.path());
+        json!({
+            "evaluations": measured.to_rows(),
+            "records": measured.records,
+            "write_enabled": evals.enabled(),
+        })
+    })
+    .await
+}
+
+/// `POST /evaluation` — record what a check examined.
+///
+/// ⛔ Refuses a pass over an empty population BEFORE recording it. The corpus
+/// gate catches that defect too, but appending it to an append-only log first
+/// and relying on a later gate to notice means knowingly writing something
+/// permanent and wrong.
+async fn submit_evaluation(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    if !s.evaluations.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_EVALUATION_LOG is unset; this instance records no measurements",
+            })),
+        );
+    }
+    let ev = match evaluation::check(&body, &who.email) {
+        Ok(e) => e,
+        Err(why) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({ "error": "E_VACUOUS_OR_MALFORMED", "message": why })),
+            )
+        }
+    };
+    match s.evaluations.append(&ev.record()) {
+        Ok(offset) => (
+            StatusCode::ACCEPTED,
+            Json(json!({
+                "recorded": true,
+                "log_offset": offset,
+                "claim": ev.claim,
+                "outcome": ev.outcome,
+                "population": ev.population,
+            })),
+        ),
+        Err(why) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        ),
+    }
+}
 
 /// `GET /proposals` — everything written but not yet adopted into the corpus.
 async fn list_proposals(State(s): State<HttpState>) -> ApiResult {
@@ -594,11 +681,14 @@ mod tests {
             std::time::Duration::from_secs(30),
         ));
         let log = Arc::new(ProposalLog::new(log.map(std::path::PathBuf::from)));
+        // Disabled here on purpose: the tests that care construct their own.
+        let evaluations = Arc::new(ProposalLog::new(None));
         let app = router(
             HttpState {
                 backend,
                 readmodel,
                 log,
+                evaluations,
                 panels: None,
             },
             None,

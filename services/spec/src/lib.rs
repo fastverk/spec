@@ -18,6 +18,7 @@
 //! (`kind`/`target` just fall blank).
 
 pub mod backend;
+pub mod evaluation;
 pub mod http;
 pub mod json;
 pub mod mcp;
