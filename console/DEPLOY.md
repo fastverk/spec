@@ -20,9 +20,14 @@ Migrations need the **owner** credential — the one role that can
 `ALTER TABLE ... DISABLE TRIGGER` and delete. It should live in exactly one
 place, behind a reviewer, and never on a laptop or in the web tier.
 
-1. GitHub → Settings → **Environments** → new environment named `database`, and
-   add yourself as a **required reviewer**. Without that the workflow runs
-   unattended with the most powerful credential in the system.
+1. GitHub → Settings → **Environments** → new environment named
+   `database-production`, and add yourself as a **required reviewer**. Without
+   that the workflow runs unattended with the most powerful credential in the
+   system.
+
+   ⚠ Named for the stage rather than the vendor on purpose. Preview deployments
+   get their own Neon branch, so `neon` would name both and tell a reviewer
+   nothing about which log they are approving DDL against.
 2. Add these secrets to that environment:
    - `NEON_OWNER_URL` — the connection string Neon gave you
    - `SPEC_APP_PASSWORD` — `openssl rand -base64 24` (optional; only used when

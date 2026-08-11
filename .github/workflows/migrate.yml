@@ -48,9 +48,19 @@ jobs:
     name: apply migrations + verify the door
     runs-on: ubuntu-latest
     # The Environment is where the required reviewer and the owner secret live.
-    # Create it as `database` in Settings → Environments and add a reviewer, or
-    # this runs unattended with the most powerful credential in the system.
-    environment: database
+    # Create it as `database-production` in Settings → Environments and add a
+    # reviewer, or this runs unattended with the most powerful credential in the
+    # system.
+    #
+    # ⚠ Named for the STAGE, not the vendor. GitHub Environments model deployment
+    # targets and gate promotion between them, and there will be a second one:
+    # preview deployments get their own Neon branch, so `neon` would be true of
+    # both and would not tell a reviewer which log they are about to run DDL
+    # against. That is the fact approval turns on.
+    #
+    # Not `vercel` either — this workflow never talks to Vercel. Vercel deploys
+    # through its own GitHub integration and uses no Environment at all.
+    environment: database-production
     steps:
       - uses: actions/checkout@v4
 
