@@ -11,10 +11,31 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { SESSION_COOKIE, openSession } from "./lib/auth/session";
 
+const isProduction = () =>
+  process.env["NODE_ENV"] === "production" || process.env["VERCEL_ENV"] === "production";
+
 export async function middleware(req: NextRequest) {
-  // No provider configured means local development: nothing to sign in to, and
-  // pretending otherwise would just be a redirect loop.
-  if (!process.env["GOOGLE_CLIENT_ID"]) return NextResponse.next();
+  const configured = Boolean(process.env["GOOGLE_CLIENT_ID"]);
+
+  // ⛔ FAILS CLOSED IN PRODUCTION.
+  //
+  // "No provider configured" means local development, where there is nothing to
+  // sign in to and a redirect would just loop. It must NOT mean "let everyone
+  // in" on a deployment — and the first deploy of a project is exactly when the
+  // environment variables are not set yet.
+  //
+  // The corpus is a customer's authorization model: 69 requirements naming their
+  // roles, their permission surfaces and where their controls are weak. A deploy
+  // that went out before someone finished the settings page would publish all of
+  // it, and nothing would look wrong. So an unconfigured PRODUCTION deployment
+  // is closed, and the sign-in page says which variables are missing.
+  if (!configured) {
+    if (!isProduction()) return NextResponse.next();
+    const url = req.nextUrl.clone();
+    url.pathname = "/signin";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
 
   const session = await openSession(req.cookies.get(SESSION_COOKIE)?.value);
   if (session) return NextResponse.next();

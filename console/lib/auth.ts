@@ -12,6 +12,9 @@
  */
 import type { Principal } from "./proposal";
 
+const isProduction = () =>
+  process.env["NODE_ENV"] === "production" || process.env["VERCEL_ENV"] === "production";
+
 const csv = (name: string): string[] =>
   (process.env[name] ?? "")
     .split(",")
@@ -72,11 +75,27 @@ async function sessionPrincipal(): Promise<Principal | null> {
   return { sub: `google:${s.sub}`, email: s.email, ...capabilities(`google:${s.sub}`) };
 }
 
-const isProduction = () =>
-  process.env["NODE_ENV"] === "production" || process.env["VERCEL_ENV"] === "production";
-
 /** Whether a real identity provider is wired up at all. */
 export const authConfigured = () => Boolean(process.env["GOOGLE_CLIENT_ID"]?.trim());
+
+/**
+ * Whether a caller must be authenticated, for reads as well as writes.
+ *
+ * ⛔ True whenever a provider is configured, AND whenever this is production even
+ * if one is not. The second half is the important one: an unconfigured
+ * production deployment is the state a project is in between "first deploy
+ * succeeded" and "somebody finished the environment variables", and the corpus
+ * is a customer's authorization model. Open-by-default there would publish it,
+ * and nothing would look wrong.
+ */
+export const mustAuthenticate = () => authConfigured() || isProduction();
+
+/** Why reads are refused when nothing is configured. */
+export const NOT_CONFIGURED =
+  "no identity provider is configured on this deployment, so it cannot tell who " +
+  "you are and will not serve a customer's authorization model to an unknown " +
+  "caller. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI and " +
+  "GOOGLE_ALLOWED_DOMAIN.";
 
 export async function principal(): Promise<Principal | null> {
   const session = await sessionPrincipal();

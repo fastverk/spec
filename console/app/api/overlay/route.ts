@@ -11,7 +11,7 @@
  */
 import { NextResponse } from "next/server";
 
-import { NO_PRINCIPAL, authConfigured, principal } from "../../../lib/auth";
+import { NOT_CONFIGURED, NO_PRINCIPAL, authConfigured, mustAuthenticate, principal } from "../../../lib/auth";
 import { CORPUS_VERSION, requirements, terms } from "../../../lib/corpus";
 import { Evaluated } from "../../../lib/evaluated";
 import { Pending } from "../../../lib/overlay";
@@ -27,8 +27,13 @@ export async function GET() {
   // even though the corpus pages behind it are statically rendered. And it
   // answers 401 JSON rather than redirecting: a redirect is the right answer for
   // a browser asking for a page and the wrong one for a fetch asking for data.
-  if (authConfigured() && !(await principal())) {
-    return NextResponse.json({ error: "E_NO_PRINCIPAL", message: NO_PRINCIPAL }, { status: 401 });
+  if (mustAuthenticate() && !(await principal())) {
+    // Two different facts, named separately: "you are not signed in" and "this
+    // deployment cannot tell who anyone is". The second is an operator's problem
+    // and should not read as the first.
+    return authConfigured()
+      ? NextResponse.json({ error: "E_NO_PRINCIPAL", message: NO_PRINCIPAL }, { status: 401 })
+      : NextResponse.json({ error: "E_AUTH_UNCONFIGURED", message: NOT_CONFIGURED }, { status: 503 });
   }
   try {
     const pending = Pending.fromRecords(await proposalRecords());

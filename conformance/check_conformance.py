@@ -308,7 +308,32 @@ for step in ("build", "test"):
           f".github/workflows/ci.yml: the `{step}` step does not name //conformance/... "
           f"— this gate would exist and never run")
 
-# ── 7. the other two refusals still exist ─────────────────────────────────────
+# ── 7. the pasteable bundle still matches the migrations ──────────────────────
+# `console/db/bootstrap.sql` is the three migrations as one script, for a SQL
+# console — the path someone takes when they have a database and not a checkout.
+# It embeds each migration's sha256 as a ledger row, so a later `migrate.mjs`
+# agrees they are applied. If a migration changes and the bundle is not
+# regenerated, the two paths produce DIFFERENT databases and the ledger lies
+# about which. Cheap to check, invisible when it breaks.
+import hashlib
+
+bundle_path = os.path.join(ROOT, "console/db/bootstrap.sql")
+if os.path.exists(bundle_path):
+    bundle = read("console/db/bootstrap.sql")
+    mig_dir = os.path.join(ROOT, "console/db/migrations")
+    for name in sorted(os.listdir(mig_dir)):
+        if not name.endswith(".sql"):
+            continue
+        with open(os.path.join(mig_dir, name), "rb") as fh:
+            sha = hashlib.sha256(fh.read()).hexdigest()
+        check(
+            f"('{name}', '{sha}')" in bundle,
+            f"console/db/bootstrap.sql is stale for {name} — re-run "
+            f"`node console/db/bundle.mjs > console/db/bootstrap.sql`",
+        )
+        check(name in bundle, f"console/db/bootstrap.sql does not contain {name}")
+
+# ── 8. the other two refusals still exist ─────────────────────────────────────
 # The door is one of three independent places a vacuous pass is refused, and each
 # is there because the others can be bypassed. Losing one silently is the failure.
 materialize = read("tools/proposals/materialize.py")
