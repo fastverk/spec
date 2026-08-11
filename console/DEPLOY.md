@@ -14,9 +14,36 @@ Create a project in the Neon console (free tier is fine; pick a region near your
 users). Take the connection string it gives you — that is the **owner** role, and
 it is for migrations only.
 
+### Preferred: let CI do it
+
+Migrations need the **owner** credential — the one role that can
+`ALTER TABLE ... DISABLE TRIGGER` and delete. It should live in exactly one
+place, behind a reviewer, and never on a laptop or in the web tier.
+
+1. GitHub → Settings → **Environments** → new environment named `database`, and
+   add yourself as a **required reviewer**. Without that the workflow runs
+   unattended with the most powerful credential in the system.
+2. Add these secrets to that environment:
+   - `NEON_OWNER_URL` — the connection string Neon gave you
+   - `SPEC_APP_PASSWORD` — `openssl rand -base64 24` (optional; only used when
+     you tick the box below)
+3. Actions → **migrate** → Run workflow. Tick *"Also set spec_app's password"*
+   on the first run.
+
+It applies the migrations, optionally issues the app credential, and then
+**re-proves that the door refuses** — every trigger, grant and CHECK exercised
+against the live database, inside a transaction that is rolled back so
+verification writes nothing into an append-only log.
+
+It also runs automatically on any push to `main` that touches
+`console/db/migrations/**`.
+
+### Or by hand
+
 ```sh
 cd console && pnpm install
 DATABASE_URL='<neon OWNER url>' node db/migrate.mjs
+node db/verify.mjs          # same proof, same rollback
 ```
 
 Expected output:
@@ -49,7 +76,8 @@ to deny it — and everything would appear to work, which is the problem.
 
 The migration already created `spec_app` and `spec_export` with SQL. They exist
 with no password, so neither can connect yet — the safe state. Give the app role
-a password from the Neon SQL editor (or `psql`):
+a password either through the workflow above (`SPEC_APP_PASSWORD`, which keeps it
+out of your clipboard and your shell history) or by hand:
 
 ```sql
 ALTER ROLE spec_app WITH PASSWORD '<generate one>';
