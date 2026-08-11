@@ -10,32 +10,84 @@ grounding adapter, which stays deferred — the Grounding pane says so.
 
 ## 1. Neon — the logs
 
-Create a project (free tier is fine; pick a region near your users).
-
-Neon gives you a connection string for the **owner** role. That one is for
-migrations only. Keep it out of Vercel.
+Create a project in the Neon console (free tier is fine; pick a region near your
+users). Take the connection string it gives you — that is the **owner** role, and
+it is for migrations only.
 
 ```sh
-cd console
+cd console && pnpm install
 DATABASE_URL='<neon OWNER url>' node db/migrate.mjs
 ```
 
-That applies three migrations: the two tables, the append-only triggers, and the
-role grants. It is idempotent, and it refuses to re-run a migration whose
-contents changed since it was applied.
+Expected output:
 
-Then take the **`spec_app`** credential — `INSERT` and `SELECT` only — and use
-that as the app's `DATABASE_URL`. In the Neon console: Roles → `spec_app` → set a
-password, then build the URL with that role.
+```
+  + 0001_schema.sql
+  + 0002_append_only.sql
+  + 0003_grants.sql
 
-⛔ **Do not give Vercel the owner URL.** The owner is exactly the role that can
-`ALTER TABLE ... DISABLE TRIGGER` and delete. Putting it in the web tier hands
-the web tier the power to erase an append-only log — which is the one thing the
-whole design is arranged to prevent.
+applied 3 migration(s)
+```
+
+That creates the two tables, the append-only triggers, three roles, and the
+grants. Run it twice and it says `nothing to apply — the schema is current`. If
+you edit a migration after it has been applied it refuses, with both hashes,
+rather than silently leaving you with a different database than the file
+describes.
+
+### ⛔ Create the app role with SQL, NOT in the Neon console
+
+This is the one Neon-specific trap, and it is load-bearing:
+
+> A role created in the **Neon console** is granted `neon_superuser`.
+> A role created with **SQL** is not.
+
+A `neon_superuser` member can reach table ownership, and an owner can
+`ALTER TABLE ... DISABLE TRIGGER` and then delete. So creating `spec_app` in the
+console would hand the web tier exactly the power the append-only triggers exist
+to deny it — and everything would appear to work, which is the problem.
+
+The migration already created `spec_app` and `spec_export` with SQL. They exist
+with no password, so neither can connect yet — the safe state. Give the app role
+a password from the Neon SQL editor (or `psql`):
+
+```sql
+ALTER ROLE spec_app WITH PASSWORD '<generate one>';
+```
+
+Then build its URL by hand — these roles do not appear in the Neon console's
+connection-string builder, which is the cost of not being `neon_superuser`:
+
+```
+postgres://spec_app:<password>@<your-neon-host>/<db>?sslmode=require
+```
+
+Take the host and database name from the owner URL; swap in the role and
+password. **That** is what Vercel gets.
+
+⛔ **Never give Vercel the owner URL.** The owner can disable the triggers and
+delete. The web tier must not be able to erase an append-only log.
 
 ⚠ **Enable the Neon–Vercel integration so preview deployments get their own
 branch.** This matters more here than usual: the log is unpurgeable by design, so
 a preview writing to production leaves a permanent record nobody can remove.
+
+### Checking it took
+
+```sql
+-- what exists, and who owns it
+SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'spec';
+--  proposal_log    | spec_owner
+--  evaluation_log  | spec_owner
+
+-- prove the log refuses to forget, as the app role
+DELETE FROM spec.proposal_log;
+-- ERROR: permission denied for table proposal_log
+```
+
+⚠ `seq` is **ordered, not contiguous**. A refused insert still consumes a
+sequence value, so a rejected vacuous pass leaves a gap. A gap is evidence the
+door did its job, never evidence a record was removed.
 
 ---
 

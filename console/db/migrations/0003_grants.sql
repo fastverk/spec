@@ -4,9 +4,41 @@
 -- `ALTER TABLE ... DISABLE TRIGGER` can undo that. So the console never connects
 -- as a role that could.
 
-CREATE ROLE spec_owner  NOLOGIN;   -- owns the schema; migrations only, held by CI
-CREATE ROLE spec_app    LOGIN;     -- Vercel connects as this: INSERT + SELECT
-CREATE ROLE spec_export LOGIN;     -- the promotion workflow: SELECT only
+-- ⚠ ON NEON, CREATE THESE WITH SQL — never in the Neon console.
+--
+-- A role created in the Neon console is granted `neon_superuser`. A role created
+-- with SQL is not. That difference is the whole privilege separation here: a
+-- `neon_superuser` member can reach table ownership, and an owner can
+-- `ALTER TABLE ... DISABLE TRIGGER` and then delete. Creating the app role in the
+-- console would hand the web tier exactly the power 0002 exists to deny it.
+--
+-- The cost is that these roles do not appear in the Neon console's UI and you
+-- build their connection strings by hand. That is the correct trade.
+--
+-- Idempotent, because a migration that half-applied and then refuses to be
+-- retried is a worse failure than one that can be run twice.
+DO $$ BEGIN
+    -- owns the schema; migrations only, held by CI or a laptop
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'spec_owner') THEN
+        CREATE ROLE spec_owner NOLOGIN;
+    END IF;
+    -- the app connects as this: INSERT + SELECT, nothing else
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'spec_app') THEN
+        CREATE ROLE spec_app LOGIN;
+    END IF;
+    -- the promotion workflow: SELECT only
+    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'spec_export') THEN
+        CREATE ROLE spec_export LOGIN;
+    END IF;
+END $$;
+
+-- ⛔ NO PASSWORDS HERE, deliberately. A credential in a migration is a credential
+-- in git, in the ledger's sha256, and in every clone. Set them once, separately:
+--
+--     ALTER ROLE spec_app    WITH PASSWORD '...';
+--     ALTER ROLE spec_export WITH PASSWORD '...';
+--
+-- Until then both roles exist and neither can connect, which is the safe state.
 
 ALTER SCHEMA spec                OWNER TO spec_owner;
 ALTER TABLE  spec.proposal_log   OWNER TO spec_owner;

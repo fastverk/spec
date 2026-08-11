@@ -41,6 +41,14 @@ CREATE TABLE spec.proposal_log (
     -- GENERATED ALWAYS AS IDENTITY, not serial: an identity column needs no
     -- USAGE grant on its sequence, and a role holding USAGE could call setval()
     -- and make a future seq collide with a past one.
+    --
+    -- ⚠ `seq` IS ORDERED, NOT CONTIGUOUS. Sequences are not transactional, so a
+    -- refused INSERT still consumes a value — a rejected vacuous pass leaves a
+    -- gap. Measured: three refusals between two accepted rows numbered them 1 and
+    -- 5. A gap is therefore evidence that the door did its job, NOT evidence that
+    -- a record was removed. Nothing may infer deletion from a missing seq; the
+    -- append-only guarantee lives in the triggers and the grants, not in the
+    -- numbering.
     seq          bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     -- clock_timestamp(), not now(): now() is transaction start and would be
     -- identical for two rows written in one transaction, which is a lie about
