@@ -2,6 +2,7 @@ load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
 load("@rules_rdf//sparql:defs.bzl", "sparql_query")
 load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
 load("//rdf:gates.bzl", "spec_corpus_gates")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -94,3 +95,32 @@ sparql_query(
 )
 
 exports_files(glob(["*.ttl"]))
+
+# ⛔ THE CORPUS IS GENERATED — asserted, not stated.
+#
+# `proposals.ttl` is produced by tools/proposals/materialize.py from the
+# append-only log. Every gate above runs over it AS COMMITTED, so until this test
+# existed a hand-edited proposals.ttl — or one generated from a log nobody has —
+# passed all of them. Invariant ⑥ was a comment.
+#
+# This re-materializes from //logs and fails if the result differs. Promotion
+# must therefore update the log and the TTL together, in one reviewable diff,
+# which is the whole point of promotion being a deliberate step.
+#
+# ⚠ Reads only: `--check` compares and returns without writing.
+#
+# ⚠ The `data` list is the load-bearing part. Under `bazel test` the script sees
+# exactly what is staged here and nothing else — a file omitted either crashes
+# the test or, worse, makes a check quietly pass over nothing.
+sh_test(
+    name = "proposals_ttl_matches_the_log",
+    size = "small",
+    srcs = ["//tools/proposals:check_materialized.sh"],
+    args = ["studio"],
+    data = [
+        "proposals.ttl",
+        "//logs:evaluations.jsonl",
+        "//logs:proposals.jsonl",
+        "//tools/proposals:materialize.py",
+    ],
+)

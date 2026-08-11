@@ -10,4 +10,7 @@ package(default_visibility = ["//visibility:public"])
 # exists. That refusal is one of three independent places a pass over an empty
 # population is refused, and each is there because the others can be bypassed;
 # losing one silently is the failure that matters.
-exports_files(["materialize.py"])
+exports_files([
+    "materialize.py",
+    "check_materialized.sh",
+])

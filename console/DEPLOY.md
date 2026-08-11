@@ -234,9 +234,13 @@ regenerated payloads, a new `corpus_version` — is the reviewable step between
 "someone clicked a button" and "the specification changed". Merging it and
 redeploying is what advances the read point the console serves.
 
-⚠ Not yet automated, and `logs/*.jsonl` is not yet committed. Until it is,
-nothing checks that `corpus/studio/proposals.ttl` corresponds to any log — a
-hand-edited one passes every gate in the repo. See RFC-003 §8.
+Commit `logs/*.jsonl` alongside the regenerated TTL and payloads.
+`//corpus/studio:proposals_ttl_matches_the_log` re-materializes from the
+committed log and fails if the TTL does not match, so the two cannot drift apart
+— and a promotion that forgets the log is caught rather than merged.
+
+⚠ The export itself is not automated yet: the psql above is run by hand. See
+RFC-003 §8 for the workflow that should run it.
 
 ---
 

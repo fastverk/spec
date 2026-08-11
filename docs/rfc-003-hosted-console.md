@@ -233,11 +233,17 @@ human merges it. The PR diff — appended log lines, regenerated `proposals.ttl`
 regenerated payloads, new `corpus_version` — is the reviewable step between
 "someone clicked a button" and "the specification changed".
 
-⚠ **A hole this exposes.** Nothing today checks that `corpus/studio/proposals.ttl`
-corresponds to any log; a hand-edited one passes every gate in the repo. That is
-invariant ⑥ being false in practice. Committing the exported JSONL makes
-"re-materializing produces no diff" a deterministic test, which is why the
-snapshot is committed rather than treated as a build artifact.
+**The hole this used to leave, now closed.** Nothing checked that
+`corpus/studio/proposals.ttl` corresponded to any log — every gate ran over it as
+committed, so a hand-edited one passed all of them and invariant ⑥ was a comment.
+`logs/*.jsonl` is committed and `//corpus/studio:proposals_ttl_matches_the_log`
+re-materializes from it, so promotion must update the log and the TTL together in
+one reviewable diff. Shown to reject both ways: editing the TTL fails, and adding
+a log line without promoting it fails.
+
+The snapshot is committed rather than treated as a build artifact for a second
+reason: Postgres cannot defend against its own owner, and a row can vanish from a
+table without trace where a line cannot vanish from a reviewed diff.
 
 **On stale `parent`:** `corpus_version` is one global digest across all projects,
 and `proposals.ttl` is inside it, so every promotion necessarily advances it and
@@ -265,8 +271,8 @@ wrong about the deployment it is running in.
 ## 10. What is not done
 
 - `db/migrate.mjs` has run against a local PostgreSQL 16 and **never against
-  Neon**. The export workflow and the committed `logs/*.jsonl` snapshot do not
-  exist, so the §8 gate is described and not built.
+  Neon**. The export step in §8 is documented and not automated — nothing yet
+  writes `logs/*.jsonl` from the database; the gate over it exists and passes.
 - The npm package that carries the read model and fixtures across the repo
   boundary is not built; the console reads both by relative path, from one file
   each, so extraction is a two-line change.

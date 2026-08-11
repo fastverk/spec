@@ -70,12 +70,15 @@ bazel test //corpus/... //rdf/... //conformance/... //tools/...
 1. **It gives the log a second copy under review.** Postgres cannot defend
    against its own owner; a git diff that removes a line is visible forever and
    requires an approval. That is the outside-the-database half of invariant ②.
-2. **It lets `materialize.py` finally be gated.** Today `corpus/studio/
-   proposals.ttl` is checked by the gates as committed, and *nothing* checks that
-   it corresponds to any log — a hand-edited `proposals.ttl` passes everything.
-   With the snapshot committed, "re-materializing produces no diff" is a
-   deterministic test. Without it, that check could only run against live Neon,
-   where the answer changes between PR open and merge.
+2. **It is what let `materialize.py` be gated.** Every gate runs over
+   `corpus/<project>/proposals.ttl` as committed, so until the snapshot existed
+   *nothing* checked that it corresponded to any log — a hand-edited
+   `proposals.ttl` passed everything, and invariant ⑥ was a comment.
+   `//corpus/studio:proposals_ttl_matches_the_log` re-materializes from the
+   snapshot and fails if the TTL differs, both ways: editing the TTL fails, and
+   adding a log line without promoting it fails. Without a committed snapshot
+   that check could only run against live Neon, where the answer changes between
+   a PR opening and merging — a non-deterministic gate, which is worse than none.
 3. **Promotion becomes reproducible offline**, with no database.
 
 Cost: a growing committed file, kilobytes per year at human write rates. If that

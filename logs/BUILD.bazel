@@ -1,0 +1,9 @@
+package(default_visibility = ["//visibility:public"])
+
+# The committed log snapshots. Source labels, so
+# //corpus/<project>:proposals_ttl_matches_the_log can re-materialize from them
+# inside a sandbox and compare against the committed TTL.
+exports_files([
+    "proposals.jsonl",
+    "evaluations.jsonl",
+])
