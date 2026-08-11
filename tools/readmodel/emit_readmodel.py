@@ -424,7 +424,7 @@ def main():
     # The READ POINT. Every proposal must name the corpus state its author was
     # looking at — spec refuses a write without one, because a proposal made
     # against a corpus you were not seeing is a different proposal. Without this
-    # the portal would have to invent a `parent`, which defeats the check.
+    # the console would have to invent a `parent`, which defeats the check.
     corpus_digest = hashlib.sha256()
 
     loaded = []

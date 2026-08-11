@@ -168,10 +168,14 @@ for _m, verb, _p in declared_reads or []:
 declared_writes = rust_triples(rs_routes, "AUTHORING_WRITES")
 check(declared_writes is not None, f"{RS_ROUTES}: no AUTHORING_WRITES table")
 # The three writes RFC-002 needs: the nested proposal, its structural preview, and
-# the flat one-op form a declarative FormPanel can submit.
+# the flat one-op form a declarative FormPanel can submit — plus SubmitEvaluation,
+# which is a MEASUREMENT rather than a judgement and so does not ride the op
+# vocabulary. It was served without being declared until the console port; this set
+# is the only thing that would have caught that, so it is spelled out rather than
+# counted.
 check(
     {m for m, _v, _p in (declared_writes or [])}
-    == {"SubmitProposal", "PreviewProposal", "SubmitOp"},
+    == {"SubmitProposal", "PreviewProposal", "SubmitOp", "SubmitEvaluation"},
     f"{RS_ROUTES}: AUTHORING_WRITES is {declared_writes}",
 )
 for _m, verb, _p in declared_writes or []:
@@ -186,6 +190,35 @@ for path in emit_by_path:
     )
 for _method, _verb, path in declared_writes or []:
     check(f'.route("/{path}", post(' in rs_http, f"{RS_HTTP}: POST /{path} is not registered")
+
+# ...and every REGISTERED route must be a DECLARED one. The direction above was
+# the only one checked, which is how `POST /evaluation` came to be served for a
+# whole release while `/describe` never mentioned it: the shell resolves a panel's
+# submit through web_routes, so an undeclared route fails in the browser as
+#
+#   no gateway route for spec.v1.Authoring/SubmitEvaluation
+#
+# — a console bug to whoever reads it. Checking one direction catches a route
+# declared and never wired; checking this one catches a route wired and never
+# declared. Both are silent, and they are not the same mistake.
+META_ROUTES = {
+    # Plugin-protocol and operator surface, deliberately outside web_routes: the
+    # shell reaches these by convention, not through the (service, method) table.
+    "describe",
+    "panels.binpb",
+    "healthz",
+    "readmodel",
+}
+declared_index = rust_triples(rs_routes, "INDEX_ROUTES")
+declared_paths = {p for _m, _v, p in (declared_index or [])}
+declared_paths |= {p for _m, _v, p in (declared_reads or [])}
+declared_paths |= {p for _m, _v, p in (declared_writes or [])}
+for path in sorted(set(re.findall(r'\.route\("/([^"]+)",\s*(?:get|post)\(', rs_http))):
+    check(
+        path in declared_paths or path in META_ROUTES,
+        f"{RS_HTTP}: /{path} is served but declared in no routes.rs table "
+        f"(add it, or name it in META_ROUTES with a reason)",
+    )
 
 # ── 6. the panel bundle: textproto, nav leaves, and the compiled bytes ────────
 textproto = read(PANELS_TEXTPROTO)

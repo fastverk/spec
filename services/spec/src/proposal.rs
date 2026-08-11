@@ -107,9 +107,15 @@ pub const OPS: &[OpSpec] = &[
     OpSpec {
         kind: "assertNS",
         required: &["subject", "text", "discipline", "rung"],
+        // `project` scopes the claim, for the same reason it scopes a binding: a
+        // requirement written while looking at Studio is not a requirement about
+        // AMPERE. `overlay.rs::read` already reads it off an assertNS and carries
+        // it onto the pending row, so leaving it out of this list made the two
+        // disagree — the overlay expected a field the door rejected, and every
+        // "write a new requirement" 422'd with `assertNS has no field project`.
         optional: &[
             "quantity", "bound_kind", "bound_value", "guard", "defeasible", "scope",
-            "citation", "modality", "instrument",
+            "citation", "modality", "instrument", "project",
         ],
         exactly_one_of: &[],
         capability: Capability::Author,
@@ -117,9 +123,12 @@ pub const OPS: &[OpSpec] = &[
     OpSpec {
         kind: "amendNS",
         required: &["subject", "text"],
+        // `discipline` is amendable for the same reason `modality` is: rewording a
+        // requirement is often how it turns out to belong to a different area, and
+        // `overlay.rs::read` already merges it onto the amended row.
         optional: &[
             "quantity", "bound_kind", "bound_value", "guard", "defeasible", "scope",
-            "citation", "modality", "instrument",
+            "citation", "modality", "instrument", "discipline",
         ],
         exactly_one_of: &[],
         capability: Capability::Author,

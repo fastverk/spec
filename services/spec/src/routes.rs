@@ -61,6 +61,13 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // write affordance DECLARATIVE — see `proposal::from_flat`, and RFC-002a §5 for
     // why that turned out to matter more than the adhoc route.
     ("SubmitOp", "POST", "proposal/op"),
+    // ⚠ Served since #29 and declared only now. `routes_match_describe` compares
+    // GET routes only, and `check_wiring.py` checks declared→registered but never
+    // registered→declared, so a POST could be served by the router and named
+    // nowhere — which is precisely the drift this module exists to make
+    // impossible. A measurement is not a judgement (see `evaluation.rs`), so it
+    // gets its own method rather than riding the op vocabulary.
+    ("SubmitEvaluation", "POST", "evaluation"),
 ];
 
 /// The full `web_routes` array for `/describe`.

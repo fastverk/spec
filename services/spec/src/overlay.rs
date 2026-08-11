@@ -69,7 +69,7 @@ fn s(op: &Map<String, Value>, k: &str) -> String {
 /// applies to every project that uses the surface.
 ///
 /// ⚠ That fallback is a real ambiguity, not a convenience: `public` is a term in
-/// more than one corpus and they need not mean the same thing. The portal always
+/// more than one corpus and they need not mean the same thing. The console always
 /// sends `project`; the empty key exists so a hand-written op still does
 /// something rather than silently nothing.
 fn scope(op: &Map<String, Value>, key: &str) -> (String, String) {
@@ -395,6 +395,99 @@ mod tests {
         let path = dir.join("log.jsonl");
         std::fs::write(&path, lines.join("\n")).unwrap();
         Pending::read(Some(&path))
+    }
+
+    /// ⛔ The SHARED cases — `conformance/overlay_cases.json` — executed here so
+    /// this overlay and the console's TypeScript one cannot drift on the one rule
+    /// most likely to be lost in a port: **pending means DIFFERS FROM THE CORPUS,
+    /// never "is in the log"**. The log is append-only, so badging on presence
+    /// would leave every adopted decision reading "not yet adopted" forever.
+    ///
+    /// Same `option_env!` guard as the evaluation suite, for the same reason, and
+    /// the hand-written cases below stay for the same reason: they are what runs
+    /// under Bazel, where the fixtures are not staged.
+    #[test]
+    fn the_shared_conformance_cases_all_hold() {
+        let Some(dir) = option_env!("CARGO_MANIFEST_DIR") else {
+            return;
+        };
+        let path = std::path::PathBuf::from(dir).join("../../conformance/overlay_cases.json");
+        if !path.is_file() {
+            return;
+        }
+        let raw = std::fs::read_to_string(&path).expect("read overlay_cases.json");
+        let doc: Value = serde_json::from_str(&raw).expect("parse overlay_cases.json");
+        let cases = doc["cases"].as_array().expect("cases array");
+        assert!(cases.len() >= 8, "suspiciously few cases: {}", cases.len());
+
+        for c in cases {
+            let name = c["name"].as_str().unwrap_or("?");
+
+            // A `malformed` entry goes to the log verbatim: one bad record must
+            // not hide the good ones after it.
+            let mut lines: Vec<String> = Vec::new();
+            for entry in c["log"].as_array().expect("log array") {
+                match entry.get("malformed").and_then(Value::as_str) {
+                    Some(raw) => lines.push(raw.to_string()),
+                    None => lines.push(log_line(entry["ops"].clone())),
+                }
+            }
+            let p = pending_from(name, &lines);
+
+            if let Some(n) = c["expect"].get("records").and_then(Value::as_u64) {
+                assert_eq!(p.records as u64, n, "{name}: records");
+            }
+
+            let corpus = |k: &str| -> Vec<Value> {
+                match c["corpus"].get(k).and_then(Value::as_array) {
+                    Some(a) => a.clone(),
+                    None => Vec::new(),
+                }
+            };
+
+            let rows: Vec<Value> = match c["apply"].as_str() {
+                Some("terms") => {
+                    let mut r = corpus("terms");
+                    p.apply_terms(&mut r);
+                    r
+                }
+                Some("requirements") => {
+                    let mut r = corpus("requirements");
+                    p.apply_requirements(&mut r);
+                    r
+                }
+                Some("proposals") => p.to_rows(&corpus("terms"), &corpus("requirements")),
+                other => panic!("{name}: `apply` is {other:?}"),
+            };
+
+            if let Some(n) = c["expect"].get("row_count").and_then(Value::as_u64) {
+                assert_eq!(rows.len() as u64, n, "{name}: row_count, got {rows:?}");
+            }
+
+            for want in c["expect"]["rows"].as_array().expect("expect.rows") {
+                let sel = want["where"].as_object().expect("where object");
+                let row = rows
+                    .iter()
+                    .find(|r| sel.iter().all(|(k, v)| r.get(k.as_str()) == Some(v)))
+                    .unwrap_or_else(|| panic!("{name}: no row matching {sel:?} in {rows:?}"));
+                if let Some(fields) = want.get("fields").and_then(Value::as_object) {
+                    for (k, v) in fields {
+                        assert_eq!(row.get(k.as_str()), Some(v), "{name}: field `{k}` in {row:?}");
+                    }
+                }
+                // Absence, not `== false`: the overlay inserts no key at all when
+                // a proposal matches the corpus, and that is the assertion.
+                if let Some(absent) = want.get("absent").and_then(Value::as_array) {
+                    for k in absent {
+                        let k = k.as_str().unwrap_or("");
+                        assert!(
+                            row.get(k).is_none(),
+                            "{name}: `{k}` must be absent — it matches the corpus, so it is not pending: {row:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]

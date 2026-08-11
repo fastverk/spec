@@ -160,19 +160,23 @@ jobs:
       - name: warm the tectonic cache
         run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
 
+      # ⚠ These are EXPLICIT package lists, not //... — a new package is invisible
+      # to the gate until it is named here, in both steps. //conformance/... is
+      # listed because it is the only place the safety rules are cross-checked on
+      # an ordinary PR; see the note on the plugin step below.
       - name: build
         run: |
           bazel $BAZEL_FLAGS build --keep_going \
-            //corpus/... //crank/... //deck/... //examples/... //graph/... \
-            //grounding/... //impact/... //java/... //lean/... //paper/... \
-            //proto/... //rdf/... //tools/...
+            //conformance/... //corpus/... //crank/... //deck/... //examples/... \
+            //graph/... //grounding/... //impact/... //java/... //lean/... \
+            //paper/... //proto/... //rdf/... //tools/...
 
       - name: test
         run: |
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors \
-            //corpus/... //crank/... //deck/... //examples/... //graph/... \
-            //grounding/... //impact/... //java/... //lean/... //paper/... \
-            //proto/... //rdf/... //tools/...
+            //conformance/... //corpus/... //crank/... //deck/... //examples/... \
+            //graph/... //grounding/... //impact/... //java/... //lean/... \
+            //paper/... //proto/... //rdf/... //tools/...
 
       # The remaining test target — //services/spec:spec_test, whose 5 modules
       # include the routes.rs assertions that every served route is declared in
@@ -183,16 +187,19 @@ jobs:
         run: |
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors //services/...
 
-  # The portal is a Vite/React app, so `bazel test //...` says NOTHING about it:
-  # it can stop compiling entirely and the gate above stays green. That is the
-  # same class of gap as a test wired to nothing — coverage that reads as
-  # coverage without touching the thing.
+
+  # ⛔ The console is where the safety rules run for real, and it is the ONLY half
+  # of the conformance suite that executes on an ordinary PR — //services/spec:
+  # spec_test needs the private-crate token and has been skipping. If this job
+  # stops running, a Rust/TypeScript divergence is caught by nothing that
+  # executes; //conformance:conformance_test still compares the constants, but
+  # constants are not behaviour.
   #
-  # ⚠ Typecheck AND build. `tsc --noEmit` alone misses what the bundler rejects,
-  # and `vite build` alone does not typecheck (esbuild strips types without
-  # reading them), so each passes over the other's failures.
-  portal:
-    name: portal typecheck + build
+  # ⚠ Typecheck AND test AND build. `tsc --noEmit` misses what the bundler
+  # rejects, and `next build` does not typecheck everything the way tsc does, so
+  # each passes over the others' failures.
+  console:
+    name: console typecheck + conformance + build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -205,16 +212,26 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: portal/pnpm-lock.yaml
+          cache-dependency-path: console/pnpm-lock.yaml
 
       - name: install
-        working-directory: portal
+        working-directory: console
         run: pnpm install --frozen-lockfile
 
       - name: typecheck
-        working-directory: portal
+        working-directory: console
         run: pnpm exec tsc --noEmit
 
+      # The shared cases. These live in //conformance and are executed here and
+      # by services/spec; neither language owns them.
+      - name: conformance
+        working-directory: console
+        run: pnpm exec vitest run
+
+      # ⚠ Builds the read model INTO the bundle, so this also proves the eight
+      # payloads still parse and still agree on one corpus_version. A build that
+      # spans two corpora fails here rather than serving a read point that is a
+      # lie whichever one you pick.
       - name: build
-        working-directory: portal
-        run: pnpm exec vite build
+        working-directory: console
+        run: pnpm exec next build

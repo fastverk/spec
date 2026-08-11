@@ -1,0 +1,47 @@
+# The append-only logs, as committed snapshots
+
+Two JSONL files, one record per line, in append order. Empty today.
+
+## Why they are in git
+
+`corpus/<project>/proposals.ttl` is generated from these by
+`tools/proposals/materialize.py`, and the gates run over the result. Until these
+files existed, **nothing checked that `proposals.ttl` corresponded to any log** —
+a hand-edited one passed every gate in the repo, which made invariant ⑥ ("the
+corpus is generated — edit by re-running a tool or making a proposal") false in
+practice.
+
+`//corpus/studio:proposals_ttl_matches_the_log` closes that. It re-materializes
+from these files and fails if the result differs from what is committed.
+
+Three other things follow from committing them, and the second is the one that
+matters most:
+
+1. **Promotion is reproducible offline.** Anyone can re-run `materialize.py` with
+   no database and get the same TTL.
+2. **The log gets a second copy under review.** Postgres cannot defend against
+   its own owner — a role that can `ALTER TABLE ... DISABLE TRIGGER` can delete.
+   A row can vanish from a table without trace; a line cannot vanish from a
+   reviewed diff. This is the outside-the-database half of invariant ②.
+3. **The gate is deterministic.** Checked against live Neon instead, the answer
+   would change between a PR opening and merging, which is worse than no gate.
+
+## How they get updated
+
+Not by hand. The promotion workflow exports from Neon with a SELECT-only
+credential and commits the result alongside the regenerated TTL and read model:
+
+```sh
+psql "$NEON_EXPORT_URL" -X -A -t -q --no-psqlrc -v ON_ERROR_STOP=1 \
+  -c "SELECT line FROM spec.proposal_log ORDER BY seq" > logs/proposals.jsonl
+```
+
+See `console/db/README.md` for why export is a `SELECT` of a stored line rather
+than a serializer, and `docs/rfc-003-hosted-console.md` §8 for the whole loop.
+
+⚠ **Append only, and never rotated.** Rotation is deletion with a schedule. At
+human write rates this grows by kilobytes a year; if that ever stops being fine,
+shard by year rather than truncating.
+
+⚠ Empty is not the same as absent. An empty file means no proposal has been
+promoted yet. A missing file means nobody can tell.

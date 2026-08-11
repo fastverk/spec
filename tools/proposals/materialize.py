@@ -3,7 +3,7 @@
 
 ## Why this is a separate act, and not something the service does
 
-Writing through the portal appends to an append-only log and the service
+Writing through the console appends to an append-only log and the service
 overlays that log on what you see, marked PENDING. Nothing is edited in place.
 This tool is the promotion: it turns admitted proposals into TTL that lands in
 the corpus, which is what the gates run over and what CI checks.
@@ -60,7 +60,15 @@ def read_log(path: pathlib.Path, project: str):
     ops = []
     if not path.exists():
         return ops
-    for line in path.read_text(encoding="utf-8").splitlines():
+    # ⛔ split("\n"), never splitlines(). Python splits on U+2028, U+2029 and
+    # U+0085 as well as \n; JSON does not, and serde_json emits all three RAW
+    # inside a string rather than escaping them. So a proposal whose text carried
+    # a LINE SEPARATOR — paste from a PDF is the usual way — became two fragments
+    # here, neither of which parsed, and both were skipped by the except below.
+    # The record stayed in the log, never promoted, and read as "pending, not yet
+    # adopted" in the console forever, with no error anywhere. Measured, not
+    # inferred: one such line splits into 2 pieces and 0 of them json.loads().
+    for line in path.read_text(encoding="utf-8").split("\n"):
         if not line.strip():
             continue
         try:
@@ -70,7 +78,7 @@ def read_log(path: pathlib.Path, project: str):
             continue
         author = rec.get("author_email") or rec.get("author") or ""
         for op in body.get("ops", []):
-            # An op with no project applies everywhere; the portal always sends one.
+            # An op with no project applies everywhere; the console always sends one.
             if op.get("project") and op["project"] != project:
                 continue
             ops.append((op, author, rec.get("parent", "")))
@@ -89,7 +97,9 @@ def read_evaluations(path: pathlib.Path, project: str):
     out = {}
     if not path.exists():
         return out
-    for line in path.read_text(encoding="utf-8").splitlines():
+    # Same reason as read_log above: splitlines() would break a record carrying
+    # U+2028/U+2029/U+0085 into unparseable fragments and drop it silently.
+    for line in path.read_text(encoding="utf-8").split("\n"):
         if not line.strip():
             continue
         try:
