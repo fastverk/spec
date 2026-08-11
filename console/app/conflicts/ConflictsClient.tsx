@@ -5,9 +5,10 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import type { Row } from "../../lib/overlay";
+import { inProject, openingProject } from "../../lib/project";
 import { MONO } from "../theme";
 import { NotBackedYet, PaneHead, ProjectPicker } from "../ui";
 
@@ -20,13 +21,19 @@ import { NotBackedYet, PaneHead, ProjectPicker } from "../ui";
  * resolution, and keyed its rows on `undefined`. Nothing caught it, because a
  * TypeScript type over a payload nobody generates the type from is a comment.
  */
-export function ConflictsClient({ conflicts, witness }: { conflicts: Row[]; witness: Row[] }) {
-  const projects = useMemo(
-    () => [...new Set(conflicts.map((c) => String(c["project"] ?? "")))].filter(Boolean).sort(),
-    [conflicts],
-  );
-  const [project, setProject] = useState(projects[0] ?? "");
-  const mine = conflicts.filter((c) => c["project"] === project);
+/**
+ * ⚠ `projects` is the whole corpus's project list, NOT the projects that happen
+ * to have conflicts. Deriving it from the rows made the picker disappear (one
+ * distinct project among the rows is below `ProjectPicker`'s threshold) and
+ * pinned the pane to `ampere`, which is the only project with any — so the pane
+ * silently showed a different project than every other pane, and "the corpus has
+ * conflicts" was indistinguishable from "this project has conflicts".
+ */
+export function ConflictsClient({ conflicts, witness, projects }: {
+  conflicts: Row[]; witness: Row[]; projects: string[];
+}) {
+  const [project, setProject] = useState(() => openingProject(projects));
+  const mine = conflicts.filter((c) => inProject(c, project));
 
   // The witness payload carries the parties of each conflict, one row each.
   const partiesOf = (id: string) =>
@@ -44,7 +51,10 @@ export function ConflictsClient({ conflicts, witness }: { conflicts: Row[]; witn
       {mine.length === 0 ? (
         <NotBackedYet
           what={
-            projects.length === 0
+            // ⛔ Two different facts, and the test is `conflicts`, not `mine`.
+            // "This corpus records none" and "this project has none" read the
+            // same on screen and mean different things about the detector.
+            conflicts.length === 0
               ? "No conflicts are recorded in any corpus. Empty means none found, not none looked for."
               : `No conflicts recorded for ${project}. Conflicts are found by comparing TYPED claims — ` +
                 "if everything here is still prose, the detector has nothing two claims could disagree about."

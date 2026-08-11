@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 
 import { stateOf } from "../../lib/evaluated";
 import type { Row } from "../../lib/overlay";
+import { inProject, openingProject, projectsIn } from "../../lib/project";
 import { MONO, SERIF } from "../theme";
 import { OverlayError, PaneHead, ProjectPicker, StateChip } from "../ui";
 import { useOverlay } from "../useOverlay";
@@ -25,13 +26,10 @@ export function DocumentClient({ corpusReqs }: { corpusReqs: Row[] }) {
   const { data, error } = useOverlay();
   const reqs = data?.requirements ?? corpusReqs;
 
-  const projects = useMemo(
-    () => [...new Set(corpusReqs.map((r) => String(r["project"] ?? "")))].filter(Boolean).sort(),
-    [corpusReqs],
-  );
-  const [project, setProject] = useState(projects.includes("studio") ? "studio" : projects[0] ?? "");
+  const projects = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
+  const [project, setProject] = useState(() => openingProject(projects));
 
-  const mine = reqs.filter((r) => r["project"] === project);
+  const mine = reqs.filter((r) => inProject(r, project));
   const areas = [...new Set(mine.map((r) => String(r["discipline"] ?? "")))];
   const enforced = mine.filter((r) => stateOf(r) === "Enforced").length;
 
