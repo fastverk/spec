@@ -13,6 +13,7 @@ import { PaneHead } from "../ui";
 
 type Health = {
   corpus_version: string;
+  deployment: { commit: string; stage: string };
   rows: Record<string, number>;
   log_backend: "neon" | "jsonl" | "none";
   write_enabled: boolean;
@@ -91,7 +92,22 @@ export default function Page() {
           ) : null}
 
           <Paper variant="outlined" sx={{ p: 2.5, maxWidth: 860 }}>
-            <Typography variant="h2" sx={{ fontSize: 13, mb: 1 }}>The corpus</Typography>
+            <Typography variant="h2" sx={{ fontSize: 13, mb: 1 }}>The build</Typography>
+            <Line
+              label="Serving commit"
+              value={h.deployment?.commit || "unknown"}
+              tone={h.deployment?.commit ? undefined : "warn"}
+              hint={
+                h.deployment?.commit
+                  ? "The code answering this request, not the code on main. A fix that is merged and green is not yet a fix that is deployed."
+                  : h.deployment?.stage === "local"
+                    ? "Running outside Vercel, so there is no deployment to name."
+                    : "Deployed, but the system environment variables are not exposed — this deployment cannot say which code it is running."
+              }
+            />
+            <Line label="Stage" value={h.deployment?.stage || "unknown"} />
+
+            <Typography variant="h2" sx={{ fontSize: 13, mt: 3, mb: 1 }}>The corpus</Typography>
             <Line
               label="Read point"
               value={h.corpus_version}
