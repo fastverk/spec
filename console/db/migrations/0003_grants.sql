@@ -40,6 +40,22 @@ END $$;
 --
 -- Until then both roles exist and neither can connect, which is the safe state.
 
+-- ⚠ PostgreSQL 16+ requires membership in a role WITH SET to hand it ownership,
+-- and ADMIN alone is not enough.
+--
+-- A CREATEROLE role is auto-granted ADMIN on roles it creates, which is why this
+-- looks unnecessary and is not: on Neon, `neondb_owner` creates `spec_owner`
+-- three lines up and then cannot give it anything —
+--
+--     ERROR: must be able to SET ROLE "spec_owner"   (42501)
+--
+-- Measured against Neon (PostgreSQL 17.10), not inferred. It does not reproduce
+-- as a local superuser, which is exactly the shape of bug that reaches a
+-- deployment: the environment that finds it is the one you cannot test in.
+DO $$ BEGIN
+    EXECUTE format('GRANT spec_owner TO %I WITH SET TRUE', current_user);
+END $$;
+
 ALTER SCHEMA spec                OWNER TO spec_owner;
 ALTER TABLE  spec.proposal_log   OWNER TO spec_owner;
 ALTER TABLE  spec.evaluation_log OWNER TO spec_owner;

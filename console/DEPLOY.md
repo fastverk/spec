@@ -74,6 +74,8 @@ a preview writing to production leaves a permanent record nobody can remove.
 
 ### Checking it took
 
+Verified against Neon (PostgreSQL 17.10), not just locally:
+
 ```sql
 -- what exists, and who owns it
 SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'spec';
@@ -84,6 +86,11 @@ SELECT tablename, tableowner FROM pg_tables WHERE schemaname = 'spec';
 DELETE FROM spec.proposal_log;
 -- ERROR: permission denied for table proposal_log
 ```
+
+⚠ **Do not test the door against a database you intend to keep.** The log is
+append-only by design, so verification writes cannot be removed — the only reset
+is to drop the schema and re-apply. Use a Neon branch, or do it before the first
+real proposal.
 
 ⚠ `seq` is **ordered, not contiguous**. A refused insert still consumes a
 sequence value, so a rejected vacuous pass leaves a gap. A gap is evidence the
