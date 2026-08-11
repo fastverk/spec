@@ -743,6 +743,10 @@ fn write_canonical(v: &Value, out: &mut String) {
 /// the file is opened with `append(true)` and never seeked, so a reader can replay
 /// the log by line and a crash mid-write costs at most the tail line. `spec replay`
 /// (RFC-002 P1) consumes this.
+/// The same append-only primitive carries the evaluation log — measurements
+/// rather than judgements — so the name is aliased rather than the type copied.
+pub type AppendLog = ProposalLog;
+
 pub struct ProposalLog {
     path: Option<PathBuf>,
     lock: Mutex<()>,

@@ -47,6 +47,7 @@ pub const AUTHORING_READS: &[(&str, &str, &str)] = &[
     ("ListRequirements", "GET", "requirements"),
     ("ListTerms", "GET", "terms"),
     ("ListProposals", "GET", "proposals"),
+    ("ListEvaluations", "GET", "evaluations"),
 ];
 
 /// The authoring write path. Declared unconditionally, even when

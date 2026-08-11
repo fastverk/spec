@@ -451,6 +451,10 @@ au:Fails a au:Outcome ; rdfs:label "fails" ;
     rdfs:comment "The implementation violates the claim. A defect where the implementation is canonical." .
 au:CannotBeGrounded a au:Outcome ; rdfs:label "cannot be grounded" ;
     rdfs:comment "A term has no referent in this implementation, so the check cannot run at all. ⛔ NOT a pass. Against a lagging implementation this is the migration backlog, enumerated rather than estimated." .
+au:Examined a au:Outcome ;
+    rdfs:label "examined" ;
+    rdfs:comment "The population is known and the predicate has NOT been decided. The grounding adapter measures how many records a check would examine and deliberately refuses to claim a pass, because a pass is only meaningful once the predicate is evaluated. Recording that as au:Passes would be the vacuous-truth failure committed at the last step, so it gets its own value and nothing counts it as a pass." .
+
 au:Vacuous a au:Outcome ; rdfs:label "vacuous" ;
     rdfs:comment "Evaluated over an EMPTY population. Reported honestly rather than as a pass, which is what it would otherwise look like." .
 

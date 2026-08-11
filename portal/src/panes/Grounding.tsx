@@ -470,9 +470,12 @@ export function Grounding({
                 key={c.locator || c.label}
                 c={c}
                 busy={busy}
-                chosen={hole.boundTo === c.locator}
+                chosen={hole.boundTo === (c.id || c.locator)}
+                // ⚠ Bind the stable ID, show the locator. They are different
+                // strings, and binding the readable one produced a value
+                // /evaluate could not resolve — every check 400'd.
                 onChoose={() =>
-                  act("bindTerm", { term: hole.surface, definition: c.locator },
+                  act("bindTerm", { term: hole.surface, definition: c.id || c.locator },
                       `${hole.surface} now means “${c.label}”`)
                 }
               />

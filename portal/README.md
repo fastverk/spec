@@ -86,6 +86,30 @@ python3 tools/readmodel/emit_readmodel.py     # re-project for the portal
 bazel test //corpus/studio/...                # the gates, over the result
 ```
 
+## Checking: what would this examine?
+
+Once a term is bound, a requirement can be measured. The product runs the query
+in its own environment and returns a **count**; spec keeps the count, the query
+fingerprint, and the outcome. No rows cross.
+
+⛔ **`EVALUABLE` becomes `Examined`, never `Passes`.** The adapter deliberately
+refuses to claim a pass, because a pass is only meaningful once the predicate
+itself is evaluated — and nothing does that yet. What is established is whether
+a check would examine anything at all, which is what decides if a future pass
+would mean anything.
+
+A pass over an empty population is refused in **three** independent places, and
+each one is there because the others can be bypassed:
+
+| | |
+|---|---|
+| `POST /evaluation` | 422 before anything is written to an append-only log |
+| `materialize.py` | drops it rather than promoting it into the corpus |
+| `vacuous-invariant.rq` | fails the build for any TTL that carries it |
+
+Set `SPEC_EVALUATION_LOG` to enable recording; unset means measurements are not
+kept. Promote with `--evaluations` on materialize.
+
 ## Theme
 
 Light, dark, or follow the system — cycled from the toolbar, remembered in

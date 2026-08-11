@@ -24,6 +24,9 @@ export type Requirement = {
   pending?: boolean;
   pending_by?: string;
   retracted?: boolean;
+  /** A measurement exists but is not yet adopted into the corpus. */
+  evaluation_pending?: boolean;
+  evaluated_by?: string;
 };
 
 export type Discipline = {
@@ -59,6 +62,8 @@ export type Spec = {
 };
 
 export type Candidate = {
+  /** The stable referent name. Bind to THIS — `locator` is for reading. */
+  id: string;
   locator: string;
   label: string;
   source: string;
@@ -216,6 +221,63 @@ export const proposals = () =>
     "/api/spec/proposals",
   );
 
+/**
+ * Ask a project what a grounded check would examine, then record the answer.
+ *
+ * Two calls to two different services, and that is the boundary working: the
+ * PROJECT runs the query in its own environment and returns a count; spec keeps
+ * the count. No rows cross, in either direction.
+ *
+ * ⛔ `EVALUABLE` becomes `Examined`, never `Passes`. The adapter refuses to
+ * claim a pass because nothing has evaluated the predicate yet — only the
+ * population. Mapping it to a pass here would commit the exact failure the
+ * population number exists to expose, at the last step where anyone would look.
+ */
+export type AdapterOutcome = "CANNOT_BE_GROUNDED" | "VACUOUS" | "EVALUABLE";
+
+export type EvaluationResult = {
+  invariantId: string;
+  implementation: string;
+  outcome: AdapterOutcome;
+  population: { count: number; queryFingerprint: string; evaluatedAt: string } | null;
+  detail: string;
+};
+
+const TO_SPEC: Record<AdapterOutcome, string> = {
+  CANNOT_BE_GROUNDED: "CannotBeGrounded",
+  VACUOUS: "Vacuous",
+  EVALUABLE: "Examined",
+};
+
+export async function evaluate(invariantId: string, referent: string): Promise<EvaluationResult> {
+  const res = await fetch("/api/ground/evaluate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ invariantId, referent }),
+  });
+  if (!res.ok) throw new Error(`adapter → ${res.status}`);
+  return (await res.json()) as EvaluationResult;
+}
+
+export async function recordEvaluation(r: EvaluationResult, project: string) {
+  const res = await fetch("/api/spec/evaluation", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      claim: r.invariantId,
+      project,
+      implementation: r.implementation,
+      outcome: TO_SPEC[r.outcome],
+      population: r.population ? r.population.count : null,
+      query_fingerprint: r.population?.queryFingerprint ?? "",
+      detail: r.detail,
+    }),
+  });
+  const body = (await res.json()) as { message?: string; error?: string };
+  if (!res.ok) throw new Error(body.message || body.error || `record → ${res.status}`);
+  return body;
+}
+
 export class NoReadingProposed extends Error {
   constructor(readonly term: string) {
     super(`no reading proposed for "${term}"`);
@@ -233,8 +295,43 @@ export class NoReadingProposed extends Error {
  */
 export type State = "Draft" | "In question" | "Agreed" | "Enforced";
 
+/**
+ * ⛔ A measurement is not enforcement, and a VACUOUS one is the opposite of it.
+ *
+ * This read "an outcome exists and a population exists ⇒ Enforced", which badged
+ * AUTH-24 **Enforced** off an evaluation that examined ZERO records — the exact
+ * flattering failure the population number exists to expose, displayed as the
+ * strongest state in the product. Two things were wrong: an outcome of Vacuous
+ * or CannotBeGrounded is a reason to worry rather than a result, and `Examined`
+ * means the population is known and the predicate was never decided.
+ *
+ * Only a real verdict over a non-empty population can be Enforced.
+ */
+const VERDICTS = ["Passes", "Fails"];
+
 export function stateOf(r: Requirement): State {
-  if (r.outcome && r.outcome !== "NOT-EVALUATED" && r.population !== "—") return "Enforced";
+  const n = Number(r.population);
+  const measured = r.population !== "—" && Number.isFinite(n);
+  if (measured && n > 0 && VERDICTS.includes(r.outcome)) return "Enforced";
   if (r.blocked_on) return "In question";
   return "Agreed";
+}
+
+/**
+ * What a measurement says, for a person. Separate from `stateOf` because "we
+ * measured it and it examines nothing" is urgent information that no state in
+ * the four-state model can carry.
+ */
+export function measurement(r: Requirement): { label: string; tone: "ok" | "warn" | "bad" } | null {
+  if (r.population === "—") return null;
+  if (r.outcome === "Vacuous") {
+    return { label: "Examines nothing", tone: "bad" };
+  }
+  if (r.outcome === "CannotBeGrounded") {
+    return { label: "Cannot run here", tone: "bad" };
+  }
+  if (r.outcome === "Examined") {
+    return { label: `${r.population} records, undecided`, tone: "warn" };
+  }
+  return { label: `${r.population} records · ${r.outcome}`, tone: "ok" };
 }

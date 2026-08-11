@@ -77,9 +77,42 @@ def read_log(path: pathlib.Path, project: str):
     return ops
 
 
+def read_evaluations(path: pathlib.Path, project: str):
+    """Latest measurement per (claim, implementation).
+
+    ⛔ A vacuous pass is DROPPED here as well as refused at the door. This tool
+    can be pointed at any file, including one hand-edited, and promoting an
+    evaluation that examined zero records while claiming a result would write
+    the exact defect //rdf/lint/authoring:vacuous-invariant.rq exists to catch —
+    into the corpus that gate runs over.
+    """
+    out = {}
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            r = json.loads(line)
+        except Exception:
+            continue
+        if r.get("project") and r["project"] != project:
+            continue
+        claim, imp = r.get("claim", ""), r.get("implementation", "")
+        pop, outcome = r.get("population"), r.get("outcome", "")
+        if not claim or outcome not in ("Passes", "Fails", "Examined", "Vacuous", "CannotBeGrounded"):
+            continue
+        if outcome in ("Passes", "Fails", "Examined") and (pop is None or pop == 0):
+            print(f"  DROPPED {claim}: {outcome} over {pop} records is not a result", file=sys.stderr)
+            continue
+        out[(claim, imp)] = r
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--log", required=True)
+    ap.add_argument("--evaluations", help="the evaluation log (measurements, not judgements)")
     ap.add_argument("--corpus", required=True)
     ap.add_argument("--project", required=True)
     ap.add_argument("--check", action="store_true",
@@ -87,6 +120,7 @@ def main() -> int:
     args = ap.parse_args()
 
     ops = read_log(pathlib.Path(args.log), args.project)
+    evals = read_evaluations(pathlib.Path(args.evaluations), args.project) if args.evaluations else {}
 
     bound, aligned, retracted_terms = {}, {}, {}
     amended, retracted_ns, asserted = {}, {}, {}
@@ -182,6 +216,25 @@ st:authoring a au:Proposal ;
             f'    au:stalledOn "not-decomposed: newly written, nothing has broken it into terms yet" .'
         )
 
+    for (claim, imp), r in sorted(evals.items()):
+        pop = r.get("population")
+        ev = f"st:eval-{slug(claim)}-{slug(imp)}"
+        body = [
+            f'\nst:{claim} au:evaluatedBy {ev} .',
+            f'\n{ev} a au:Evaluation ;',
+            f'    au:implementation "{esc(imp)}" ;',
+            f'    au:outcomeOf au:{r["outcome"]} ;',
+        ]
+        # A missing population is only legal for CannotBeGrounded — the check
+        # never ran, so there is nothing to have counted. Emitting au:population
+        # anyway would invent a measurement.
+        if pop is not None:
+            body.append(f'    au:population {int(pop)} ;')
+        if r.get("query_fingerprint"):
+            body.append(f'    au:queryFingerprint "{esc(r["query_fingerprint"])}" ;')
+        body.append(f'    rdfs:comment "recorded by {esc(r.get("author", ""))}" .')
+        lines.append("\n".join(body))
+
     out = pathlib.Path(args.corpus) / "proposals.ttl"
     text = "\n".join(lines) + "\n"
 
@@ -205,6 +258,7 @@ st:authoring a au:Proposal ;
     print(f"claims amended:    {len(amended)}")
     print(f"claims withdrawn:  {len(retracted_ns)}")
     print(f"claims written:    {len(asserted)}")
+    print(f"evaluations:       {len(evals)}")
     print(f"-> {out}")
     return 0
 
