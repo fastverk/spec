@@ -98,6 +98,13 @@ function Detail({
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [checked, setChecked] = useState<string | null>(null);
+  // ⛔ `retractNS` REQUIRES a reason and always did — "retract never deletes; it
+  // demotes", and a demotion with no stated ground is indistinguishable from a
+  // mistake. Withdraw used to submit `{subject}` alone, so every click 422'd with
+  // "`retractNS` requires `reason`" and nothing was ever appended. The fix is to
+  // ask for the ground, not to make the vocabulary accept its absence.
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [why, setWhy] = useState("");
 
   useEffect(() => {
     if (!req) return;
@@ -108,6 +115,8 @@ function Detail({
     setModality(req.modality);
     setArea(req.discipline);
     setChecked(null);
+    setWithdrawing(false);
+    setWhy("");
   }, [req?.requirement_id]);
 
   if (!req) return null;
@@ -234,15 +243,39 @@ function Detail({
                   sx={{ fontFamily: MONO }} />
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+          <Stack direction="row" spacing={1} sx={{ mb: withdrawing ? 1.5 : 3 }}>
             <Button size="small" variant="outlined" onClick={() => setEditing(true)}>
               Reword
             </Button>
-            <Button size="small" color="inherit" variant="outlined" disabled={busy || req.retracted}
-                    onClick={() => save("retractNS", { subject: req.requirement_id })}>
+            <Button size="small" color="inherit" variant="outlined"
+                    disabled={busy || req.retracted || withdrawing}
+                    onClick={() => setWithdrawing(true)}>
               {req.retracted ? "Withdrawal proposed" : "Withdraw"}
             </Button>
           </Stack>
+
+          {withdrawing ? (
+            <Stack spacing={1.5} sx={{ mb: 3 }}>
+              <TextField
+                size="small" multiline minRows={2} value={why} autoFocus
+                onChange={(e) => setWhy(e.target.value)}
+                label="Why is this being withdrawn?"
+                helperText="Withdrawal demotes a requirement, it does not delete it. The ground is recorded with it."
+              />
+              <Stack direction="row" spacing={1}>
+                <Button size="small" variant="contained" disabled={busy || !why.trim()}
+                        onClick={() => save("retractNS", {
+                          subject: req.requirement_id, reason: why.trim(),
+                        })}>
+                  Propose withdrawal
+                </Button>
+                <Button size="small" color="inherit" disabled={busy}
+                        onClick={() => { setWithdrawing(false); setWhy(""); }}>
+                  Cancel
+                </Button>
+              </Stack>
+            </Stack>
+          ) : null}
         </>
       )}
 

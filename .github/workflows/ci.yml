@@ -160,19 +160,23 @@ jobs:
       - name: warm the tectonic cache
         run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
 
+      # ⚠ These are EXPLICIT package lists, not //... — a new package is invisible
+      # to the gate until it is named here, in both steps. //conformance/... is
+      # listed because it is the only place the safety rules are cross-checked on
+      # an ordinary PR; see the note on the plugin step below.
       - name: build
         run: |
           bazel $BAZEL_FLAGS build --keep_going \
-            //corpus/... //crank/... //deck/... //examples/... //graph/... \
-            //grounding/... //impact/... //java/... //lean/... //paper/... \
-            //proto/... //rdf/... //tools/...
+            //conformance/... //corpus/... //crank/... //deck/... //examples/... \
+            //graph/... //grounding/... //impact/... //java/... //lean/... \
+            //paper/... //proto/... //rdf/... //tools/...
 
       - name: test
         run: |
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors \
-            //corpus/... //crank/... //deck/... //examples/... //graph/... \
-            //grounding/... //impact/... //java/... //lean/... //paper/... \
-            //proto/... //rdf/... //tools/...
+            //conformance/... //corpus/... //crank/... //deck/... //examples/... \
+            //graph/... //grounding/... //impact/... //java/... //lean/... \
+            //paper/... //proto/... //rdf/... //tools/...
 
       # The remaining test target — //services/spec:spec_test, whose 5 modules
       # include the routes.rs assertions that every served route is declared in

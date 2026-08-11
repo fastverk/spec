@@ -251,6 +251,81 @@ mod tests {
         Value::Object(m)
     }
 
+    /// ⛔ The SHARED cases — `conformance/evaluation_cases.json` — executed here so
+    /// this door and the console's TypeScript one cannot drift. Two
+    /// implementations of a safety rule diverge silently: each keeps passing its
+    /// own suite while they come apart, and the suites are all anybody looks at.
+    ///
+    /// Resolved relative to the crate dir with the same `option_env!` + exists()
+    /// guard as `readmodel::tests::the_committed_payloads_carry_their_rows_field`:
+    /// the fixtures are source files, not runfiles, so under `cargo test` they are
+    /// right there and under a bazel `rust_test` they are not staged.
+    ///
+    /// ⚠ Which is exactly why the hand-written cases below are NOT deleted. They
+    /// are what runs under Bazel, and they exercise the control flow this one
+    /// would silently skip.
+    #[test]
+    fn the_shared_conformance_cases_all_hold() {
+        let Some(dir) = option_env!("CARGO_MANIFEST_DIR") else {
+            return;
+        };
+        let path = std::path::PathBuf::from(dir).join("../../conformance/evaluation_cases.json");
+        if !path.is_file() {
+            return;
+        }
+        let raw = std::fs::read_to_string(&path).expect("read evaluation_cases.json");
+        let doc: Value = serde_json::from_str(&raw).expect("parse evaluation_cases.json");
+
+        // The fixtures name the vocabulary too, so a change to either constant
+        // that the other does not follow fails here rather than in a browser.
+        let listed = |key: &str| -> Vec<String> {
+            match doc[key].as_array() {
+                Some(a) => a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect(),
+                None => Vec::new(),
+            }
+        };
+        assert_eq!(listed("outcomes"), OUTCOMES, "fixtures and OUTCOMES disagree");
+        assert_eq!(
+            listed("positive_outcomes"),
+            POSITIVE,
+            "fixtures and POSITIVE disagree"
+        );
+
+        let cases = doc["cases"].as_array().expect("cases array");
+        assert!(cases.len() >= 10, "suspiciously few cases: {}", cases.len());
+        for c in cases {
+            let name = c["name"].as_str().unwrap_or("?");
+            let author = c["author"].as_str().unwrap_or("");
+            let got = check(&c["body"], author);
+            match c["expect"].as_str() {
+                Some("accepted") => {
+                    let ok = got.unwrap_or_else(|e| {
+                        panic!("{name}: expected accepted, refused with {e}")
+                    });
+                    if let Some(n) = c
+                        .get("normalized")
+                        .and_then(|n| n.get("population"))
+                        .and_then(Value::as_i64)
+                    {
+                        assert_eq!(ok.population, Some(n), "{name}: population");
+                    }
+                }
+                Some("refused") => {
+                    let err = got
+                        .err()
+                        .unwrap_or_else(|| panic!("{name}: expected refused, was accepted"));
+                    if let Some(sub) = c.get("message_contains").and_then(Value::as_str) {
+                        assert!(
+                            err.contains(sub),
+                            "{name}: message {err:?} does not mention {sub:?}"
+                        );
+                    }
+                }
+                other => panic!("{name}: `expect` is {other:?}, not accepted|refused"),
+            }
+        }
+    }
+
     /// ⛔ Both directions. The refusal is the point of this module, and a check
     /// only ever shown to accept is an assertion.
     #[test]

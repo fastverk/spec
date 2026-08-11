@@ -1,0 +1,171 @@
+{
+  "about": [
+    "Zero is an exception, never a pass. These cases are the door's half of that",
+    "rule — `evaluation::check` in Rust, `checkEvaluation` in TypeScript. Both must",
+    "agree on every one, in both directions.",
+    "",
+    "The motivating measurement: AUTH-24 (`sponsor:edit never implies deploy`),",
+    "grounded on the deployer role, examines 0 records in Studio. A check there",
+    "would report success forever, having examined nothing. Case",
+    "`a_pass_over_zero_records_is_refused` is that finding, written down."
+  ],
+  "positive_outcomes": ["Passes", "Fails", "Examined"],
+  "outcomes": ["Passes", "Fails", "Examined", "Vacuous", "CannotBeGrounded"],
+  "cases": [
+    {
+      "name": "a_pass_over_zero_records_is_refused",
+      "why": "An invariant that examined nothing succeeds trivially. This is the AUTH-24 finding.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Passes",
+        "population": 0
+      },
+      "expect": "refused",
+      "message_contains": "Vacuous"
+    },
+    {
+      "name": "examined_over_zero_records_is_the_same_lie_in_a_quieter_voice",
+      "why": "Examined's whole content is 'there were records to look at'. Over zero there were not.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Examined",
+        "population": 0
+      },
+      "expect": "refused"
+    },
+    {
+      "name": "fails_over_zero_records_is_refused_too",
+      "why": "A failure over an empty population is as meaningless as a pass over one.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Fails",
+        "population": 0
+      },
+      "expect": "refused"
+    },
+    {
+      "name": "the_same_zero_honestly_labelled_is_accepted",
+      "why": "au:Vacuous is the honest recording of 'it ran and examined nothing'. Refusing it would leave nowhere to put the truth.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Vacuous",
+        "population": 0
+      },
+      "expect": "accepted"
+    },
+    {
+      "name": "a_check_that_could_not_run_at_all_is_accepted",
+      "why": "au:CannotBeGrounded is 'it could not run', which legitimately carries zero.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "CannotBeGrounded",
+        "population": 0
+      },
+      "expect": "accepted"
+    },
+    {
+      "name": "a_real_result_over_real_records_is_accepted",
+      "why": "The other direction. A refusal only ever shown to refuse is not a check either.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Passes",
+        "population": 88
+      },
+      "expect": "accepted",
+      "normalized": { "population": 88 }
+    },
+    {
+      "name": "a_result_with_no_population_at_all_is_refused",
+      "why": "A missing count is not a zero count — it is a result nobody can audit, and it slips past the zero check precisely because there is nothing to compare.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Passes"
+      },
+      "expect": "refused"
+    },
+    {
+      "name": "a_failure_with_no_population_at_all_is_refused",
+      "why": "Same hole, the other positive outcome.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Fails"
+      },
+      "expect": "refused"
+    },
+    {
+      "name": "cannot_be_grounded_may_legitimately_have_no_count",
+      "why": "Nothing ran, so there is nothing to have counted. Demanding a number here would invent a measurement.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "CannotBeGrounded"
+      },
+      "expect": "accepted"
+    },
+    {
+      "name": "a_negative_population_is_refused",
+      "why": "Not a count of anything.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Passes",
+        "population": -1
+      },
+      "expect": "refused"
+    },
+    {
+      "name": "an_unattributed_measurement_is_refused",
+      "why": "The same claim can pass in one product and be ungroundable in another, and an unattributed count cannot tell you which.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "outcome": "Passes",
+        "population": 5
+      },
+      "expect": "refused",
+      "message_contains": "implementation"
+    },
+    {
+      "name": "an_evaluation_of_nothing_is_refused",
+      "why": "`claim` is required — an evaluation of nothing is not a measurement.",
+      "author": "a@b.c",
+      "body": {
+        "implementation": "studio-nextjs",
+        "outcome": "Passes",
+        "population": 5
+      },
+      "expect": "refused",
+      "message_contains": "claim"
+    },
+    {
+      "name": "an_unknown_outcome_is_refused",
+      "why": "The vocabulary is closed. There is deliberately no Unknown bucket — it would immediately become where anything awkward went.",
+      "author": "a@b.c",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Probably",
+        "population": 5
+      },
+      "expect": "refused"
+    }
+  ]
+}

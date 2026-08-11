@@ -1,0 +1,246 @@
+{
+  "about": [
+    "`pending` means DIFFERS FROM THE CORPUS, never 'is in the log'. The log is",
+    "append-only, so a proposal stays in it forever — including after it has been",
+    "promoted into the TTL. Badging on presence alone would leave every adopted",
+    "decision reading 'proposed, not yet adopted' for the rest of time, and the one",
+    "badge that tells an author whether their answer landed would become",
+    "permanently meaningless.",
+    "",
+    "Adoption is the same rule seen from the other end: measured against the",
+    "corpus, never assumed from the log.",
+    "",
+    "`log` entries are proposals in the order they were appended; `later wins`.",
+    "An entry with `malformed` is written to the log verbatim and must be skipped",
+    "rather than being fatal — one bad record must not hide the good ones after it.",
+    "",
+    "`expect.rows[].where` selects a row by matching every listed field; `fields`",
+    "must then all be equal, and every key in `absent` must not be present at all.",
+    "Absence is asserted rather than compared to false because the Rust overlay",
+    "inserts no key at all when a proposal matches the corpus."
+  ],
+  "cases": [
+    {
+      "name": "a_bound_term_stops_reading_as_open",
+      "why": "The binding reaches the row, and the row says it is only PROPOSED.",
+      "apply": "terms",
+      "log": [
+        { "ops": [
+          { "op": "bindTerm", "term": "deploy:*", "definition": "team_memberships.role='deployer'", "project": "studio" }
+        ] }
+      ],
+      "corpus": {
+        "terms": [ { "project": "studio", "surface": "deploy:*", "open": true } ]
+      },
+      "expect": {
+        "rows": [
+          {
+            "where": { "surface": "deploy:*" },
+            "fields": {
+              "open": false,
+              "pending": true,
+              "bound_to": "team_memberships.role='deployer'"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an_adopted_binding_is_no_longer_pending",
+      "why": "The corpus already carries exactly this binding, so it is not a difference and must not be badged as one.",
+      "apply": "terms",
+      "log": [
+        { "ops": [
+          { "op": "bindTerm", "term": "deploy:*", "definition": "role='deployer'", "project": "studio" }
+        ] }
+      ],
+      "corpus": {
+        "terms": [
+          { "project": "studio", "surface": "deploy:*", "open": false, "bound_to": "role='deployer'" }
+        ]
+      },
+      "expect": {
+        "rows": [
+          {
+            "where": { "surface": "deploy:*" },
+            "fields": { "bound_to": "role='deployer'" },
+            "absent": ["pending", "pending_by"]
+          }
+        ]
+      }
+    },
+    {
+      "name": "a_binding_does_not_leak_across_projects",
+      "why": "`public` is a term in more than one corpus and they need not mean the same thing.",
+      "apply": "terms",
+      "log": [
+        { "ops": [
+          { "op": "bindTerm", "term": "public", "definition": "x", "project": "studio" }
+        ] }
+      ],
+      "corpus": {
+        "terms": [
+          { "project": "studio", "surface": "public", "open": true },
+          { "project": "ampere", "surface": "public", "open": true }
+        ]
+      },
+      "expect": {
+        "rows": [
+          { "where": { "project": "studio", "surface": "public" }, "fields": { "open": false } },
+          {
+            "where": { "project": "ampere", "surface": "public" },
+            "fields": { "open": true },
+            "absent": ["pending", "bound_to"]
+          }
+        ]
+      }
+    },
+    {
+      "name": "the_last_write_wins_and_amendments_reach_the_row",
+      "why": "Re-deciding is how a judgement is corrected; the current answer is the recent one.",
+      "apply": "requirements",
+      "log": [
+        { "ops": [ { "op": "amendNS", "subject": "auth-24", "text": "first" } ] },
+        { "ops": [ { "op": "amendNS", "subject": "auth-24", "text": "second" } ] }
+      ],
+      "corpus": {
+        "requirements": [ { "requirement_id": "auth-24", "predicate": "original" } ]
+      },
+      "expect": {
+        "rows": [
+          {
+            "where": { "requirement_id": "auth-24" },
+            "fields": { "predicate": "second", "pending": true }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an_amendment_matching_the_corpus_is_not_pending",
+      "why": "Same rule as bindTerm, on the requirements side: pending is a DIFFERENCE.",
+      "apply": "requirements",
+      "log": [
+        { "ops": [ { "op": "amendNS", "subject": "auth-24", "text": "original" } ] }
+      ],
+      "corpus": {
+        "requirements": [ { "requirement_id": "auth-24", "predicate": "original" } ]
+      },
+      "expect": {
+        "rows": [
+          {
+            "where": { "requirement_id": "auth-24" },
+            "fields": { "predicate": "original" },
+            "absent": ["pending", "pending_by"]
+          }
+        ]
+      }
+    },
+    {
+      "name": "an_asserted_claim_never_duplicates_an_existing_id",
+      "why": "An assertNS over an id the corpus already has must not shadow it.",
+      "apply": "requirements",
+      "log": [
+        { "ops": [
+          { "op": "assertNS", "subject": "auth-24", "text": "shadow", "discipline": "d", "rung": "R0" },
+          { "op": "assertNS", "subject": "auth-99", "text": "brand new", "discipline": "d", "rung": "R0" }
+        ] }
+      ],
+      "corpus": {
+        "requirements": [ { "requirement_id": "auth-24", "predicate": "original" } ]
+      },
+      "expect": {
+        "row_count": 2,
+        "rows": [
+          { "where": { "requirement_id": "auth-24" }, "fields": { "predicate": "original" } },
+          { "where": { "requirement_id": "auth-99" }, "fields": { "pending": true } }
+        ]
+      }
+    },
+    {
+      "name": "a_newly_asserted_claim_is_never_evaluated_not_zero",
+      "why": "The em dash and 0 are DIFFERENT: 0 means a check ran and examined nothing; the dash means no check has ever run. Rendering both as 0 is how a requirement ends up looking guarded.",
+      "apply": "requirements",
+      "log": [
+        { "ops": [
+          { "op": "assertNS", "subject": "auth-99", "text": "brand new", "discipline": "d", "rung": "R0" }
+        ] }
+      ],
+      "corpus": { "requirements": [] },
+      "expect": {
+        "row_count": 1,
+        "rows": [
+          {
+            "where": { "requirement_id": "auth-99" },
+            "fields": { "population": "—", "outcome": "NOT-EVALUATED", "pending": true }
+          }
+        ]
+      }
+    },
+    {
+      "name": "a_corrupt_line_is_skipped_not_fatal",
+      "why": "One malformed line must not blind the reader to the records after it.",
+      "apply": "terms",
+      "log": [
+        { "malformed": "{not json" },
+        { "ops": [ { "op": "retractTerm", "term": "or", "reason": "not a term" } ] }
+      ],
+      "corpus": {
+        "terms": [ { "project": "studio", "surface": "or", "open": true } ]
+      },
+      "expect": {
+        "records": 1,
+        "rows": [
+          {
+            "where": { "surface": "or" },
+            "fields": { "retracted": true, "retracted_reason": "not a term", "pending": true }
+          }
+        ]
+      }
+    },
+    {
+      "name": "an_adopted_proposal_is_not_reported_as_waiting",
+      "why": "Adoption is computed against the CORPUS. A pane counting log rows would report work that landed an hour ago as still waiting, forever.",
+      "apply": "proposals",
+      "log": [
+        { "ops": [
+          { "op": "bindTerm", "term": "deploy:*", "definition": "role='deployer'", "project": "studio" },
+          { "op": "bindTerm", "term": "public", "definition": "sponsors.visibility='public'", "project": "studio" }
+        ] }
+      ],
+      "corpus": {
+        "terms": [
+          { "surface": "deploy:*", "bound_to": "role='deployer'" },
+          { "surface": "public", "bound_to": "" }
+        ],
+        "requirements": []
+      },
+      "expect": {
+        "rows": [
+          { "where": { "subject": "deploy:*" }, "fields": { "adopted": true } },
+          { "where": { "subject": "public" }, "fields": { "adopted": false } }
+        ]
+      }
+    },
+    {
+      "name": "an_asserted_claim_counts_as_adopted_once_the_corpus_has_the_id",
+      "why": "assertNS is adopted when the id exists at all — the corpus is the authority, not the log.",
+      "apply": "proposals",
+      "log": [
+        { "ops": [
+          { "op": "assertNS", "subject": "auth-99", "text": "brand new", "discipline": "d", "rung": "R0" },
+          { "op": "assertNS", "subject": "auth-98", "text": "still waiting", "discipline": "d", "rung": "R0" }
+        ] }
+      ],
+      "corpus": {
+        "terms": [],
+        "requirements": [ { "requirement_id": "auth-99", "predicate": "brand new" } ]
+      },
+      "expect": {
+        "rows": [
+          { "where": { "subject": "auth-99" }, "fields": { "adopted": true } },
+          { "where": { "subject": "auth-98" }, "fields": { "adopted": false } }
+        ]
+      }
+    }
+  ]
+}

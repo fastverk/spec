@@ -4,3 +4,7 @@
 # Rust plugin (services/spec) cargo build artifacts. Cargo.lock IS tracked
 # (crate_universe reads it); the target dir is not.
 /target
+
+# Python bytecode from running the host-python tools directly.
+__pycache__/
+*.pyc

@@ -1,0 +1,13 @@
+package(default_visibility = ["//visibility:public"])
+
+# The promotion tool: reads the append-only logs and writes
+# corpus/<project>/proposals.ttl, which the gates then run over. Exported as a
+# source label rather than wrapped in a py_binary because rules_python is not a
+# bazel_dep here — the same reason tools/readmodel/*.py are invoked with host
+# python3 (see docs/rfc-002a-browser-authoring-path.md §9, step 4).
+#
+# //conformance:conformance_test reads it to assert the vacuous DROP still
+# exists. That refusal is one of three independent places a pass over an empty
+# population is refused, and each is there because the others can be bypassed;
+# losing one silently is the failure that matters.
+exports_files(["materialize.py"])
