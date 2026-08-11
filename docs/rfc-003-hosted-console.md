@@ -1,7 +1,8 @@
 # RFC-003 — the hosted console: Vercel, Neon, and one set of safety cases
 
-Status: **in progress**. The spec-side enablers and the ported safety rules have
-landed; the console's routes and panes have not. §9 says exactly which.
+Status: **in progress**. The console is built, runs, and replaces `portal/`; the
+safety rules are ported and gated. It has not been deployed against Neon or a
+real identity provider. §10 says exactly what is outstanding.
 
 Companion to RFC-002 (the authoring plane) and RFC-002a (the browser authoring
 path). Those two describe a write path that works on one laptop. This one is
@@ -11,13 +12,17 @@ about the fact that it works *only* on one laptop.
 
 ## 1. Why
 
-Everything below the browser already exists and is gated: a generated TTL corpus
-with SPARQL/SHACL gates run by Bazel in CI, a read model projected to committed
-JSON, a Rust service serving it, and a Vite SPA with the full write path. None of
-it is reachable by a product owner. `portal/` has no image, no chart, no CI
-publish and no deployment story of any kind — it runs as `vite dev` on
-`127.0.0.1:5174`, and its identity comes from a dev proxy that injects headers
+Everything below the browser already existed and was gated: a generated TTL
+corpus with SPARQL/SHACL gates run by Bazel in CI, a read model projected to
+committed JSON, a Rust service serving it, and a Vite SPA with the full write
+path. None of it was reachable by a product owner. `portal/` had no image, no
+chart, no CI publish and no deployment story of any kind — it ran as `vite dev`
+on `127.0.0.1:5174`, and its identity came from a dev proxy injecting headers
 from an environment variable.
+
+`portal/` is now **retired**; the console replaces it. Keeping both would have
+meant two frontends against one read model, drifting — which is the same failure
+this RFC spends §3 avoiding between Rust and TypeScript, at the UI layer.
 
 The measurement that makes this urgent: **AUTH-24** — *"sponsor:edit never
 implies deploy"* — grounded on the deployer role, examines **0 records** in
@@ -30,7 +35,7 @@ machinery to refuse that exists and nobody outside the repo can see it work.
 |---|---|
 | the Rust service has no natural Vercel runtime | the reads and writes are ported to Route Handlers |
 | the JSONL logs need a filesystem serverless does not have | genuine runtime state moves to Neon; nothing else does |
-| identity comes from a Vite dev proxy | WorkOS AuthKit, read server-side, never from a body or a client-settable header |
+| identity comes from a Vite dev proxy | Google OAuth restricted to one Workspace domain by the `hd` claim, read server-side, never from a body or a client-settable header |
 | the adapter is reached at `localhost:3010` | it becomes a configured origin that degrades honestly when unset |
 
 Two things do **not** move. The corpus stays generated and gated in CI — the
@@ -87,9 +92,15 @@ functions of the build. Only the overlay needs the database.
 
 ```
 console/
-  lib/evaluation.ts     the vacuous refusal          <- conformance/evaluation_cases.json
-  lib/overlay.ts        pending + adoption           <- conformance/overlay_cases.json
+  lib/evaluation.ts     the vacuous refusal        <- conformance/evaluation_cases.json
+  lib/overlay.ts        pending + adoption         <- conformance/overlay_cases.json
+  lib/evaluated.ts      measurements, and stateOf (the display half of the refusal)
+  lib/proposal.ts       the closed op vocabulary, 17 constructors
+  lib/canonical.ts      canonical JSON — the pre-image of a content address
+  lib/corpus.ts         the imported read model, and CORPUS_VERSION
+  lib/auth/             Google OAuth, and the session cookie
   db/migrations/        the two append-only tables
+  app/                  seven panes, six route handlers
   test/conformance.test.ts
 ```
 
@@ -236,19 +247,33 @@ promotion never rewrites it. Rewriting `parent` to the current version at
 promotion time would be falsifying provenance, and it is the one edit in this
 area that would be silently wrong.
 
-## 9. What is not done
+## 9. What the console does not carry, and why
 
-- The 10 panes are not ported. Only `lib/` and its tests exist.
-- The Route Handlers are not written.
-- `db/migrate.mjs`, the export workflow, and the committed `logs/*.jsonl`
-  snapshot do not exist yet, so the §8 gate is described and not built.
+`portal/` had ten panes. Seven are ported: Overview, Requirements, Grounding,
+Conflicts, Proposals, Document, Settings. Three are not, each for a reason:
+
+| pane | why not |
+|---|---|
+| Proof | reads the Lean estate off the filesystem via `backend.rs`. There is no filesystem on Vercel and no reason to invent one — it belongs to the Bazel/plugin plane, where it already works. |
+| Plan mode | was a placeholder saying it is not built. It still is not, and a nav entry that only says so is worse than its absence. |
+| Liveness | same. |
+
+Settings is not a port. The portal's was a hard-coded table naming an adapter URL
+that was true on one laptop; the console's reads `/api/health`, so it cannot be
+wrong about the deployment it is running in.
+
+## 10. What is not done
+
+- `db/migrate.mjs` has run against a local PostgreSQL 16 and **never against
+  Neon**. The export workflow and the committed `logs/*.jsonl` snapshot do not
+  exist, so the §8 gate is described and not built.
 - The npm package that carries the read model and fixtures across the repo
   boundary is not built; the console reads both by relative path, from one file
   each, so extraction is a two-line change.
-- **Two live write paths.** Once the console writes to Neon, `services/spec` can
-  still append to a file. Both are "the" log; neither sees the other. Retiring
-  spec's write path is a config change — `SPEC_PROPOSAL_LOG` unset already
-  answers 503 with a stated reason — and it must happen in the same change that
-  turns the console's on.
+- **Two live write paths.** `services/spec` can still append to a file. Both are
+  "the" log; neither sees the other. Retiring spec's write path is a config
+  change — `SPEC_PROPOSAL_LOG` unset already answers 503 with a stated reason —
+  and it must happen in the same change that points the console at Neon.
 - The Rust conformance tests are **written but not compiled**. The private crates
   401 in this environment and `protoc` is absent, which is the same hole CI has.
+- The OAuth flow is verified up to the Google redirect, not through it.

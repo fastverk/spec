@@ -1,6 +1,8 @@
 "use client";
 
 import Alert from "@mui/material/Alert";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
@@ -78,5 +80,27 @@ export function NotBackedYet({ what }: { what: string }) {
     <Paper variant="outlined" sx={{ p: 3, textAlign: "center" }}>
       <Typography variant="body2" sx={{ color: "text.secondary" }}>{what}</Typography>
     </Paper>
+  );
+}
+
+/**
+ * One project at a time.
+ *
+ * ⚠ The corpora are loaded as SEPARATE graphs and never merged — merging would
+ * let two products' claims join through the ontology and produce cross-project
+ * rows that are artifacts of the loader rather than findings. Showing them
+ * together here would undo that at the last step.
+ */
+export function ProjectPicker({ projects, value, onChange }: {
+  projects: string[]; value: string; onChange: (p: string) => void;
+}) {
+  if (projects.length < 2) return null;
+  return (
+    <Select size="small" value={value} onChange={(e) => onChange(String(e.target.value))}
+            sx={{ mb: 2.5, minWidth: 180, fontSize: 13 }}>
+      {projects.map((p) => (
+        <MenuItem key={p} value={p} sx={{ fontSize: 13 }}>{p}</MenuItem>
+      ))}
+    </Select>
   );
 }

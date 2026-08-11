@@ -2,13 +2,11 @@
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
-import MenuItem from "@mui/material/MenuItem";
-import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
 import { useMemo, useState } from "react";
 
 import type { Row } from "../../lib/overlay";
-import { PaneHead, OverlayError, Tile } from "../ui";
+import { OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
 import { useOverlay } from "../useOverlay";
 
 export function OverviewClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[]; corpusTerms: Row[] }) {
@@ -45,16 +43,8 @@ export function OverviewClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[];
 
       {error ? <OverlayError message={error} /> : null}
 
-      {projectList.length > 1 ? (
-        <Select
-          size="small" value={project} onChange={(e) => setProject(String(e.target.value))}
-          sx={{ mb: 2.5, minWidth: 180, fontSize: 13 }}
-        >
-          {projectList.map((p) => (
-            <MenuItem key={p} value={p} sx={{ fontSize: 13 }}>{p}</MenuItem>
-          ))}
-        </Select>
-      ) : null}
+      <ProjectPicker projects={projectList} value={project} onChange={setProject} />
+
 
       <Typography variant="h2" sx={{ mb: 1 }}>The funnel</Typography>
       <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mb: 3 }}>

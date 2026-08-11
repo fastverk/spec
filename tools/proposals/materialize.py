@@ -3,7 +3,7 @@
 
 ## Why this is a separate act, and not something the service does
 
-Writing through the portal appends to an append-only log and the service
+Writing through the console appends to an append-only log and the service
 overlays that log on what you see, marked PENDING. Nothing is edited in place.
 This tool is the promotion: it turns admitted proposals into TTL that lands in
 the corpus, which is what the gates run over and what CI checks.
@@ -78,7 +78,7 @@ def read_log(path: pathlib.Path, project: str):
             continue
         author = rec.get("author_email") or rec.get("author") or ""
         for op in body.get("ops", []):
-            # An op with no project applies everywhere; the portal always sends one.
+            # An op with no project applies everywhere; the console always sends one.
             if op.get("project") and op["project"] != project:
                 continue
             ops.append((op, author, rec.get("parent", "")))

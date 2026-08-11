@@ -21,7 +21,10 @@ const NAV = [
   { href: "/overview", label: "Overview", group: "Project" },
   { href: "/requirements", label: "Requirements", group: "Project" },
   { href: "/grounding", label: "Grounding", group: "Project" },
+  { href: "/conflicts", label: "Conflicts", group: "Assurance" },
   { href: "/proposals", label: "Proposals", group: "Outputs" },
+  { href: "/document", label: "Document", group: "Outputs" },
+  { href: "/settings", label: "Settings", group: "Outputs" },
 ] as const;
 
 function ThemeToggle() {

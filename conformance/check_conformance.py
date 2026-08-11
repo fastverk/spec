@@ -299,8 +299,9 @@ if read_fn and op_fields:
 
 # ── 6. the conformance package is actually in the CI allowlist ────────────────
 # ci.yml uses EXPLICIT package lists, not //..., so a gate can be added and never
-# run. That is the same class of gap as a test wired to nothing, and the workflow
-# says so itself about the portal. Assert this package is named in both steps.
+# run. That is the same class of gap as a test wired to nothing: coverage that
+# reads as coverage without touching the thing. Assert this package is named in
+# both steps.
 ci = read(".github/workflows/ci.yml")
 for step in ("build", "test"):
     m = re.search(rf"- name: {step}\n\s+run: \|\n(.*?)(?=\n      - name:|\Z)", ci, re.S)

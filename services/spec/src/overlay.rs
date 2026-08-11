@@ -69,7 +69,7 @@ fn s(op: &Map<String, Value>, k: &str) -> String {
 /// applies to every project that uses the surface.
 ///
 /// ⚠ That fallback is a real ambiguity, not a convenience: `public` is a term in
-/// more than one corpus and they need not mean the same thing. The portal always
+/// more than one corpus and they need not mean the same thing. The console always
 /// sends `project`; the empty key exists so a hand-written op still does
 /// something rather than silently nothing.
 fn scope(op: &Map<String, Value>, key: &str) -> (String, String) {
