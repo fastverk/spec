@@ -69,8 +69,18 @@ spec:
         {{- if .Values.sourceSync.enabled }}
         # Multi-repo git-sync sidecar: shallow-clones/refreshes each sourceSync.repos
         # entry into <mountPath>/<name>, so the plugin's scan sees them as repos.
-        # (Single-forge token: a second forge — e.g. gitlab — needs a per-repo cred
-        # or a second sidecar. See values.yaml sourceSync.)
+        #
+        # PER-REPO CREDENTIALS. A repo entry may name its own `tokenSecret` /
+        # `tokenKey`, which is what lets the estate span forges: the default
+        # token is GitHub's `build-runner-github`, and a repo on
+        # gitlab.savvifi.com carries its own instead. Previously one token
+        # covered everything, which meant everything had to live on one forge —
+        # and Studio, whose requirements this plugin now indexes, does not.
+        #
+        # The credentials are mounted as separate env vars (GIT_TOKEN_<NAME>)
+        # rather than concatenated into the URLs at template time, so a token
+        # never appears in the rendered manifest, in `kubectl get deploy -o yaml`,
+        # or in an ArgoCD diff.
         - name: git-sync
           image: {{ .Values.sourceSync.image | quote }}
           command: ["/bin/sh", "-c"]
@@ -78,14 +88,20 @@ spec:
             - |
               set -u
               {{- if .Values.sourceSync.token.existingSecret }}
-              AUTH="oauth2:${GIT_TOKEN}@"
+              DEFAULT_AUTH="oauth2:${GIT_TOKEN}@"
               {{- else }}
-              AUTH=""
+              DEFAULT_AUTH=""
               {{- end }}
               root="{{ .Values.sourceSync.mountPath }}"
               while true; do
               {{- range .Values.sourceSync.repos }}
                 u="{{ .url }}"; d="$root/{{ .name }}"
+                {{- if .tokenSecret }}
+                # This repo carries its own credential (a different forge).
+                AUTH="oauth2:${GIT_TOKEN_{{ .name | upper | replace "-" "_" }}}@"
+                {{- else }}
+                AUTH="$DEFAULT_AUTH"
+                {{- end }}
                 case "$u" in https://*) u="https://${AUTH}${u#https://}" ;; esac
                 if [ -d "$d/.git" ]; then
                   git -C "$d" fetch --depth {{ $.Values.sourceSync.depth }} origin HEAD 2>/dev/null \
@@ -96,14 +112,23 @@ spec:
               {{- end }}
                 sleep {{ .Values.sourceSync.periodSeconds }}
               done
-          {{- if .Values.sourceSync.token.existingSecret }}
           env:
+            {{- if .Values.sourceSync.token.existingSecret }}
             - name: GIT_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.sourceSync.token.existingSecret | quote }}
                   key: {{ .Values.sourceSync.token.secretKey | quote }}
-          {{- end }}
+            {{- end }}
+            {{- range .Values.sourceSync.repos }}
+            {{- if .tokenSecret }}
+            - name: GIT_TOKEN_{{ .name | upper | replace "-" "_" }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .tokenSecret | quote }}
+                  key: {{ .tokenKey | default "token" | quote }}
+            {{- end }}
+            {{- end }}
           volumeMounts:
             - name: estate
               mountPath: {{ .Values.sourceSync.mountPath }}

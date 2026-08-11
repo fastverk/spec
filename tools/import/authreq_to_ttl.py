@@ -42,17 +42,38 @@ bureaucracy: an unnamed stall cannot be assigned to anyone, and 66 claims that
 all say "not formalized" with no reason is exactly the pile this system exists
 to replace.
 
+## Fetching, and why the credential is not in this repo
+
+`--source` takes a path or a URL. For a GitLab project it reads the token from
+$GITLAB_TOKEN and never persists it — the corpus records a fingerprint of the
+DOCUMENT, which is what makes drift detectable, and nothing about how it was
+obtained.
+
+## --check is the point
+
+Regenerating by hand is not a guarantee that anyone will. `--check` re-runs the
+import and exits non-zero if the committed corpus no longer matches the source,
+so drift is one command rather than an act of vigilance. It is deliberately NOT
+a bazel test: it needs the network and a credential, and a hermetic build that
+reaches the internet is a worse problem than a stale corpus.
+
 Usage:
     python3 tools/import/authreq_to_ttl.py \\
-        --source /path/to/AuthRequirements.md \\
+        --source /path/to/AuthRequirements.md --out corpus/studio
+
+    GITLAB_TOKEN=... python3 tools/import/authreq_to_ttl.py --check \\
+        --source https://gitlab.savvifi.com/platform/studio-nextjs/AuthRequirements.md \\
         --out corpus/studio
 """
 
 import argparse
 import hashlib
+import os
 import pathlib
 import re
 import sys
+import urllib.parse
+import urllib.request
 
 # §4.x heading → (discipline slug, human label). The document's own structure;
 # inventing a taxonomy here would be a second, competing one.
@@ -82,6 +103,38 @@ MODALITY_PATTERNS = [
     (re.compile(r"\b(SHOULD)\b"), "SHOULD"),
     (re.compile(r"\b(MAY|may)\b"), "MAY"),
 ]
+
+
+def read_source(src: str) -> str:
+    """A local path, or a file in a GitLab project.
+
+    The URL form is rewritten to the API's files/raw endpoint so a plain
+    browser URL can be pasted in. The token comes from the environment and is
+    never written anywhere — a corpus that recorded how it was fetched would be
+    a credential leak waiting for someone to commit it.
+    """
+    if not src.startswith("https://"):
+        return pathlib.Path(src).read_text(encoding="utf-8")
+
+    token = os.environ.get("GITLAB_TOKEN")
+    if not token:
+        sys.exit("authreq_to_ttl: a URL source needs $GITLAB_TOKEN")
+
+    # https://<host>/<group>/<project>/<path...>  ->  API files/raw
+    rest = src[len("https://"):]
+    host, _, path = rest.partition("/")
+    parts = path.split("/")
+    if len(parts) < 3:
+        sys.exit(f"authreq_to_ttl: cannot parse a project and file out of {src!r}")
+    project = urllib.parse.quote("/".join(parts[:2]), safe="")
+    filepath = urllib.parse.quote("/".join(parts[2:]), safe="")
+    api = f"https://{host}/api/v4/projects/{project}/repository/files/{filepath}/raw?ref=main"
+
+    req = urllib.request.Request(api, headers={"PRIVATE-TOKEN": token})
+    with urllib.request.urlopen(req) as resp:
+        if resp.status != 200:
+            sys.exit(f"authreq_to_ttl: {api} returned {resp.status}")
+        return resp.read().decode("utf-8")
 
 
 def esc(s: str) -> str:
@@ -139,11 +192,14 @@ def parse(md: str):
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--source", required=True)
+    ap.add_argument("--source", required=True,
+                    help="a path, or an https:// URL to a file in a GitLab project")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--check", action="store_true",
+                    help="do not write; exit non-zero if the committed corpus has drifted")
     args = ap.parse_args()
 
-    md = pathlib.Path(args.source).read_text(encoding="utf-8")
+    md = read_source(args.source)
     digest = hashlib.sha256(md.encode()).hexdigest()[:16]
 
     claims = [(cid, sec, one_line(txt)) for cid, sec, txt in parse(md) if txt.strip()]
@@ -168,7 +224,7 @@ def main() -> int:
     for key in seen_sections:
         slug, label = SECTIONS.get(key, (key.replace(".", "-"), key))
         d.append(f'st:{slug} a au:Discipline ; rdfs:label "{esc(label)}" .')
-    (out / "disciplines.ttl").write_text("\n".join(d) + "\n")
+    disciplines_text = "\n".join(d) + "\n"
 
     # ── corpus ──────────────────────────────────────────────────────────────
     n_unconfirmed = 0
@@ -256,7 +312,28 @@ st:retirement a au:Proposal ;
 
 st:unassigned a au:Discipline ; rdfs:label "unassigned" ."""
     )
-    (out / "corpus.ttl").write_text("\n".join(c) + "\n")
+    corpus_text = "\n".join(c) + "\n"
+
+    if args.check:
+        drift = []
+        for name, fresh in (("disciplines.ttl", disciplines_text), ("corpus.ttl", corpus_text)):
+            existing = out / name
+            if not existing.exists():
+                drift.append(f"{name}: missing")
+            elif existing.read_text() != fresh:
+                drift.append(f"{name}: differs from the source")
+        if drift:
+            for d_ in drift:
+                print(f"DRIFT  {d_}", file=sys.stderr)
+            print("\nThe committed corpus no longer matches the document. Re-run without\n"
+                  "--check to regenerate, and review what changed — a requirement may have\n"
+                  "been added, reworded or retired.", file=sys.stderr)
+            return 1
+        print("ok    corpus matches the source document")
+        return 0
+
+    (out / "disciplines.ttl").write_text(disciplines_text)
+    (out / "corpus.ttl").write_text(corpus_text)
 
     print(f"claims:            {len(claims)}")
     print(f"retired tombstones:{len(RETIRED):>3}")
