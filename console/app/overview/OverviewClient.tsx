@@ -6,20 +6,18 @@ import Typography from "@mui/material/Typography";
 import { useMemo, useState } from "react";
 
 import type { Row } from "../../lib/overlay";
+import { inProject, openingProject, projectsIn } from "../../lib/project";
 import { OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
 import { useOverlay } from "../useOverlay";
 
 export function OverviewClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[]; corpusTerms: Row[] }) {
   const { data, error } = useOverlay();
-  const projectList = useMemo(
-    () => [...new Set(corpusReqs.map((r) => String(r["project"] ?? "")))].sort(),
-    [corpusReqs],
-  );
-  const [project, setProject] = useState(projectList.includes("studio") ? "studio" : projectList[0] ?? "");
+  const projectList = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
+  const [project, setProject] = useState(() => openingProject(projectList));
 
   // Overlaid rows when the overlay answered; the corpus alone when it did not.
-  const reqs = (data?.requirements ?? corpusReqs).filter((r) => r["project"] === project);
-  const termRows = (data?.terms ?? corpusTerms).filter((t) => t["project"] === project);
+  const reqs = (data?.requirements ?? corpusReqs).filter((r) => inProject(r, project));
+  const termRows = (data?.terms ?? corpusTerms).filter((t) => inProject(t, project));
 
   const written = reqs.length;
   const decomposed = new Set(termRows.map((t) => String(t["requirement_id"]))).size;

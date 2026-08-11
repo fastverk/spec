@@ -98,10 +98,12 @@ console/
   lib/proposal.ts       the closed op vocabulary, 17 constructors
   lib/canonical.ts      canonical JSON — the pre-image of a content address
   lib/corpus.ts         the imported read model, and CORPUS_VERSION
+  lib/project.ts        which project a pane opens on, and the unscoped-row rule
   lib/auth/             Google OAuth, and the session cookie
   db/migrations/        the two append-only tables
   app/                  seven panes, six route handlers
   test/conformance.test.ts
+  test/project.test.ts
 ```
 
 **Requirements and Terms render the corpus statically and fetch the overlay
@@ -268,11 +270,53 @@ Settings is not a port. The portal's was a hard-coded table naming an adapter UR
 that was true on one laptop; the console's reads `/api/health`, so it cannot be
 wrong about the deployment it is running in.
 
+### 9.1 Which project a pane opens on
+
+The corpora are loaded as separate graphs and never merged, so every pane showing
+project-scoped rows must pick one. Each picked for itself: Overview and Document
+spelled a preference inline, Conflicts took `projects[0]` — alphabetical, so
+`ampere` — and Requirements had no notion of a project at all and listed all 133
+rows of both products interleaved, offering all 27 disciplines of two businesses
+that share none. `console/lib/project.ts` is now the one place that decides, and
+`DEFAULT_PROJECT` is `studio`.
+
+**The default moved; the data did not.** `ampere` stays in the payloads and stays
+one click away, because dropping it would be a change to what the gates measure
+wearing the clothes of a display change:
+
+| payload | ampere | studio |
+|---|---|---|
+| conflicts | 12 | **0** |
+| envelopes | 2 | **0** |
+| witness rows | 33 | **0** |
+| requirements | 64 | 69 |
+
+`studio` is prose at R0/R2 with no typed quantities, so nothing in it can produce
+an empty envelope or a modality clash. A corpus without `ampere` would run the
+conflict and envelope gates over rows that cannot trip them — a gate that examines
+nothing and reports success forever, which is invariant ③ inverted.
+
+Two consequences worth stating rather than discovering:
+
+- **Conflicts now opens empty**, on a pane whose only data is `ampere`'s. That is
+  the honest reading: `studio` has no conflicts because nothing in it is typed
+  enough to have one, and the empty state says so. The picker offers `ampere`.
+- **A row that names no project is shown in every project, never in none.**
+  `assertNS` and `bindTerm` both take `project` optionally, and the overlay
+  already resolves an unscoped `bindTerm` against every corpus that uses the
+  surface (`overlay.find`). Filtering with `row.project === p` instead would make
+  a claim proposed without a project invisible in every pane at once, while
+  sitting adopted in the log — the author submits, the list does not change, and
+  nothing on screen says why. `inProject` is that rule, and it is unit-tested
+  because this corpus has no such row to catch a regression.
+
 ## 10. What is not done
 
-- `db/migrate.mjs` has run against a local PostgreSQL 16 and **never against
-  Neon**. The export step in §8 is documented and not automated — nothing yet
-  writes `logs/*.jsonl` from the database; the gate over it exists and passes.
+- The export step in §8 is documented and **not automated** — nothing yet writes
+  `logs/*.jsonl` from the database; the gate over it exists and passes. The
+  migrations themselves have since run against Neon, from CI under the
+  `database-production` environment, and `db/verify.mjs` re-proved the refusals
+  there in a rolled-back transaction.
 - The npm package that carries the read model and fixtures across the repo
   boundary is not built; the console reads both by relative path, from one file
   each, so extraction is a two-line change.
@@ -282,4 +326,7 @@ wrong about the deployment it is running in.
   and it must happen in the same change that points the console at Neon.
 - The Rust conformance tests are **written but not compiled**. The private crates
   401 in this environment and `protoc` is absent, which is the same hole CI has.
-- The OAuth flow is verified up to the Google redirect, not through it.
+- The OAuth flow has since been run end to end against the live deployment by a
+  `savvifi.com` account. What is still unverified is the **refusal**: no sign-in
+  has been attempted from outside the hosted domain, so `GOOGLE_ALLOWED_DOMAIN`
+  is proved to admit and not yet proved to reject.

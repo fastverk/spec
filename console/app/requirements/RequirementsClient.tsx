@@ -16,8 +16,9 @@ import { useEffect, useMemo, useState } from "react";
 
 import { measurement, stateOf } from "../../lib/evaluated";
 import type { Row } from "../../lib/overlay";
+import { inProject, openingProject, projectsIn } from "../../lib/project";
 import { MONO, SERIF } from "../theme";
-import { OverlayError, PaneHead, ReadOnly, StateChip } from "../ui";
+import { OverlayError, PaneHead, ProjectPicker, ReadOnly, StateChip } from "../ui";
 import { submitOp, useOverlay } from "../useOverlay";
 
 const MODALITIES = ["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"];
@@ -212,19 +213,28 @@ export function RequirementsClient({ corpusReqs, corpusTerms }: { corpusReqs: Ro
   const termRows = data?.terms ?? corpusTerms;
   const parent = data?.corpus_version ?? "";
 
+  const projectList = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
+  const [project, setProject] = useState(() => openingProject(projectList));
+  const mine = useMemo(() => reqs.filter((r) => inProject(r, project)), [reqs, project]);
+
+  // ⛔ Scoped to the project, because the disciplines of two products are two
+  // vocabularies, not one. The corpus shares none across `studio` and `ampere`,
+  // so an unscoped list offered "electrochemistry & thermal" as somewhere to file
+  // a SAVVI access requirement — a reword that would have been accepted, recorded
+  // and attributed, and read as nonsense.
   const areas = useMemo(
-    () => [...new Set(corpusReqs.map((r) => String(r["discipline"] ?? "")))].filter(Boolean).sort(),
-    [corpusReqs],
+    () => [...new Set(mine.map((r) => String(r["discipline"] ?? "")))].filter(Boolean).sort(),
+    [mine],
   );
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return reqs
+    return mine
       .filter((r) => !needle ||
         String(r["requirement_id"]).toLowerCase().includes(needle) ||
         String(r["predicate"]).toLowerCase().includes(needle))
       .sort((a, b) => compareIds(String(a["requirement_id"]), String(b["requirement_id"])));
-  }, [reqs, q]);
+  }, [mine, q]);
 
   const open = openId ? shown.find((r) => r["requirement_id"] === openId) ?? null : null;
 
@@ -238,7 +248,15 @@ export function RequirementsClient({ corpusReqs, corpusTerms }: { corpusReqs: Ro
       {error ? <OverlayError message={error} /> : null}
       {data && !data.write_enabled ? <ReadOnly because={data.write_disabled_because} /> : null}
 
-      <TextField size="small" placeholder={`Search ${reqs.length} requirements`} value={q}
+      {/* Closing the drawer on a project change is not cosmetic: the open row
+          belongs to the project you just left, and its terms and disciplines do
+          too. Requirement ids do not collide across the corpus today, so the
+          drawer would empty rather than mislead — but that is a property of this
+          corpus, not of the pane. */}
+      <ProjectPicker projects={projectList} value={project}
+                     onChange={(p) => { setProject(p); setOpenId(null); }} />
+
+      <TextField size="small" placeholder={`Search ${mine.length} requirements`} value={q}
                  onChange={(e) => setQ(e.target.value)} sx={{ mb: 2, width: 340 }} />
 
       <Stack spacing={0.75}>
@@ -270,7 +288,8 @@ export function RequirementsClient({ corpusReqs, corpusTerms }: { corpusReqs: Ro
       </Stack>
 
       {open ? (
-        <Detail req={open} terms={termRows} areas={areas} parent={parent}
+        <Detail req={open} terms={termRows.filter((t) => inProject(t, project))}
+                areas={areas} parent={parent}
                 writeEnabled={Boolean(data?.write_enabled)}
                 onClose={() => setOpenId(null)} onChanged={refresh} />
       ) : null}
