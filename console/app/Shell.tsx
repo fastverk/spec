@@ -11,6 +11,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useColorScheme } from "@mui/material/styles";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -38,9 +39,48 @@ function ThemeToggle() {
   );
 }
 
+/** Who a write here would be attributed to. */
+function Whoami() {
+  const [who, setWho] = useState<{ signed_in: boolean; email?: string } | null>(null);
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then(setWho)
+      .catch(() => setWho({ signed_in: false }));
+  }, []);
+  if (!who) return null;
+  if (!who.signed_in) {
+    // ⛔ Named, not blank. "Writes would be refused" is a fact the author needs
+    // BEFORE filling in a form, not after submitting one.
+    return (
+      <Typography sx={{ fontSize: 11, color: "warning.main", mb: 0.5 }}>
+        Not signed in — writes are refused.
+      </Typography>
+    );
+  }
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.5 }}>
+      <Tooltip title={`Proposals you make are recorded under ${who.email}`}>
+        <Typography noWrap sx={{ fontSize: 11, color: "text.secondary", flex: 1, minWidth: 0 }}>
+          {who.email}
+        </Typography>
+      </Tooltip>
+      <form action="/api/auth/logout" method="post">
+        <Button type="submit" size="small" color="inherit"
+                sx={{ fontSize: 10.5, textTransform: "none", minWidth: 0, p: 0.25 }}>
+          sign out
+        </Button>
+      </form>
+    </Box>
+  );
+}
+
 export function Shell({ corpusVersion, children }: { corpusVersion: string; children: React.ReactNode }) {
   const path = usePathname();
   const groups = [...new Set(NAV.map((n) => n.group))];
+
+  // The sign-in page is the one screen with nothing to navigate.
+  if (path === "/signin") return <>{children}</>;
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
@@ -97,7 +137,10 @@ export function Shell({ corpusVersion, children }: { corpusVersion: string; chil
               sx={{ fontFamily: MONO, fontSize: 10.5, width: "100%", justifyContent: "flex-start" }}
             />
           </Tooltip>
-          <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+          <Box sx={{ mt: 1.25 }}>
+            <Whoami />
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
             <ThemeToggle />
             <Box sx={{ flex: 1 }} />
             <Button size="small" color="inherit" href="/api/health"

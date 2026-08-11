@@ -46,33 +46,49 @@ function devPrincipal(): Principal | null {
 }
 
 /**
- * The production provider. WorkOS AuthKit reads the session server-side; wiring
- * it is a matter of configuration, and until it is configured this returns null
- * rather than inventing an author.
+ * The real provider: a signed session cookie, set only after Google asserted a
+ * verified address inside the allowed Workspace domain.
+ *
+ * ⛔ Read server-side from the cookie jar, never from a request body and never
+ * from a header. The console is the EDGE — there is no gateway in front of it
+ * that could be trusted to inject an identity, so anything the client can set is
+ * client-controlled.
  */
 async function sessionPrincipal(): Promise<Principal | null> {
-  if (!process.env["WORKOS_CLIENT_ID"]) return null;
-  // Deliberately not implemented against a half-configured environment: an
-  // identity provider that guesses is worse than one that refuses.
-  //   const { withAuth } = await import("@workos-inc/authkit-nextjs");
-  //   const { user } = await withAuth();
-  //   return user && { sub: user.id, email: user.email, ...capabilities(user.id) };
-  return null;
+  const { cookies } = await import("next/headers");
+  const { SESSION_COOKIE, openSession } = await import("./auth/session");
+  let token: string | undefined;
+  try {
+    token = (await cookies()).get(SESSION_COOKIE)?.value;
+  } catch {
+    // Called outside a request scope (a build-time render). No session, and
+    // therefore no author — which is the correct answer, not an error.
+    return null;
+  }
+  const s = await openSession(token);
+  if (!s) return null;
+  // `sub` is Google's stable account id, not the email: an address can be
+  // reassigned inside a Workspace and the log is forever.
+  return { sub: `google:${s.sub}`, email: s.email, ...capabilities(`google:${s.sub}`) };
 }
 
 const isProduction = () =>
   process.env["NODE_ENV"] === "production" || process.env["VERCEL_ENV"] === "production";
 
+/** Whether a real identity provider is wired up at all. */
+export const authConfigured = () => Boolean(process.env["GOOGLE_CLIENT_ID"]?.trim());
+
 export async function principal(): Promise<Principal | null> {
   const session = await sessionPrincipal();
   if (session) return session;
-  // ⛔ The dev shim never runs in production. A local convenience that survives
-  // into a deployment is an authentication bypass with a friendly name.
-  if (isProduction()) return null;
+  // ⛔ The dev shim never runs in production, and never when a real provider is
+  // configured. A local convenience that survives into a deployment is an
+  // authentication bypass with a friendly name.
+  if (isProduction() || authConfigured()) return null;
   return devPrincipal();
 }
 
 /** Why a write was refused, in the words the console shows. */
 export const NO_PRINCIPAL =
   "a write with no principal has no author to record, so it is refused rather " +
-  "than attributed to nobody. Set SPEC_AUTHOR for local development.";
+  "than attributed to nobody. Sign in, or set SPEC_AUTHOR for local development.";
