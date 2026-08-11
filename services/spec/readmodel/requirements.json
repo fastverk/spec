@@ -2,6 +2,7 @@
   "requirements": [
     {
       "requirement_id": "acct-capacity-revenue",
+      "predicate": "Capacity revenue MUST be recognized as the stand-ready obligation is satisfied over the delivery year.",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",
       "rung": "R4",
@@ -13,6 +14,7 @@
     },
     {
       "requirement_id": "acct-commencement",
+      "predicate": "The commencement date MUST be the date the asset is made available for use by the counterparty.",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",
       "rung": "R4",
@@ -24,6 +26,7 @@
     },
     {
       "requirement_id": "acct-gross-vs-net",
+      "predicate": "Amounts collected on behalf of another party MUST be presented net rather than gross.",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",
       "rung": "R4",
@@ -35,6 +38,7 @@
     },
     {
       "requirement_id": "acct-performance-obligation",
+      "predicate": "Distinct performance obligations in the offtake agreement MUST be identified and the transaction price allocated among them.",
       "discipline": "accounting & revenue recognition",
       "modality": "MUST",
       "rung": "R4",
@@ -46,6 +50,7 @@
     },
     {
       "requirement_id": "ahj-cell-temp-limit",
+      "predicate": "Maximum cell temperature MUST NOT exceed the limit established in the accepted analysis.",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -57,6 +62,7 @@
     },
     {
       "requirement_id": "ahj-deflagration-venting",
+      "predicate": "Each enclosure MUST provide deflagration venting sized per the accepted analysis.",
       "discipline": "fire & life safety",
       "modality": "MUST",
       "rung": "R4",
@@ -68,6 +74,7 @@
     },
     {
       "requirement_id": "ahj-derived-sustained-cap",
+      "predicate": "Sustained discharge over a four-hour window MUST NOT exceed 70 MW, being the usable energy admitted by the 85/15 percent state-of-charge window divided by four hours.",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -79,6 +86,7 @@
     },
     {
       "requirement_id": "ahj-no-override",
+      "predicate": "The accepted state-of-charge and temperature conditions MUST NOT be overridden by any operational, economic, or grid-emergency instruction.",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -90,6 +98,7 @@
     },
     {
       "requirement_id": "ahj-soc-cap",
+      "predicate": "BMS-reported state of charge MUST NOT exceed 85 percent when ambient temperature is at or above 40 degrees Celsius.",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -101,6 +110,7 @@
     },
     {
       "requirement_id": "ahj-soc-floor",
+      "predicate": "BMS-reported state of charge MUST NOT fall below 15 percent, reserving energy for thermal management and emergency response.",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -112,6 +122,7 @@
     },
     {
       "requirement_id": "cip-asset-inventory",
+      "predicate": "The responsible entity MUST maintain a current inventory of cyber assets within the electronic security perimeter.",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
       "rung": "R4",
@@ -123,6 +134,7 @@
     },
     {
       "requirement_id": "cip-cert-rotation",
+      "predicate": "Device certificates used for control-path authentication MUST be rotated before expiry without interrupting the reliability function.",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
       "rung": "R3",
@@ -134,6 +146,7 @@
     },
     {
       "requirement_id": "cip-electronic-perimeter",
+      "predicate": "All external routable connectivity to control systems MUST traverse a defined electronic access point.",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
       "rung": "R4",
@@ -145,6 +158,7 @@
     },
     {
       "requirement_id": "cip-evidence-retention",
+      "predicate": "Evidence of compliance MUST be retained for the audit period specified by the applicable measure.",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
       "rung": "R4",
@@ -156,6 +170,7 @@
     },
     {
       "requirement_id": "cip-inspect-control-traffic",
+      "predicate": "Inbound and outbound control traffic at the electronic access point MUST be subject to malicious-communications detection.",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
       "rung": "R4",
@@ -167,6 +182,7 @@
     },
     {
       "requirement_id": "cip-patch-assessment",
+      "predicate": "Security patches for applicable cyber assets MUST be assessed within the prescribed period of release.",
       "discipline": "cybersecurity & reliability compliance",
       "modality": "MUST",
       "rung": "R4",
@@ -178,6 +194,7 @@
     },
     {
       "requirement_id": "ctl-agc-latency",
+      "predicate": "Control-signal round-trip latency MUST NOT exceed 150 milliseconds, so that the four-second regulation obligation is met with margin.",
       "discipline": "protection & controls",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -189,6 +206,7 @@
     },
     {
       "requirement_id": "ctl-derate-publication",
+      "predicate": "Any active derate MUST be published to the market operator's outage system and to the asset manager within the reporting window.",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
       "rung": "R4",
@@ -200,6 +218,7 @@
     },
     {
       "requirement_id": "ctl-island-support",
+      "predicate": "The plant MUST be capable of supporting an intentional island for the site's critical loads on loss of the utility source.",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
       "rung": "R4",
@@ -211,6 +230,7 @@
     },
     {
       "requirement_id": "ctl-mode-arbitration",
+      "predicate": "The plant controller MUST arbitrate between wholesale dispatch and retail-program signals by a documented, deterministic priority.",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
       "rung": "R3",
@@ -222,6 +242,7 @@
     },
     {
       "requirement_id": "ctl-setpoint-clamp",
+      "predicate": "The controller MUST clamp any received setpoint to the intersection of all active operating limits before acting on it.",
       "discipline": "software & DER fleet control",
       "modality": "MUST",
       "rung": "R4",
@@ -233,6 +254,7 @@
     },
     {
       "requirement_id": "der-anti-islanding",
+      "predicate": "The inverter MUST cease to energize the area network upon loss of the utility source.",
       "discipline": "power-systems interconnection",
       "modality": "MUST",
       "rung": "R4",
@@ -244,6 +266,7 @@
     },
     {
       "requirement_id": "der-default-control-mode",
+      "predicate": "The default control mode SHOULD remain in effect whenever no higher-priority schedule or event is active.",
       "discipline": "software & DER fleet control",
       "modality": "SHOULD",
       "rung": "R4",
@@ -255,6 +278,7 @@
     },
     {
       "requirement_id": "der-mode-exclusivity",
+      "predicate": "A DER MUST NOT execute a retail-program control and a wholesale dispatch instruction for the same interval.",
       "discipline": "power-systems interconnection",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -266,6 +290,7 @@
     },
     {
       "requirement_id": "der-ride-through",
+      "predicate": "The inverter MUST ride through voltage and frequency excursions within the specified envelope rather than tripping.",
       "discipline": "power-systems interconnection",
       "modality": "MUST",
       "rung": "R4",
@@ -277,6 +302,7 @@
     },
     {
       "requirement_id": "fire-access-pathway",
+      "predicate": "An access pathway MUST be maintained to each enclosure for emergency response.",
       "discipline": "fire & life safety",
       "modality": "MUST",
       "rung": "R4",
@@ -288,6 +314,7 @@
     },
     {
       "requirement_id": "fire-enclosure-separation",
+      "predicate": "Enclosures MUST be separated by the minimum distance established by the applicable large-scale fire test, or by a listed barrier.",
       "discipline": "fire & life safety",
       "modality": "MUST",
       "rung": "R4",
@@ -299,6 +326,7 @@
     },
     {
       "requirement_id": "fire-group-energy-cap",
+      "predicate": "The stored energy of a single group MUST NOT exceed the applicable maximum without additional protection measures.",
       "discipline": "fire & life safety",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -310,6 +338,7 @@
     },
     {
       "requirement_id": "ins-hma-compliance",
+      "predicate": "The insured MUST operate in compliance with the accepted hazard mitigation analysis as a condition of coverage.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST",
       "rung": "R4",
@@ -321,6 +350,7 @@
     },
     {
       "requirement_id": "ins-notice-of-derate",
+      "predicate": "The insured MUST notify the insurer of any sustained derate attributable to thermal or degradation causes.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST",
       "rung": "R2",
@@ -332,6 +362,7 @@
     },
     {
       "requirement_id": "ins-soc-concurrence",
+      "predicate": "State of charge MUST NOT exceed the limit accepted in the hazard mitigation analysis; exceedance is a breach of a policy condition.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -343,6 +374,7 @@
     },
     {
       "requirement_id": "lgia-delivery-point",
+      "predicate": "Energy MUST be delivered at the contractual delivery point on the high side of the main power transformer.",
       "discipline": "power-systems interconnection",
       "modality": "MUST",
       "rung": "R4",
@@ -354,6 +386,7 @@
     },
     {
       "requirement_id": "lgia-max-injection",
+      "predicate": "Net injection at the point of interconnection MUST NOT exceed 100 MW.",
       "discipline": "power-systems interconnection",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -365,6 +398,7 @@
     },
     {
       "requirement_id": "lgia-protection-settings",
+      "predicate": "Certified protection settings MUST NOT be altered without written approval of the transmission provider.",
       "discipline": "power-systems interconnection",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -376,6 +410,7 @@
     },
     {
       "requirement_id": "lgia-reactive-capability",
+      "predicate": "The facility MUST maintain reactive capability across the specified power-factor range at the point of interconnection.",
       "discipline": "power-systems interconnection",
       "modality": "MUST",
       "rung": "R4",
@@ -387,6 +422,7 @@
     },
     {
       "requirement_id": "mkt-a-emergency-override",
+      "predicate": "During a declared system emergency the resource MUST follow the operator's instruction without curtailment for local economic or contractual reasons.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -398,6 +434,7 @@
     },
     {
       "requirement_id": "mkt-a-energy-limit-params",
+      "predicate": "A storage resource MUST submit upper and lower energy-limit parameters consistent with its physical capability for each market interval.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -409,6 +446,7 @@
     },
     {
       "requirement_id": "mkt-a-follow-dispatch",
+      "predicate": "A dispatchable resource MUST follow the operator's active-power setpoint within the prescribed response window.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -420,6 +458,7 @@
     },
     {
       "requirement_id": "mkt-a-outage-reporting",
+      "predicate": "Derates and outages MUST be reported through the operator's outage system before the affected interval.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -431,6 +470,7 @@
     },
     {
       "requirement_id": "mkt-a-regulation-submode",
+      "predicate": "A storage resource MAY elect an energy-management sub-mode that restricts its offered range in exchange for relaxed state-of-charge management obligations.",
       "discipline": "market microstructure & tariff",
       "modality": "MAY",
       "rung": "R4",
@@ -442,6 +482,7 @@
     },
     {
       "requirement_id": "mkt-a-soc-telemetry",
+      "predicate": "A storage resource MUST telemeter state of charge to the market operator at the prescribed scan rate.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -453,6 +494,7 @@
     },
     {
       "requirement_id": "mkt-a-station-power-netting",
+      "predicate": "Station auxiliary load MUST be netted against delivered energy at the metering point rather than settled separately.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R3",
@@ -464,6 +506,7 @@
     },
     {
       "requirement_id": "mkt-b-accreditation",
+      "predicate": "Accredited capacity MUST be determined by the operator's accreditation model and MUST NOT be assumed equal to nameplate rating.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -475,6 +518,7 @@
     },
     {
       "requirement_id": "mkt-b-four-hour-duration",
+      "predicate": "A storage resource seeking a full capacity commitment MUST demonstrate four continuous hours of discharge at its committed level.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -486,6 +530,7 @@
     },
     {
       "requirement_id": "mkt-b-must-deliver",
+      "predicate": "During a performance-assessment interval the resource MUST deliver at least its committed capacity obligation of 82 MW for four continuous hours.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -497,6 +542,7 @@
     },
     {
       "requirement_id": "mkt-b-must-offer",
+      "predicate": "A committed resource MUST offer its full committed capacity into the day-ahead market in every eligible hour.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -508,6 +554,7 @@
     },
     {
       "requirement_id": "mkt-b-nonperformance-charge",
+      "predicate": "Shortfall against the committed obligation MUST be assessed a non-performance charge per MWh not delivered.",
       "discipline": "market microstructure & tariff",
       "modality": "MUST",
       "rung": "R4",
@@ -519,6 +566,7 @@
     },
     {
       "requirement_id": "permit-capacity-cap",
+      "predicate": "Permitted capacity MUST NOT exceed 100 MW at the point of interconnection.",
       "discipline": "environmental permitting & land use",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -530,6 +578,7 @@
     },
     {
       "requirement_id": "permit-local-procurement",
+      "predicate": "The applicant SHOULD give preference to local suppliers and labour where commercially reasonable.",
       "discipline": "environmental permitting & land use",
       "modality": "SHOULD",
       "rung": "R4",
@@ -541,6 +590,7 @@
     },
     {
       "requirement_id": "permit-noise-limit",
+      "predicate": "Sound pressure level at the nearest property line MUST NOT exceed 45 dBA as a one-hour average during night hours.",
       "discipline": "environmental permitting & land use",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -552,6 +602,7 @@
     },
     {
       "requirement_id": "permit-setback",
+      "predicate": "Equipment MUST be set back from the property line by the distance stated in the permit condition.",
       "discipline": "environmental permitting & land use",
       "modality": "MUST",
       "rung": "R4",
@@ -563,6 +614,7 @@
     },
     {
       "requirement_id": "settle-accuracy-class",
+      "predicate": "Revenue metering MUST meet the accuracy class specified for wholesale settlement.",
       "discipline": "metering & settlement",
       "modality": "MUST",
       "rung": "R4",
@@ -574,6 +626,7 @@
     },
     {
       "requirement_id": "settle-loss-compensation",
+      "predicate": "Metered quantities MUST be loss-compensated to the contractual delivery point using the stated transformer loss factor.",
       "discipline": "metering & settlement",
       "modality": "MUST",
       "rung": "R4",
@@ -585,6 +638,7 @@
     },
     {
       "requirement_id": "settle-metering-point",
+      "predicate": "Settlement quantities MUST be read at the revenue metering point on the low side of the main power transformer.",
       "discipline": "metering & settlement",
       "modality": "MUST",
       "rung": "R4",
@@ -596,6 +650,7 @@
     },
     {
       "requirement_id": "settle-telemetry-reconciliation",
+      "predicate": "Interval metered energy MUST be reconciled against control-path telemetry, with metered values governing on disagreement.",
       "discipline": "metering & settlement",
       "modality": "MUST",
       "rung": "R4",
@@ -607,6 +662,7 @@
     },
     {
       "requirement_id": "tax-cost-substantiation",
+      "predicate": "Claimed eligible cost MUST be substantiated by supplier certifications and procurement records.",
       "discipline": "tax & project finance",
       "modality": "MUST",
       "rung": "R3",
@@ -618,6 +674,7 @@
     },
     {
       "requirement_id": "tax-domestic-content",
+      "predicate": "To qualify for the domestic-content bonus, domestic content MUST be at least the applicable percentage of eligible project cost.",
       "discipline": "tax & project finance",
       "modality": "MUST",
       "rung": "R4",
@@ -629,6 +686,7 @@
     },
     {
       "requirement_id": "tax-placed-in-service",
+      "predicate": "The facility MUST be placed in service in the taxable year for which the credit is claimed.",
       "discipline": "tax & project finance",
       "modality": "MUST",
       "rung": "R4",
@@ -640,6 +698,7 @@
     },
     {
       "requirement_id": "tax-recapture-period",
+      "predicate": "The facility MUST NOT be disposed of or cease to be qualifying property during the recapture period.",
       "discipline": "tax & project finance",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -651,6 +710,7 @@
     },
     {
       "requirement_id": "warranty-cycle-definition",
+      "predicate": "Cycle counting for warranty purposes MUST use the equivalent-full-cycle definition, being throughput divided by nameplate energy.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST",
       "rung": "R4",
@@ -662,6 +722,7 @@
     },
     {
       "requirement_id": "warranty-derate-curve",
+      "predicate": "Continuous discharge MUST NOT exceed 78 MW when ambient temperature is at or above 45 degrees Celsius, per the ambient derate curve.",
       "discipline": "electrochemistry & thermal",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -673,6 +734,7 @@
     },
     {
       "requirement_id": "warranty-firmware-current",
+      "predicate": "The battery management system MUST run the manufacturer's current released firmware revision to maintain warranty coverage.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST",
       "rung": "R4",
@@ -684,6 +746,7 @@
     },
     {
       "requirement_id": "warranty-sustained-cap",
+      "predicate": "Given 80 percent of the annual throughput budget consumed at 61 percent of the contract year, sustained discharge over a four-hour window MUST NOT exceed 55 MW for the remainder of the year.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -695,6 +758,7 @@
     },
     {
       "requirement_id": "warranty-throughput-budget",
+      "predicate": "Cumulative annual energy throughput MUST NOT exceed the warranted budget for the contract year, on pain of voiding cell coverage.",
       "discipline": "insurance, warranty & O&M",
       "modality": "MUST_NOT",
       "rung": "R4",
@@ -706,72 +770,79 @@
     },
     {
       "requirement_id": "auth-1",
+      "predicate": "Every organization kind (\u00a72.1) may authenticate through SSO, email domain, or email invite. Each platform-owning org, reseller, broker, sponsor organization, and SAVVI is a distinct **WorkOS Organization**. WorkOS Organizations provide authentication (org-scoped sessions), SSO and other auth methods (domains, invitations, MFA where required \u2014 AUTH-54), and memberships with org-level roles such as `admin` (AUTH-53). Studio authorization is layered in the application database (\u00a74.11); it is not WorkOS FGA. On the SAVVI organization, org `admin` also covers AUTH-27.",
       "discipline": "organizations and identity",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 admin, WorkOS Organization",
       "project": "studio"
     },
     {
       "requirement_id": "auth-10",
+      "predicate": "Team membership is admin-managed only (no self-service join). Roster presence is accountability, not the access gate for `public` sponsors (AUTH-35).",
       "discipline": "teams and team roles",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 public",
       "project": "studio"
     },
     {
       "requirement_id": "auth-11",
+      "predicate": "`restricted`: org-wide `sponsor:report`; view/edit require a sufficient team role on an assigned team.",
       "discipline": "visibility",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 restricted, sponsor:report",
       "project": "studio"
     },
     {
       "requirement_id": "auth-12",
+      "predicate": "`private`: invisible (not-found) except to members of an assigned team (at their role's level), **org admins** of an org holding the sponsor in its pool (at that org's public baseline, still \u2229 grant \u2014 AUTH-31), and SAVVI staff (\u00a74.8).",
       "discipline": "visibility",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 private, org admins",
       "project": "studio"
     },
     {
       "requirement_id": "auth-13",
+      "predicate": "Search covers the org's sponsor pool excluding AUTH-12-hidden sponsors; restricted surfaces at `sponsor:report`.",
       "discipline": "visibility",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 sponsor:report",
       "project": "studio"
     },
     {
       "requirement_id": "auth-14",
+      "predicate": "Effective permission on a sponsor = union(visibility baseline \u00a74.5.1, team-role permissions \u00a72.5) \u2229 grant set (AUTH-31). The union takes the max tier and keeps any orthogonal permission (`sponsor:analytics`, `deploy:*`) either side confers. Platform-owning org and SAVVI (\u00a74.8) use the full set as the grant cap. One pure function (\u00a74.11) answers point checks, lists, search, and deploy (AUTH-49).",
       "discipline": "permissions",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:analytics, deploy:*",
       "project": "studio"
     },
     {
       "requirement_id": "auth-15",
+      "predicate": "A user's sponsor list is their org's pool at effective permission per sponsor (excluding AUTH-12-hidden), filterable to \"my teams\" (AUTH-36). Broker orgs span granted platforms without org switching.",
       "discipline": "permissions",
       "modality": "MUST",
       "rung": "R0",
@@ -783,6 +854,7 @@
     },
     {
       "requirement_id": "auth-16",
+      "predicate": "Downstream entities (plan years, documents, products, comments) inherit from the parent sponsor's permission, with two named exceptions: task-level visibility and task-comment attachments (\u00a74.12).",
       "discipline": "permissions",
       "modality": "MUST",
       "rung": "R0",
@@ -794,6 +866,7 @@
     },
     {
       "requirement_id": "auth-17",
+      "predicate": "Unauthorized access returns not-found (no existence oracle).",
       "discipline": "permissions",
       "modality": "MUST",
       "rung": "R0",
@@ -805,17 +878,19 @@
     },
     {
       "requirement_id": "auth-18",
+      "predicate": "Onboarding a sponsor's WorkOS Organization: grant its sponsor to it (\u00a74.6, typically `{sponsor:edit}`), auto-provision a default team owned by that org with the sponsor assigned, and add sponsor-org users per the onboarding agreement.",
       "discipline": "sponsor organizations",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 {sponsor:edit}",
       "project": "studio"
     },
     {
       "requirement_id": "auth-19",
+      "predicate": "Sponsor-org users follow the same team/grant rules as any other organization.",
       "discipline": "sponsor organizations",
       "modality": "MUST",
       "rung": "R0",
@@ -827,6 +902,7 @@
     },
     {
       "requirement_id": "auth-2",
+      "predicate": "A user is a single identity (one account, one email) that may hold memberships in **any number of WorkOS Organizations**, each with its own org-level role. Multi-org membership is the exception, not the collaboration mechanism \u2014 cross-org access flows through grants (\u00a74.6).",
       "discipline": "organizations and identity",
       "modality": "MAY",
       "rung": "R0",
@@ -838,28 +914,31 @@
     },
     {
       "requirement_id": "auth-20",
+      "predicate": "Every sponsor is treated as granted to the SAVVI WorkOS Organization with the full permission set (`sponsor:edit`, `sponsor:analytics`, `deploy:nonproduction`, `deploy:production`, plus future). Owning-org visibility does not constrain SAVVI (\u00a74.5.1).",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 4 term(s) named and none confirmed \u2014 sponsor:edit, sponsor:analytics, deploy:nonproduction, deploy:production",
       "project": "studio"
     },
     {
       "requirement_id": "auth-21",
+      "predicate": "Within SAVVI, auto-granted sponsors follow \u00a74.5 (arrive `public`, AUTH-39); SAVVI admins may tighten visibility and use SAVVI teams normally.",
       "discipline": "SAVVI access and staff operations",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 public",
       "project": "studio"
     },
     {
       "requirement_id": "auth-22",
+      "predicate": "The system grant is not revocable by other orgs; grant listings show it as a system grant (AUTH-34).",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
       "rung": "R0",
@@ -871,61 +950,67 @@
     },
     {
       "requirement_id": "auth-23",
+      "predicate": "System grant is a **rule, not rows** in the effective-permission function (AUTH-14, \u00a74.11).",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 rule, not rows",
       "project": "studio"
     },
     {
       "requirement_id": "auth-24",
+      "predicate": "`sponsor:edit` never implies deploy. Public baseline never includes `deploy:*` (AUTH-41).",
       "discipline": "environments and deployment",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, deploy:*",
       "project": "studio"
     },
     {
       "requirement_id": "auth-25",
+      "predicate": "`deploy:production` and `deploy:nonproduction` are distinct. Production envs require `deploy:production`; non-production accepts either.",
       "discipline": "environments and deployment",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 deploy:production, deploy:nonproduction",
       "project": "studio"
     },
     {
       "requirement_id": "auth-26",
+      "predicate": "`deploy:*` comes only from team roles (\u00a72.5) and/or \u00a74.6 grants.",
       "discipline": "environments and deployment",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 deploy:*",
       "project": "studio"
     },
     {
       "requirement_id": "auth-27",
+      "predicate": "Platform create, import, and the in-app Impersonate entry point require **SAVVI admin**.",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 SAVVI admin",
       "project": "studio"
     },
     {
       "requirement_id": "auth-28",
+      "predicate": "Impersonation capability is WorkOS-only (environment opt-in + dashboard seats). The in-app entry point is a UX signal for SAVVI admins only.",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
       "rung": "R0",
@@ -937,28 +1022,31 @@
     },
     {
       "requirement_id": "auth-29",
+      "predicate": "Impersonation sessions surface via `impersonator` / `act` claim (in-app banner) and WorkOS `session.created` audit events.",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 3 term(s) named and none confirmed \u2014 impersonator, act, session.created",
       "project": "studio"
     },
     {
       "requirement_id": "auth-2a",
+      "predicate": "A user always acts in exactly **one active WorkOS Organization**. Authorization is evaluated for (user, active org); switching org re-derives roles, permissions, and visibility.",
       "discipline": "organizations and identity",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 one active WorkOS Organization",
       "project": "studio"
     },
     {
       "requirement_id": "auth-2b",
+      "predicate": "Each WorkOS Organization controls its own authentication policy. Access shared across organizations (\u00a74.6) never subjects a user to another organization's identity provider.",
       "discipline": "organizations and identity",
       "modality": "MUST_NOT",
       "rung": "R0",
@@ -970,39 +1058,43 @@
     },
     {
       "requirement_id": "auth-3",
+      "predicate": "A **sponsor** is owned by exactly one **platform**. Sponsors are never shared across platforms.",
       "discipline": "platforms and sponsors",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor, platform",
       "project": "studio"
     },
     {
       "requirement_id": "auth-30",
+      "predicate": "Who may grant a sponsor to another WorkOS Organization: platform users with `sponsor:edit`, org admins, SAVVI staff (AUTH-20), and **reseller admins** for stamped sponsors (AUTH-51, no escalation). Each grant carries an explicit permission set from \u00a72.4; orthogonal permissions (`sponsor:analytics`, `deploy:*`) only when listed. At most one grant exists per (sponsor, recipient org); granting again updates that grant's permission set (AUTH-32).",
       "discipline": "grants",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 4 term(s) named and none confirmed \u2014 sponsor:edit, sponsor:analytics, deploy:*, reseller admins",
       "project": "studio"
     },
     {
       "requirement_id": "auth-31",
+      "predicate": "In the recipient org, team roles and visibility baselines apply **intersected** with the grant (check-time, \u00a74.11). An orthogonal permission carried by a grant is therefore effective only where the derived side also confers it: `sponsor:analytics` via a team role or a public baseline listing it (AUTH-41), `deploy:*` via team roles only (AUTH-26). Example \u2014 grant `{sponsor:view}`: | Broker team role | Role would confer | Effective on Acme | | ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------- | | `implementor` | `sponsor:edit`, `sponsor:analytics`, `deploy:nonproduction` | `sponsor:view` (limited by grant; analytics/deploy not granted) | | `reporter` | `sponsor:report` | `sponsor:report` |",
       "discipline": "grants",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 10 term(s) named and none confirmed \u2014 sponsor:analytics, deploy:*, {sponsor:view}, implementor, sponsor:edit, deploy:nonproduction, sponsor:view, reporter, sponsor:report, intersected",
       "project": "studio"
     },
     {
       "requirement_id": "auth-32",
+      "predicate": "Grants and their permission sets are editable/revocable by the same parties as AUTH-30. Revocation takes effect on the next check; recipient team assignments become inert (AUTH-17).",
       "discipline": "grants",
       "modality": "MUST",
       "rung": "R0",
@@ -1014,17 +1106,19 @@
     },
     {
       "requirement_id": "auth-33",
+      "predicate": "Grants are non-transferable except stamped reseller orgs (AUTH-50/51), which extend grants to collaborating orgs (brokers, the sponsor's own org) **on behalf of the platform**, capped **at issue time** to the reseller's own granted set (no escalation, including edits to its own grant). Once issued, such grants are ordinary platform grants \u2014 AUTH-30/32 parties edit or revoke them; creator provenance is `sponsor_grants.created_by_id`. Narrowing the reseller's own grant later does not retroactively narrow grants it already issued.",
       "discipline": "grants",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor_grants.created_by_id, at issue time",
       "project": "studio"
     },
     {
       "requirement_id": "auth-34",
+      "predicate": "Platform-owning org, stamped reseller org, and recipient org can each list grants they respectively own or hold. Listing authority mirrors management (AUTH-30) on the owning side; on the recipient side, org admins may list grants held by their org.",
       "discipline": "grants",
       "modality": "MAY",
       "rung": "R0",
@@ -1036,17 +1130,19 @@
     },
     {
       "requirement_id": "auth-35",
+      "predicate": "A `public` sponsor confers the org's public baseline on every org user (intersected with the grant for granted sponsors, AUTH-31).",
       "discipline": "visibility",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 public",
       "project": "studio"
     },
     {
       "requirement_id": "auth-36",
+      "predicate": "Lists filterable to \"my teams\".",
       "discipline": "visibility",
       "modality": "MUST",
       "rung": "R0",
@@ -1058,6 +1154,7 @@
     },
     {
       "requirement_id": "auth-37",
+      "predicate": "RETIRED \u2014 this identifier was removed when the document was restructured. Tombstoned so it is never reused.",
       "discipline": "unassigned",
       "modality": "MUST",
       "rung": "R0",
@@ -1069,6 +1166,7 @@
     },
     {
       "requirement_id": "auth-38",
+      "predicate": "A public team's sponsor list is filtered by the viewer's own sponsor-visibility rights (AUTH-11/AUTH-12).",
       "discipline": "visibility",
       "modality": "MUST",
       "rung": "R0",
@@ -1080,28 +1178,31 @@
     },
     {
       "requirement_id": "auth-39",
+      "predicate": "Granted sponsors enter the recipient org as `public`; recipient admins may tighten afterwards. Mind the combined default: with AUTH-41's default baseline, granting `{sponsor:edit}` immediately gives every user of the recipient org edit on the sponsor \u2014 grant narrowly or have the recipient tighten visibility when that is not intended.",
       "discipline": "visibility",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 public, {sponsor:edit}",
       "project": "studio"
     },
     {
       "requirement_id": "auth-4",
+      "predicate": "A **team** is owned by exactly one WorkOS Organization.",
       "discipline": "teams and team roles",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 team",
       "project": "studio"
     },
     {
       "requirement_id": "auth-40",
+      "predicate": "RETIRED \u2014 this identifier was removed when the document was restructured. Tombstoned so it is never reused.",
       "discipline": "unassigned",
       "modality": "MUST",
       "rung": "R0",
@@ -1113,50 +1214,55 @@
     },
     {
       "requirement_id": "auth-41",
+      "predicate": "Public baseline is org-level (`organizations.public_sponsor_permissions`); default `sponsor:edit`, may lower to `sponsor:view`, and may additionally include `sponsor:analytics`. Restricted baseline is always `sponsor:report`. Public baseline never includes `deploy:*`. After create, only an **org admin** may change a sponsor's visibility in that org.",
       "discipline": "visibility",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 7 term(s) named and none confirmed \u2014 organizations.public_sponsor_permissions, sponsor:edit, sponsor:view, sponsor:analytics, sponsor:report, deploy:*, org admin",
       "project": "studio"
     },
     {
       "requirement_id": "auth-42",
+      "predicate": "Sponsors are created under a platform by users who may create on that platform: any user of the platform-owning organization, SAVVI staff (\u00a74.8), and any user of an org with a **reseller agreement** for the platform (\u00a74.7). There is no per-user create designation. Regardless of who creates it, the sponsor is owned by the platform (AUTH-3). At create time the creator chooses team assignment(s) and the creating org's visibility; after creation, only an **org admin** of that org may change visibility (AUTH-41).",
       "discipline": "platforms and sponsors",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 reseller agreement, org admin",
       "project": "studio"
     },
     {
       "requirement_id": "auth-43",
+      "predicate": "A **platform admin** or **SAVVI admin** may establish a **reseller agreement** between a platform and another WorkOS Organization. **Platform admins** may add a reseller **only by name and domain** (reuse the WorkOS Organization that owns the domain, or create and mirror one); they must not be offered an organization picker that would disclose other platforms' reseller partners. **SAVVI admins** may add by selecting an existing mirrored organization **or** by name and domain. Webhooks never invent agreements. The agreement confers `sponsor:create` (AUTH-42) and specifies a platform-owned **book team** and default **grant permission set** (typically `{sponsor:edit}`). Platform admins see only their agreements; SAVVI admins may manage any platform's.",
       "discipline": "resellers",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 10 term(s) named and none confirmed \u2014 sponsor:create, {sponsor:edit}, platform admin, SAVVI admin, reseller agreement, Platform admins, SAVVI admins, or, book team, grant permission set",
       "project": "studio"
     },
     {
       "requirement_id": "auth-44",
+      "predicate": "Reseller-created sponsors: stamp `reseller_organization_id` (AUTH-50/51), assign to the book team, and \u00a74.6-grant to the reseller org (enters as `public`, AUTH-39). Immediate \u2014 no platform-owner approval. Platform admins may also create a sponsor and assign it to a reseller.",
       "discipline": "resellers",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 reseller_organization_id, public",
       "project": "studio"
     },
     {
       "requirement_id": "auth-45",
+      "predicate": "Book team stays platform-owned (AUTH-4, AUTH-6); reseller users are never members. Reseller access is via the grant only. Cross-org team isolation holds (\u00a74.5.2): reseller users do not see platform teams; platform users do not see reseller teams.",
       "discipline": "resellers",
       "modality": "MUST_NOT",
       "rung": "R0",
@@ -1168,17 +1274,19 @@
     },
     {
       "requirement_id": "auth-46",
+      "predicate": "Removing an agreement drops `sponsor:create` only; stamps, grants, book-team assignments, and the reseller organization remain.",
       "discipline": "resellers",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 sponsor:create",
       "project": "studio"
     },
     {
       "requirement_id": "auth-47",
+      "predicate": "RETIRED \u2014 this identifier was removed when the document was restructured. Tombstoned so it is never reused.",
       "discipline": "unassigned",
       "modality": "MUST",
       "rung": "R0",
@@ -1190,6 +1298,7 @@
     },
     {
       "requirement_id": "auth-48",
+      "predicate": "Lists groupable/filterable by platform, owner (AUTH-50), and associated teams of the viewer's org (\u00a74.5.2).",
       "discipline": "visibility",
       "modality": "MUST",
       "rung": "R0",
@@ -1201,72 +1310,79 @@
     },
     {
       "requirement_id": "auth-49",
+      "predicate": "Deploy sponsor X to environment E iff effective permission on X includes `sponsor:edit` and the matching `deploy:*`, and E is on X's platform and visible to the user (AUTH-59).",
       "discipline": "environments and deployment",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, deploy:*",
       "project": "studio"
     },
     {
       "requirement_id": "auth-5",
+      "predicate": "A sponsor may be assigned to any number of teams. Cross-org assignment requires a **sponsor grant** (\u00a74.6).",
       "discipline": "teams and team roles",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 sponsor grant",
       "project": "studio"
     },
     {
       "requirement_id": "auth-50",
+      "predicate": "Sponsor ownership is a **two-level hierarchy**. Primary owner: the platform (AUTH-3) / platform-owning organization. Optional subordinate stamp: exactly one **reseller org** (`sponsors.reseller_organization_id`) for reseller-created sponsors (AUTH-44). Ownership is independent of team assignments (AUTH-48).",
       "discipline": "platforms and sponsors",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 3 term(s) named and none confirmed \u2014 sponsors.reseller_organization_id, two-level hierarchy, reseller org",
       "project": "studio"
     },
     {
       "requirement_id": "auth-51",
+      "predicate": "The reseller stamp confers authority subordinate to the primary owner: - **Grant management** for the sponsor (\u00a74.6), never beyond the reseller org's own granted set. - **Lifecycle management** (archive/offboard, etc.), subject to primary-owner override. - The primary owner may edit/revoke any grant and reassign or clear the stamp. - The stamp is not transferable by the reseller and does not by itself confer sponsor permissions \u2014 access still flows through the \u00a74.6 grant and the reseller's own teams.",
       "discipline": "platforms and sponsors",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 Grant management, Lifecycle management",
       "project": "studio"
     },
     {
       "requirement_id": "auth-52",
+      "predicate": "Teams are created and deleted by **org admins** of the owning org. Team admins manage existing teams (AUTH-8) but do not create or delete them. Deleting a team drops its sponsor assignments; if it was the only team assigned to a `private` sponsor, that sponsor remains visible only to org admins (AUTH-12). A team may be left with no team admin; org admins (AUTH-9) remain its management path.",
       "discipline": "teams and team roles",
       "modality": "MAY",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 private, org admins",
       "project": "studio"
     },
     {
       "requirement_id": "auth-53",
+      "predicate": "An **org admin** holds AuthKit `admin` on their active membership (JWT claim, \u00a74.11). That claim gates team creation (AUTH-52), team management (AUTH-9), visibility (\u00a74.5.1), grant management (AUTH-30), and private-sponsor visibility (AUTH-12). Shorthand roles (\u00a72.3) are org admins of those organization kinds. Because the claim lives in the session JWT, org-role changes take effect when the token refreshes (login, org switch, session refresh) \u2014 not necessarily on the next request, unlike database-backed authorization (\u00a74.11).",
       "discipline": "organizations and identity",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 admin, org admin",
       "project": "studio"
     },
     {
       "requirement_id": "auth-54",
+      "predicate": "SAVVI WorkOS Organization requires MFA.",
       "discipline": "SAVVI access and staff operations",
       "modality": "MUST",
       "rung": "R0",
@@ -1278,61 +1394,67 @@
     },
     {
       "requirement_id": "auth-55",
+      "predicate": "Membership/user deletion removes corresponding `team_memberships`. Org lifecycle webhooks only maintain the `organizations` mirror.",
       "discipline": "identity mapping and audit",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 team_memberships, organizations",
       "project": "studio"
     },
     {
       "requirement_id": "auth-56",
+      "predicate": "Authorization-data changes are recorded in `authz_audit_log`. The log is append-only; reading it is reserved to SAVVI admins.",
       "discipline": "identity mapping and audit",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 authz_audit_log",
       "project": "studio"
     },
     {
       "requirement_id": "auth-57",
+      "predicate": "Sponsor attribute edits require effective `sponsor:edit` (AUTH-14). Sponsor **deletion** is reserved to users of the platform-owning organization and SAVVI staff, and removes downstream data. There is no sponsor archive state \u2014 retirement is modeled by archiving plan years (story 33). A stamped reseller's lifecycle authority (AUTH-51) covers archival/offboarding workflows, not deletion.",
       "discipline": "platforms and sponsors",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, deletion",
       "project": "studio"
     },
     {
       "requirement_id": "auth-58",
+      "predicate": "**Task templates** are platform-scoped, optionally audienced to a reseller. Managing them (create/edit/delete) requires SAVVI staff or an org admin of the platform-owning organization. Instantiating a template follows normal task-creation rules (effective `sponsor:edit` on the target sponsor), and the template's platform/reseller audience must match the sponsor.",
       "discipline": "platforms and sponsors",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, Task templates",
       "project": "studio"
     },
     {
       "requirement_id": "auth-59",
+      "predicate": "**Platform visibility**: a platform is visible to its owning org (as owner) and \u2014 as non-owner viewer \u2014 to orgs holding a \u00a74.6 grant on any of its sponsors or a reseller agreement for it. SAVVI sees all platforms as owner. **Environment visibility** follows platform visibility.",
       "discipline": "environments and deployment",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 Platform visibility, Environment visibility",
       "project": "studio"
     },
     {
       "requirement_id": "auth-6",
+      "predicate": "Team members are always users of the team's owning organization. No guest membership.",
       "discipline": "teams and team roles",
       "modality": "MUST",
       "rung": "R0",
@@ -1344,50 +1466,55 @@
     },
     {
       "requirement_id": "auth-60",
+      "predicate": "Platform create requires **SAVVI admin** (AUTH-27). Platform attribute edits and environment management (create/edit/delete) are reserved to the platform-owning organization (SAVVI acts as owner everywhere). Platform deletion requires SAVVI admin. An environment is **production** iff its stage is `production` (AUTH-25).",
       "discipline": "environments and deployment",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 production, SAVVI admin",
       "project": "studio"
     },
     {
       "requirement_id": "auth-61",
+      "predicate": "Tasks carry their own visibility (`public` default / `restricted` / `private`), orthogonal to sponsor access. A task's **participants** \u2014 assignee, delegate, and subscribers \u2014 always see it in full detail, even without any permission on its sponsor. Non-participants need `sponsor:view` on the parent sponsor and see: | Task visibility | Participant | `sponsor:view` non-participant | | ------------------ | ----------- | ------------------------------ | | `public` (default) | full | full | | `restricted` | full | attributes only | | `private` | full | not-found (AUTH-17) | The attributes projection is an allowlist (title, type, status, priority, dates, assignment, hierarchy) \u2014 never description or comments. Full-detail access gates comments and related task operations.",
       "discipline": "tasks, documents and attachments",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 5 term(s) named and none confirmed \u2014 public, restricted, private, sponsor:view, participants",
       "project": "studio"
     },
     {
       "requirement_id": "auth-62",
+      "predicate": "Plan-year **documents** require `sponsor:view` via the parent sponsor (AUTH-16). Task-comment **attachments** are a distinct document kind and follow the visibility of the task whose comment carries them: full-detail access to that task is required; document rules never apply. S3 upload and download tokens are issued only after these same checks.",
       "discipline": "tasks, documents and attachments",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 3 term(s) named and none confirmed \u2014 sponsor:view, documents, attachments",
       "project": "studio"
     },
     {
       "requirement_id": "auth-63",
+      "predicate": "A user's **collaborating organizations** are: their own org, the platform-owning org and every grant-holding org of each sponsor in their org's pool, and SAVVI (AUTH-23). The user directory lists active members of collaborating orgs only (default scope) or own-org members only (team pickers, AUTH-6); an all-users scope is SAVVI-staff-only. The directory is never a vehicle to enumerate unrelated organizations' users.",
       "discipline": "users and organization directory",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 collaborating organizations",
       "project": "studio"
     },
     {
       "requirement_id": "auth-64",
+      "predicate": "Direct user lookup succeeds for SAVVI staff, for active members of a collaborating org, and for users referenced on an entity the viewer can already see (plan-year contact/implementor/broker, task assignee/delegate); otherwise not-found (AUTH-17).",
       "discipline": "users and organization directory",
       "modality": "MUST",
       "rung": "R0",
@@ -1399,28 +1526,31 @@
     },
     {
       "requirement_id": "auth-65",
+      "predicate": "The full organization catalog is browsable by **SAVVI staff** (including selecting existing orgs as resellers, AUTH-43) and by **org admins** of reseller orgs under agreement or holding stamped sponsors (grant recipient pickers). **Platform-owning org admins do not** receive the full catalog \u2014 they add resellers by name and domain only (AUTH-43) so other platforms' reseller partners are not disclosed. Everyone else sees only organizations they belong to.",
       "discipline": "users and organization directory",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 SAVVI staff, org admins",
       "project": "studio"
     },
     {
       "requirement_id": "auth-66",
+      "predicate": "The local dev login (`/dev/login`) bypasses WorkOS and is gated by the `DEV_AUTH_ENABLED` runtime flag. It must never be enabled outside local development.",
       "discipline": "development access",
       "modality": "MUST_NOT",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
+      "blocked_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 /dev/login, DEV_AUTH_ENABLED",
       "project": "studio"
     },
     {
       "requirement_id": "auth-67",
+      "predicate": "SAVVI org admins can list and manage teams across all organizations (membership stays constrained to the team's own org, AUTH-6). SAVVI members see sponsor\u2013team assignments across organizations (stories 23, 27\u201329).",
       "discipline": "visibility",
       "modality": "MUST",
       "rung": "R0",
@@ -1432,6 +1562,7 @@
     },
     {
       "requirement_id": "auth-7",
+      "predicate": "Teams are flat (no nesting).",
       "discipline": "teams and team roles",
       "modality": "MUST",
       "rung": "R0",
@@ -1443,17 +1574,19 @@
     },
     {
       "requirement_id": "auth-8",
+      "predicate": "Team `admin`s can rename the team, change its visibility, manage membership (all roles), and assign/unassign sponsors.",
       "discipline": "teams and team roles",
       "modality": "MUST",
-      "rung": "R0",
+      "rung": "R2",
       "implementation": "",
       "population": "\u2014",
       "outcome": "NOT-EVALUATED",
-      "blocked_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "blocked_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 admin",
       "project": "studio"
     },
     {
       "requirement_id": "auth-9",
+      "predicate": "Org admins can do everything a team admin can on any team in their org, including private teams.",
       "discipline": "teams and team roles",
       "modality": "MUST",
       "rung": "R0",
@@ -1464,5 +1597,6 @@
       "project": "studio"
     }
   ],
+  "corpus_version": "corpus:45372b3a31d63d27",
   "unreachable_repos": []
 }

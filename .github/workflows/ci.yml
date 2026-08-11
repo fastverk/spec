@@ -182,3 +182,39 @@ jobs:
         if: steps.crates_token.outcome == 'success'
         run: |
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors //services/...
+
+  # The portal is a Vite/React app, so `bazel test //...` says NOTHING about it:
+  # it can stop compiling entirely and the gate above stays green. That is the
+  # same class of gap as a test wired to nothing — coverage that reads as
+  # coverage without touching the thing.
+  #
+  # ⚠ Typecheck AND build. `tsc --noEmit` alone misses what the bundler rejects,
+  # and `vite build` alone does not typecheck (esbuild strips types without
+  # reading them), so each passes over the other's failures.
+  portal:
+    name: portal typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: portal/pnpm-lock.yaml
+
+      - name: install
+        working-directory: portal
+        run: pnpm install --frozen-lockfile
+
+      - name: typecheck
+        working-directory: portal
+        run: pnpm exec tsc --noEmit
+
+      - name: build
+        working-directory: portal
+        run: pnpm exec vite build

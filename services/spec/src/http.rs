@@ -49,6 +49,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::json as spec_json;
+use crate::overlay::Pending;
 use crate::proposal::{self, Principal, ProposalLog};
 use crate::proto::SpecLang;
 use crate::readmodel::ReadModel;
@@ -108,6 +109,8 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/claims", get(list_claims))
         .route("/witness", get(get_conflict_witness))
         .route("/requirements", get(list_requirements))
+        .route("/terms", get(list_terms))
+        .route("/proposals", get(list_proposals))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
         .route("/proposal/verdict-preview", post(preview_proposal))
@@ -247,7 +250,59 @@ readmodel_route!(list_envelopes, "envelopes");
 readmodel_route!(list_stalls, "frontier");
 readmodel_route!(list_disciplines, "disciplines");
 readmodel_route!(list_claims, "claims");
-readmodel_route!(list_requirements, "requirements");
+/// `requirements` and `terms` are served THROUGH the pending overlay; the other
+/// routes are not, because no op touches them yet. Pending rows carry
+/// `pending: true` and are rendered as proposed rather than as fact — see
+/// `crate::overlay` for why that distinction is load-bearing.
+macro_rules! overlaid_route {
+    ($name:ident, $route:literal, $apply:ident) => {
+        async fn $name(State(s): State<HttpState>) -> ApiResult {
+            let rm = s.readmodel.clone();
+            let log = s.log.clone();
+            run(move || {
+                let mut payload = rm.route($route);
+                let pending = Pending::read(log.path());
+                if pending.is_empty() {
+                    return payload;
+                }
+                if let Some(rows) = payload.get_mut($route).and_then(|v| v.as_array_mut()) {
+                    pending.$apply(rows);
+                }
+                payload
+            })
+            .await
+        }
+    };
+}
+
+overlaid_route!(list_requirements, "requirements", apply_requirements);
+overlaid_route!(list_terms, "terms", apply_terms);
+
+/// `GET /proposals` — everything written but not yet adopted into the corpus.
+async fn list_proposals(State(s): State<HttpState>) -> ApiResult {
+    let log = s.log.clone();
+    let rm = s.readmodel.clone();
+    run(move || {
+        let pending = Pending::read(log.path());
+        // The RAW corpus payloads, not the overlaid ones — adoption is measured
+        // against what the corpus says, and overlaying first would make every
+        // proposal look adopted the moment it was written.
+        let terms = rm.route("terms");
+        let reqs = rm.route("requirements");
+        let empty = vec![];
+        let tr = terms.get("terms").and_then(Value::as_array).unwrap_or(&empty);
+        let rr = reqs.get("requirements").and_then(Value::as_array).unwrap_or(&empty);
+        json!({
+            "proposals": pending.to_rows(tr, rr),
+            "records": pending.records,
+            "write_enabled": log.enabled(),
+            // Named so the UI can say what adopting them requires rather than
+            // implying they are already in force.
+            "adopt_with": "tools/proposals/materialize.py",
+        })
+    })
+    .await
+}
 readmodel_route!(get_conflict_witness, "witness");
 
 /// Per-route availability + row counts. The operator's answer to "is the read model

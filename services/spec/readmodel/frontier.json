@@ -41,54 +41,6 @@
       "project": "ampere"
     },
     {
-      "claim_id": "auth-1",
-      "rung": "R0",
-      "discipline": "organizations and identity",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-10",
-      "rung": "R0",
-      "discipline": "teams and team roles",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-11",
-      "rung": "R0",
-      "discipline": "visibility",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-12",
-      "rung": "R0",
-      "discipline": "visibility",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-13",
-      "rung": "R0",
-      "discipline": "visibility",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-14",
-      "rung": "R0",
-      "discipline": "permissions",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-15",
       "rung": "R0",
       "discipline": "permissions",
@@ -113,14 +65,6 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-18",
-      "rung": "R0",
-      "discipline": "sponsor organizations",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-19",
       "rung": "R0",
       "discipline": "sponsor organizations",
@@ -137,63 +81,7 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-20",
-      "rung": "R0",
-      "discipline": "SAVVI access and staff operations",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-21",
-      "rung": "R0",
-      "discipline": "SAVVI access and staff operations",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-22",
-      "rung": "R0",
-      "discipline": "SAVVI access and staff operations",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-23",
-      "rung": "R0",
-      "discipline": "SAVVI access and staff operations",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-24",
-      "rung": "R0",
-      "discipline": "environments and deployment",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-25",
-      "rung": "R0",
-      "discipline": "environments and deployment",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-26",
-      "rung": "R0",
-      "discipline": "environments and deployment",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-27",
       "rung": "R0",
       "discipline": "SAVVI access and staff operations",
       "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
@@ -209,50 +97,10 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-29",
-      "rung": "R0",
-      "discipline": "SAVVI access and staff operations",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-2a",
-      "rung": "R0",
-      "discipline": "organizations and identity",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-2b",
       "rung": "R0",
       "discipline": "organizations and identity",
       "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-3",
-      "rung": "R0",
-      "discipline": "platforms and sponsors",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-30",
-      "rung": "R0",
-      "discipline": "grants",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-31",
-      "rung": "R0",
-      "discipline": "grants",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
       "dependent_count": 0,
       "project": "studio"
     },
@@ -265,26 +113,10 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-33",
-      "rung": "R0",
-      "discipline": "grants",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-34",
       "rung": "R0",
       "discipline": "grants",
       "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-35",
-      "rung": "R0",
-      "discipline": "visibility",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
       "dependent_count": 0,
       "project": "studio"
     },
@@ -313,22 +145,6 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-39",
-      "rung": "R0",
-      "discipline": "visibility",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-4",
-      "rung": "R0",
-      "discipline": "teams and team roles",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-40",
       "rung": "R0",
       "discipline": "unassigned",
@@ -337,50 +153,10 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-41",
-      "rung": "R0",
-      "discipline": "visibility",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-42",
-      "rung": "R0",
-      "discipline": "platforms and sponsors",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-43",
-      "rung": "R0",
-      "discipline": "resellers",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-44",
-      "rung": "R0",
-      "discipline": "resellers",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-45",
       "rung": "R0",
       "discipline": "resellers",
       "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-46",
-      "rung": "R0",
-      "discipline": "resellers",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
       "dependent_count": 0,
       "project": "studio"
     },
@@ -401,98 +177,10 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-49",
-      "rung": "R0",
-      "discipline": "environments and deployment",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-5",
-      "rung": "R0",
-      "discipline": "teams and team roles",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-50",
-      "rung": "R0",
-      "discipline": "platforms and sponsors",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-51",
-      "rung": "R0",
-      "discipline": "platforms and sponsors",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-52",
-      "rung": "R0",
-      "discipline": "teams and team roles",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-53",
-      "rung": "R0",
-      "discipline": "organizations and identity",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-54",
       "rung": "R0",
       "discipline": "SAVVI access and staff operations",
       "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-55",
-      "rung": "R0",
-      "discipline": "identity mapping and audit",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-56",
-      "rung": "R0",
-      "discipline": "identity mapping and audit",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-57",
-      "rung": "R0",
-      "discipline": "platforms and sponsors",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-58",
-      "rung": "R0",
-      "discipline": "platforms and sponsors",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-59",
-      "rung": "R0",
-      "discipline": "environments and deployment",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
       "dependent_count": 0,
       "project": "studio"
     },
@@ -505,58 +193,10 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-60",
-      "rung": "R0",
-      "discipline": "environments and deployment",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-61",
-      "rung": "R0",
-      "discipline": "tasks, documents and attachments",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-62",
-      "rung": "R0",
-      "discipline": "tasks, documents and attachments",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-63",
-      "rung": "R0",
-      "discipline": "users and organization directory",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
       "claim_id": "auth-64",
       "rung": "R0",
       "discipline": "users and organization directory",
       "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-65",
-      "rung": "R0",
-      "discipline": "users and organization directory",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
-      "dependent_count": 0,
-      "project": "studio"
-    },
-    {
-      "claim_id": "auth-66",
-      "rung": "R0",
-      "discipline": "development access",
-      "stalled_on": "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet",
       "dependent_count": 0,
       "project": "studio"
     },
@@ -577,7 +217,7 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-8",
+      "claim_id": "auth-9",
       "rung": "R0",
       "discipline": "teams and team roles",
       "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
@@ -585,13 +225,374 @@
       "project": "studio"
     },
     {
-      "claim_id": "auth-9",
-      "rung": "R0",
+      "claim_id": "auth-1",
+      "rung": "R2",
+      "discipline": "organizations and identity",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 admin, WorkOS Organization",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-10",
+      "rung": "R2",
       "discipline": "teams and team roles",
-      "stalled_on": "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 public",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-11",
+      "rung": "R2",
+      "discipline": "visibility",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 restricted, sponsor:report",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-12",
+      "rung": "R2",
+      "discipline": "visibility",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 private, org admins",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-13",
+      "rung": "R2",
+      "discipline": "visibility",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 sponsor:report",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-14",
+      "rung": "R2",
+      "discipline": "permissions",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:analytics, deploy:*",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-18",
+      "rung": "R2",
+      "discipline": "sponsor organizations",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 {sponsor:edit}",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-20",
+      "rung": "R2",
+      "discipline": "SAVVI access and staff operations",
+      "stalled_on": "unbound-terms: 4 term(s) named and none confirmed \u2014 sponsor:edit, sponsor:analytics, deploy:nonproduction, deploy:production",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-21",
+      "rung": "R2",
+      "discipline": "SAVVI access and staff operations",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 public",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-23",
+      "rung": "R2",
+      "discipline": "SAVVI access and staff operations",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 rule, not rows",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-24",
+      "rung": "R2",
+      "discipline": "environments and deployment",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, deploy:*",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-25",
+      "rung": "R2",
+      "discipline": "environments and deployment",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 deploy:production, deploy:nonproduction",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-26",
+      "rung": "R2",
+      "discipline": "environments and deployment",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 deploy:*",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-27",
+      "rung": "R2",
+      "discipline": "SAVVI access and staff operations",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 SAVVI admin",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-29",
+      "rung": "R2",
+      "discipline": "SAVVI access and staff operations",
+      "stalled_on": "unbound-terms: 3 term(s) named and none confirmed \u2014 impersonator, act, session.created",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-2a",
+      "rung": "R2",
+      "discipline": "organizations and identity",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 one active WorkOS Organization",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-3",
+      "rung": "R2",
+      "discipline": "platforms and sponsors",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor, platform",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-30",
+      "rung": "R2",
+      "discipline": "grants",
+      "stalled_on": "unbound-terms: 4 term(s) named and none confirmed \u2014 sponsor:edit, sponsor:analytics, deploy:*, reseller admins",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-31",
+      "rung": "R2",
+      "discipline": "grants",
+      "stalled_on": "unbound-terms: 10 term(s) named and none confirmed \u2014 sponsor:analytics, deploy:*, {sponsor:view}, implementor, sponsor:edit, deploy:nonproduction, sponsor:view, reporter, sponsor:report, intersected",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-33",
+      "rung": "R2",
+      "discipline": "grants",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor_grants.created_by_id, at issue time",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-35",
+      "rung": "R2",
+      "discipline": "visibility",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 public",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-39",
+      "rung": "R2",
+      "discipline": "visibility",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 public, {sponsor:edit}",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-4",
+      "rung": "R2",
+      "discipline": "teams and team roles",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 team",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-41",
+      "rung": "R2",
+      "discipline": "visibility",
+      "stalled_on": "unbound-terms: 7 term(s) named and none confirmed \u2014 organizations.public_sponsor_permissions, sponsor:edit, sponsor:view, sponsor:analytics, sponsor:report, deploy:*, org admin",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-42",
+      "rung": "R2",
+      "discipline": "platforms and sponsors",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 reseller agreement, org admin",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-43",
+      "rung": "R2",
+      "discipline": "resellers",
+      "stalled_on": "unbound-terms: 10 term(s) named and none confirmed \u2014 sponsor:create, {sponsor:edit}, platform admin, SAVVI admin, reseller agreement, Platform admins, SAVVI admins, or, book team, grant permission set",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-44",
+      "rung": "R2",
+      "discipline": "resellers",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 reseller_organization_id, public",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-46",
+      "rung": "R2",
+      "discipline": "resellers",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 sponsor:create",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-49",
+      "rung": "R2",
+      "discipline": "environments and deployment",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, deploy:*",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-5",
+      "rung": "R2",
+      "discipline": "teams and team roles",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 sponsor grant",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-50",
+      "rung": "R2",
+      "discipline": "platforms and sponsors",
+      "stalled_on": "unbound-terms: 3 term(s) named and none confirmed \u2014 sponsors.reseller_organization_id, two-level hierarchy, reseller org",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-51",
+      "rung": "R2",
+      "discipline": "platforms and sponsors",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 Grant management, Lifecycle management",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-52",
+      "rung": "R2",
+      "discipline": "teams and team roles",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 private, org admins",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-53",
+      "rung": "R2",
+      "discipline": "organizations and identity",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 admin, org admin",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-55",
+      "rung": "R2",
+      "discipline": "identity mapping and audit",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 team_memberships, organizations",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-56",
+      "rung": "R2",
+      "discipline": "identity mapping and audit",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 authz_audit_log",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-57",
+      "rung": "R2",
+      "discipline": "platforms and sponsors",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, deletion",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-58",
+      "rung": "R2",
+      "discipline": "platforms and sponsors",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 sponsor:edit, Task templates",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-59",
+      "rung": "R2",
+      "discipline": "environments and deployment",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 Platform visibility, Environment visibility",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-60",
+      "rung": "R2",
+      "discipline": "environments and deployment",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 production, SAVVI admin",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-61",
+      "rung": "R2",
+      "discipline": "tasks, documents and attachments",
+      "stalled_on": "unbound-terms: 5 term(s) named and none confirmed \u2014 public, restricted, private, sponsor:view, participants",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-62",
+      "rung": "R2",
+      "discipline": "tasks, documents and attachments",
+      "stalled_on": "unbound-terms: 3 term(s) named and none confirmed \u2014 sponsor:view, documents, attachments",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-63",
+      "rung": "R2",
+      "discipline": "users and organization directory",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 collaborating organizations",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-65",
+      "rung": "R2",
+      "discipline": "users and organization directory",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 SAVVI staff, org admins",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-66",
+      "rung": "R2",
+      "discipline": "development access",
+      "stalled_on": "unbound-terms: 2 term(s) named and none confirmed \u2014 /dev/login, DEV_AUTH_ENABLED",
+      "dependent_count": 0,
+      "project": "studio"
+    },
+    {
+      "claim_id": "auth-8",
+      "rung": "R2",
+      "discipline": "teams and team roles",
+      "stalled_on": "unbound-terms: 1 term(s) named and none confirmed \u2014 admin",
       "dependent_count": 0,
       "project": "studio"
     }
   ],
+  "corpus_version": "corpus:45372b3a31d63d27",
   "unreachable_repos": []
 }

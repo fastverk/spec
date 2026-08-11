@@ -41,6 +41,12 @@
       "method": "ListRequirements",
       "http_method": "GET",
       "path": "requirements"
+    },
+    {
+      "service": "spec.v1.Authoring",
+      "method": "ListTerms",
+      "http_method": "GET",
+      "path": "terms"
     }
   ]
 }
