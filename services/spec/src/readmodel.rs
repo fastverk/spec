@@ -219,12 +219,30 @@ fn degraded(field: &str, why: &str) -> Value {
 /// (`POST /proposal`, `POST /proposal/verdict-preview`) is on the same service but
 /// is not part of the read model, and counting it here is how this check first went
 /// wrong — it reported "8 declared, 6 served" on a correctly-wired plugin.
+/// GET authoring routes that are NOT backed by an emitted payload.
+///
+/// ⚠ Named rather than filtered out silently. `proposals` is served from the
+/// append-only proposal log, so it has no `proposals.json` and must not be added
+/// to `ROUTES` — doing so would make it try to load a file that will never exist
+/// and degrade every request. It is still asserted to be DECLARED below, so a
+/// log-backed route cannot quietly go missing from /describe either.
+pub const LOG_BACKED_ROUTES: &[&str] = &["proposals"];
+
 pub fn routes_match_describe(web_routes: &[Value]) -> Result<(), String> {
-    let declared: Vec<&str> = web_routes
+    let all: Vec<&str> = web_routes
         .iter()
         .filter(|r| r.get("service").and_then(Value::as_str) == Some(super::AUTHORING_SERVICE))
         .filter(|r| r.get("http_method").and_then(Value::as_str) == Some("GET"))
         .filter_map(|r| r.get("path").and_then(Value::as_str))
+        .collect();
+    for route in LOG_BACKED_ROUTES {
+        if !all.contains(route) {
+            return Err(format!("log-backed route `{route}` is served but not declared"));
+        }
+    }
+    let declared: Vec<&str> = all
+        .into_iter()
+        .filter(|r| !LOG_BACKED_ROUTES.contains(r))
         .collect();
     let expected: Vec<&str> = ROUTES.iter().map(|(r, _)| *r).collect();
     if declared.len() != expected.len() {

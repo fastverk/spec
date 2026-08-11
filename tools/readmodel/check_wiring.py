@@ -141,8 +141,24 @@ def rust_triples(src, const):
 
 declared_reads = rust_triples(rs_routes, "AUTHORING_READS")
 check(declared_reads is not None, f"{RS_ROUTES}: no AUTHORING_READS table")
+
+# Routes served from the proposal log rather than an emitted payload. Read from
+# the Rust source rather than repeated here, so the exception has ONE definition
+# and cannot drift between the two descriptions that both have to know about it.
+log_backed = set(
+    re.findall(
+        r'"([a-z_/\-]+)"',
+        (re.search(r"pub const LOG_BACKED_ROUTES:[^=]*=\s*&\[(.*?)\];", read(RS_READMODEL), re.S)
+         or type("m", (), {"group": lambda *_: ""})()).group(1),
+    )
+)
+check(bool(log_backed), f"{RS_READMODEL}: no LOG_BACKED_ROUTES table")
 check(
-    {path: method for method, _verb, path in (declared_reads or [])}
+    log_backed <= {path for _m, _v, path in (declared_reads or [])},
+    f"{RS_ROUTES}: a log-backed route is served but not declared ({sorted(log_backed)})",
+)
+check(
+    {path: method for method, _verb, path in (declared_reads or []) if path not in log_backed}
     == {path: method for path, (_rows, method) in emit_by_path.items()},
     f"{RS_ROUTES}: AUTHORING_READS disagrees with the emitter's (path, method) pairs",
 )
@@ -331,7 +347,7 @@ post_methods = {m for m, v, _p in (declared_writes or []) if v == "POST"}
 op_kinds = set(
     re.findall(r'kind:\s*"(\w+)"', re.search(r"pub const OPS:.*?\n\];", read("services/spec/src/proposal.rs"), re.S).group(0))
 )
-check(len(op_kinds) == 16, f"proposal.rs: parsed {len(op_kinds)} op kinds, expected the closed 16")
+check(len(op_kinds) == 17, f"proposal.rs: parsed {len(op_kinds)} op kinds, expected RFC-002's 16 + retractTerm")
 
 if parsed:
     check(len(form_panels) >= 1, f"{FORMS_TEXTPROTO}: no panels")

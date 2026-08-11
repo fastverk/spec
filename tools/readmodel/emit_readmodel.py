@@ -48,6 +48,7 @@ corpus carrying the au: vocabulary.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -346,7 +347,7 @@ def shape_requirement(r):
 
 
 Q_TERMS = """
-SELECT ?claim ?term ?surface ?source ?bound
+SELECT ?claim ?term ?surface ?source ?bound ?demoted
 WHERE {
   ?claim a rfc:NormativeStatement ; au:hasTerm ?term .
   ?term au:surface ?surface .
@@ -354,6 +355,10 @@ WHERE {
   # Absent, not empty. An open hole and a term bound to nothing are different
   # facts, and the UI must be able to tell them apart.
   OPTIONAL { ?term au:boundTo ?bound }
+  # A term someone cleared as "not a term". Projected so adopting a retraction
+  # has a VISIBLE effect — without it the noise stays in the grounding queue
+  # after the corpus already agreed it is not vocabulary.
+  OPTIONAL { ?term au:demotedBy ?demoted }
 }
 ORDER BY ?claim ?surface
 """
@@ -369,6 +374,8 @@ def shape_term(r):
         "term_source": str(r.source or ""),
         "bound_to": "" if r.bound is None else str(r.bound),
         "open": r.bound is None,
+        # Cleared as not-a-term by a person, and adopted into the corpus.
+        "retired": r.demoted is not None,
     }
 
 
@@ -414,6 +421,12 @@ def main():
     # cross-project rows that are artifacts of the loader rather than findings.
     # Cross-project comparison is a real feature and deserves to be built
     # deliberately, not fall out of a parse order.
+    # The READ POINT. Every proposal must name the corpus state its author was
+    # looking at — spec refuses a write without one, because a proposal made
+    # against a corpus you were not seeing is a different proposal. Without this
+    # the portal would have to invent a `parent`, which defeats the check.
+    corpus_digest = hashlib.sha256()
+
     loaded = []
     for name, path in projects:
         g = Graph()
@@ -423,8 +436,13 @@ def main():
                 srcs.append(os.path.join(path, fn))
         for f in srcs:
             g.parse(f, format="turtle")
+            with open(f, "rb") as fh:
+                corpus_digest.update(f.encode())
+                corpus_digest.update(fh.read())
         loaded.append((name, g))
         print(f"loaded {name}: {len(srcs)} files, {len(g)} triples", file=sys.stderr)
+
+    version = "corpus:" + corpus_digest.hexdigest()[:16]
 
     os.makedirs(args.out, exist_ok=True)
     routes_manifest = []
@@ -432,7 +450,7 @@ def main():
         data = []
         for name, g in loaded:
             data.extend(rows(g, query, shaper, name))
-        payload = {rows_field: data, "unreachable_repos": []}
+        payload = {rows_field: data, "corpus_version": version, "unreachable_repos": []}
         dest = os.path.join(args.out, f"{path}.json")
         with open(dest, "w") as fh:
             json.dump(payload, fh, indent=2, sort_keys=False)

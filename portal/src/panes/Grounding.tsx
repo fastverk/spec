@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  Alert, Box, Card, CardContent, Chip, Divider, List, ListItemButton,
-  Stack, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Divider, List, ListItemButton,
+  Stack, TextField, Typography,
 } from "@mui/material";
 import {
-  NoReadingProposed, probe,
-  type Candidate, type ProbeResult, type Requirement, type Term,
+  NoReadingProposed, corpusVersion, probe, submitOp,
+  type Candidate, type OpKind, type ProbeResult, type Requirement, type Term,
 } from "../api";
 import { MONO, SERIF } from "../theme";
 import { inlineMarkup } from "../ui";
@@ -44,7 +44,14 @@ function severity(c: Candidate): "ok" | "empty" | "absent" {
   return c.count === 0 ? "empty" : "ok";
 }
 
-function CandidateCard({ c }: { c: Candidate }) {
+function CandidateCard({
+  c, onChoose, chosen, busy,
+}: {
+  c: Candidate;
+  onChoose: () => void;
+  chosen: boolean;
+  busy: boolean;
+}) {
   const s = severity(c);
   const border =
     s === "absent" ? "error.main" : s === "empty" ? "warning.main" : "divider";
@@ -98,6 +105,29 @@ function CandidateCard({ c }: { c: Candidate }) {
           </Typography>
         ) : null}
 
+        {/* The decision. Grounding is the one step a machine is not qualified
+            for, so the screen has to end in a person choosing — a reading you
+            can read but not pick is a report, not a conversation. */}
+        {c.available ? (
+          <Box sx={{ mt: 2 }}>
+            <Button
+              size="small"
+              variant={chosen ? "contained" : "outlined"}
+              color={s === "empty" ? "warning" : "primary"}
+              disabled={busy}
+              onClick={onChoose}
+            >
+              {chosen ? "✓ This is the one" : "This is the one"}
+            </Button>
+            {s === "empty" ? (
+              <Typography component="span" variant="body2"
+                          sx={{ ml: 1.5, color: "warning.main" }}>
+                choosing this grounds the term on an empty set
+              </Typography>
+            ) : null}
+          </Box>
+        ) : null}
+
         {c.examples.length ? (
           <>
             <Divider sx={{ my: 1.5 }} />
@@ -125,19 +155,38 @@ type Hole = {
   claims: string[];
   open: boolean;
   boundTo: string;
+  alignsTo: string;
+  retracted: boolean;
+  pendingBy: string;
 };
 
+/**
+ * ⛔ Terms cleared as "not a term" LEAVE the queue.
+ *
+ * That is the entire point of being able to reject one. `or`, `act` and
+ * `rule, not rows` were extracted beside `sponsor:edit`, and a rejection that
+ * left them in the list would clear nothing — the queue would stay noisy and
+ * people would go back to ignoring it.
+ */
 function holesOf(terms: Term[]): Hole[] {
   const by = new Map<string, Hole>();
+  const dropped = new Set(
+    terms.filter((t) => t.retired || t.retracted).map((t) => t.surface),
+  );
   for (const t of terms) {
+    if (dropped.has(t.surface)) continue;
     const h = by.get(t.surface) ?? {
       surface: t.surface, claims: [], open: true, boundTo: "",
+      alignsTo: "", retracted: false, pendingBy: "",
     };
     h.claims.push(t.requirement_id);
     if (!t.open) {
       h.open = false;
       h.boundTo = t.bound_to;
     }
+    if (t.aligns_to) h.alignsTo = t.aligns_to;
+    if (t.retracted) h.retracted = true;
+    if (t.pending_by) h.pendingBy = t.pending_by;
     by.set(t.surface, h);
   }
   return [...by.values()].sort(
@@ -162,21 +211,49 @@ function lookalikes(hole: Hole, all: Hole[]): string[] {
 export function Grounding({
   terms,
   requirements,
+  project,
   initialSurface = "",
+  onChanged,
 }: {
   terms: Term[];
   requirements: Requirement[];
+  project: string;
   initialSurface?: string;
+  onChanged: () => void;
 }) {
   const holes = useMemo(() => holesOf(terms), [terms]);
   const [selected, setSelected] = useState<string>(initialSurface);
   const [result, setResult] = useState<ProbeResult | null>(null);
   const [unproposed, setUnproposed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [wrote, setWrote] = useState<string | null>(null);
+  const [writeErr, setWriteErr] = useState<string | null>(null);
+  const [ask, setAsk] = useState("");
 
   const hole = holes.find((h) => h.surface === selected) ?? holes[0];
 
   useEffect(() => setSelected(initialSurface), [initialSurface]);
+
+  /**
+   * Every act here is a PROPOSAL: appended to spec's log with its author and
+   * shown as pending until promoted into the corpus. Nothing is edited in place,
+   * so a wrong answer is withdrawable rather than baked in.
+   */
+  async function act(op: OpKind, fields: Record<string, string>, said: string) {
+    setBusy(true);
+    setWriteErr(null);
+    setWrote(null);
+    try {
+      await submitOp(op, { project, ...fields }, corpusVersion());
+      setWrote(said);
+      onChanged();
+    } catch (e) {
+      setWriteErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!hole) return;
@@ -302,6 +379,62 @@ export function Grounding({
               <b>The document also writes {alike.map((s) => `“${s}”`).join(", ")}.</b>{" "}
               These were kept separate on purpose — if they mean the same thing,
               that is your call to make, not the importer's.
+              <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
+                {alike.map((other) => (
+                  <Button key={other} size="small" variant="outlined" disabled={busy}
+                          onClick={() =>
+                            act("alignTerm", { term: hole.surface, aligns_to: other },
+                                `${hole.surface} is the same term as ${other}`)}>
+                    Same as {other}
+                  </Button>
+                ))}
+              </Stack>
+            </Alert>
+          ) : null}
+
+          {/* ⛔ The escape hatch, and the queue is unusable without it. Terms are
+              read off the author's markup, and that is machine work that can be
+              wrong: `or`, `act` and `rule, not rows` landed in this queue beside
+              `sponsor:edit`. With no way to say "this is not a term", the only
+              options were to bind it to something false or leave it blocking its
+              claims forever. */}
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2.5, flexWrap: "wrap", gap: 1 }}>
+            <TextField
+              size="small" value={ask} onChange={(e) => setAsk(e.target.value)}
+              placeholder="Why is this not a term? (optional)"
+              sx={{ minWidth: 300 }}
+            />
+            <Button size="small" color="inherit" variant="outlined" disabled={busy}
+                    onClick={() => {
+                      act("retractTerm", { term: hole.surface, reason: ask },
+                          `${hole.surface} is not a term`);
+                      setAsk("");
+                    }}>
+              Not a term
+            </Button>
+          </Stack>
+
+          {wrote ? (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              <b>Recorded.</b> {wrote} — proposed under your name and waiting to be
+              adopted into the corpus. Nothing was edited in place.
+            </Alert>
+          ) : null}
+          {writeErr ? (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              <b>Not recorded.</b> {writeErr}
+            </Alert>
+          ) : null}
+          {hole.pendingBy ? (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <b>Proposed by {hole.pendingBy}, not yet adopted.</b>{" "}
+              {hole.retracted
+                ? "Marked as not a term."
+                : hole.boundTo
+                  ? `Bound to ${hole.boundTo}.`
+                  : hole.alignsTo
+                    ? `Aligned to ${hole.alignsTo}.`
+                    : ""}
             </Alert>
           ) : null}
 
@@ -332,15 +465,26 @@ export function Grounding({
           ) : null}
 
           <Stack spacing={1.5}>
-            {result?.candidates.map((c) => <CandidateCard key={c.locator || c.label} c={c} />)}
+            {result?.candidates.map((c) => (
+              <CandidateCard
+                key={c.locator || c.label}
+                c={c}
+                busy={busy}
+                chosen={hole.boundTo === c.locator}
+                onChoose={() =>
+                  act("bindTerm", { term: hole.surface, definition: c.locator },
+                      `${hole.surface} now means “${c.label}”`)
+                }
+              />
+            ))}
           </Stack>
 
           {result ? (
             <Typography variant="body2" sx={{ color: "text.secondary", mt: 2.5, maxWidth: "64ch" }}>
-              Choosing a reading here would bind{" "}
+              Choosing binds{" "}
               <Box component="span" sx={{ fontFamily: MONO }}>{hole.surface}</Box>{" "}
-              for all {hole.claims.length} claim{hole.claims.length === 1 ? "" : "s"}.
-              Binding is not yet wired to a store, so nothing you pick persists.
+              for all {hole.claims.length} claim{hole.claims.length === 1 ? "" : "s"}, as a
+              proposal recorded under your name.
             </Typography>
           ) : null}
         </Box>

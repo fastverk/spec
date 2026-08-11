@@ -21,6 +21,7 @@ pub mod backend;
 pub mod http;
 pub mod json;
 pub mod mcp;
+pub mod overlay;
 pub mod proposal;
 pub mod readmodel;
 pub mod routes;

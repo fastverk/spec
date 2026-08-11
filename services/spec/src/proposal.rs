@@ -100,8 +100,8 @@ pub struct OpSpec {
 ///
 /// Adding a constructor here is the *whole* edit on the plugin side; the
 /// `vocabulary_is_closed_and_total` test below fails if the count drifts from the
-/// RFC's 16, which is the cheapest possible guard against this table and the spec
-/// disagreeing.
+/// RFC's 16 + `retractTerm`, which is the cheapest possible guard against this
+/// table and the spec disagreeing.
 pub const OPS: &[OpSpec] = &[
     // ── claims ──────────────────────────────────────────────────────────────
     OpSpec {
@@ -140,14 +140,36 @@ pub const OPS: &[OpSpec] = &[
     OpSpec {
         kind: "bindTerm",
         required: &["term", "definition"],
-        optional: &["discipline"],
+        // `project` scopes the binding. Without it a term binds in EVERY corpus
+        // that uses the surface, and `public` is a term in more than one of them.
+        optional: &["discipline", "project"],
         exactly_one_of: &[],
         capability: Capability::Author,
     },
     OpSpec {
         kind: "alignTerm",
         required: &["term", "aligns_to"],
-        optional: &["discipline"],
+        optional: &["discipline", "project"],
+        exactly_one_of: &[],
+        capability: Capability::Author,
+    },
+    // ⚠ The 17th constructor, and the vocabulary was closed at 16 by two
+    // assertions specifically so this could not happen quietly. It is here
+    // because decomposition is machine work that can be WRONG: reading terms off
+    // the author's markup pulled `or`, `act`, `intersected` and `rule, not rows`
+    // into Studio's queue beside `sponsor:edit`. Without this, the only ways to
+    // clear a bad extraction were to bind it to something false or to leave it
+    // blocking its claims forever — so the grounding queue would fill with noise
+    // that no authoring act could remove, and people would learn to ignore it.
+    //
+    // Retraction says "this is not a term", which is a judgement about the
+    // decomposer's output, not about the business. It is deliberately NOT
+    // `alignTerm` to a sentinel: aligning asserts two things mean the same, and
+    // this asserts one of them means nothing.
+    OpSpec {
+        kind: "retractTerm",
+        required: &["term"],
+        optional: &["reason", "discipline", "project"],
         exactly_one_of: &[],
         capability: Capability::Author,
     },
@@ -805,9 +827,10 @@ mod tests {
 
     #[test]
     fn vocabulary_is_closed_and_total() {
-        // RFC-002 §5's table has 16 constructors. A drift here means the RFC and
-        // the door disagree about what an op is.
-        assert_eq!(OPS.len(), 16);
+        // RFC-002 §5's table has 16 constructors, plus `retractTerm` — see the
+        // note on it above. A drift here means the RFC and the door disagree
+        // about what an op is.
+        assert_eq!(OPS.len(), 17);
         for o in OPS {
             assert!(op_spec(o.kind).is_some());
         }

@@ -43,6 +43,11 @@ rdf_dataset(
         # it is a separate act: import captures, decomposition names what is
         # missing, and the two are re-runnable independently.
         "terms.ttl",
+        # Promoted proposals — what people decided in the console. Separate file
+        # again because it is a separate act with a separate author: the
+        # importer captures, decomposition names holes, and this is a person
+        # answering. tools/proposals/materialize.py regenerates it from the log.
+        "proposals.ttl",
     ],
     in_format = "turtle",
     # //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the authoring gates

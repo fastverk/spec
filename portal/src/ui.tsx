@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Alert, Box, Chip, Paper, Stack, Typography } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { MONO, SERIF } from "./theme";
 
 export function Tile({
@@ -74,17 +75,39 @@ export function Promise_({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * ⚠ Derived from the palette, never literal.
+ *
+ * These four were hard-coded light-mode hexes, which is the classic unreadable-
+ * artifact bug: on a dark ground the chip keeps its pale background and its dark
+ * text stops contrasting with the surface around it. Tinting the palette colour
+ * gives the same four distinguishable states in both modes, and keeps
+ * "Enforced" as the only SOLID one — it is the only state that means a machine
+ * is actually watching.
+ */
 export function StateChip({ state }: { state: string }) {
-  const map: Record<string, { bg: string; fg: string }> = {
-    Draft: { bg: "#EAEDF1", fg: "#5C6472" },
-    "In question": { bg: "#E8F0F7", fg: "#1E5F8E" },
-    Agreed: { bg: "#E6F0EA", fg: "#2F6B4F" },
-    Enforced: { bg: "#2F6B4F", fg: "#FFFFFF" },
-  };
-  const c = map[state] ?? map.Draft!;
   return (
-    <Chip size="small" label={state}
-      sx={{ bgcolor: c.bg, color: c.fg, fontFamily: MONO, fontSize: 10.5, fontWeight: 700, height: 20 }} />
+    <Chip
+      size="small"
+      label={state}
+      sx={(t) => {
+        const key = ({
+          Draft: t.palette.text.secondary,
+          "In question": t.palette.primary.main,
+          Agreed: t.palette.success.main,
+          Enforced: t.palette.success.main,
+        } as Record<string, string>)[state] ?? t.palette.text.secondary;
+        const solid = state === "Enforced";
+        return {
+          bgcolor: solid ? key : alpha(key, t.palette.mode === "dark" ? 0.22 : 0.14),
+          color: solid ? t.palette.background.paper : key,
+          fontFamily: MONO,
+          fontSize: 10.5,
+          fontWeight: 700,
+          height: 20,
+        };
+      }}
+    />
   );
 }
 
@@ -110,7 +133,10 @@ export function NotBackedYet({ what, needs }: { what: string; needs: ReactNode }
 
 export function Bar({ pct, tone = "bad" }: { pct: number; tone?: "bad" | "good" }) {
   return (
-    <Box sx={{ display: "flex", height: 7, width: 120, borderRadius: 1, overflow: "hidden", bgcolor: "#EAEDF1" }}>
+    <Box sx={(t) => ({
+      display: "flex", height: 7, width: 120, borderRadius: 1, overflow: "hidden",
+      bgcolor: alpha(t.palette.text.secondary, t.palette.mode === "dark" ? 0.2 : 0.16),
+    })}>
       <Box sx={{ width: `${pct}%`, bgcolor: tone === "bad" ? "warning.main" : "success.main" }} />
     </Box>
   );

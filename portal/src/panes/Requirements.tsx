@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Box, Chip, Drawer, IconButton, InputAdornment, MenuItem, Paper, Select,
-  Stack, TextField, Typography,
+  Alert, Box, Button, Chip, Drawer, IconButton, InputAdornment, MenuItem, Paper,
+  Select, Stack, TextField, Typography,
 } from "@mui/material";
-import type { Requirement, Term } from "../api";
-import { stateOf } from "../api";
+import type { OpKind, Requirement, Term } from "../api";
+import { corpusVersion, stateOf, submitOp } from "../api";
 import { PaneHead, StateChip } from "../ui";
 import { MONO, SERIF } from "../theme";
 
@@ -81,16 +81,56 @@ function plain(s: string): string {
 }
 
 function Detail({
-  req, terms, onClose, onGround,
+  req, terms, areas, onClose, onGround, onChanged,
 }: {
   req: Requirement | null;
   terms: Term[];
+  areas: string[];
   onClose: () => void;
   onGround: (surface: string) => void;
+  onChanged: () => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [modality, setModality] = useState("");
+  const [area, setArea] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!req) return;
+    setEditing(false);
+    setErr(null);
+    setSaved(false);
+    setText(req.predicate);
+    setModality(req.modality);
+    setArea(req.discipline);
+  }, [req?.requirement_id]);
+
   if (!req) return null;
   const mine = terms.filter((t) => t.requirement_id === req.requirement_id);
   const blocker = blockerOf(req);
+
+  /**
+   * Amendments are PROPOSALS, never in-place edits. The corpus is generated from
+   * a source document and checked by gates; letting a screen overwrite it would
+   * make the document and the corpus disagree with no record of who chose what.
+   */
+  async function save(op: OpKind, fields: Record<string, string>) {
+    setBusy(true);
+    setErr(null);
+    try {
+      await submitOp(op, fields, corpusVersion());
+      setSaved(true);
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <Drawer anchor="right" open onClose={onClose}
@@ -104,15 +144,72 @@ function Detail({
         <IconButton size="small" onClick={onClose} aria-label="Close">✕</IconButton>
       </Stack>
 
-      <Typography sx={{ fontFamily: SERIF, fontSize: 17, lineHeight: 1.55, mb: 2.5 }}>
-        {plain(req.predicate)}
-      </Typography>
+      {req.pending ? (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <b>Proposed by {req.pending_by}, not yet adopted.</b>{" "}
+          {req.retracted ? "Withdrawal proposed." : "Shown with the change applied."}
+        </Alert>
+      ) : null}
+      {saved ? (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          <b>Recorded</b> as a proposal under your name. Nothing was edited in place.
+        </Alert>
+      ) : null}
+      {err ? <Alert severity="error" sx={{ mb: 2 }}><b>Not recorded.</b> {err}</Alert> : null}
 
-      <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: "wrap", gap: 0.75 }}>
-        <Chip size="small" variant="outlined" label={req.discipline} />
-        <Chip size="small" variant="outlined" label={req.modality.replace("_", " ")}
-              sx={{ fontFamily: MONO }} />
-      </Stack>
+      {editing ? (
+        <Stack spacing={2} sx={{ mb: 3 }}>
+          <TextField
+            multiline minRows={4} value={text} onChange={(e) => setText(e.target.value)}
+            label="What this requirement says"
+            helperText="Mark the words that carry weight with `backticks` or **bold** — that is what decomposition reads to find terms."
+          />
+          <Stack direction="row" spacing={2}>
+            <Select size="small" value={modality} onChange={(e) => setModality(String(e.target.value))}
+                    sx={{ minWidth: 150, fontFamily: MONO, fontSize: 13 }}>
+              {["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"].map((m) => (
+                <MenuItem key={m} value={m} sx={{ fontFamily: MONO, fontSize: 13 }}>{m}</MenuItem>
+              ))}
+            </Select>
+            <Select size="small" value={area} onChange={(e) => setArea(String(e.target.value))}
+                    sx={{ minWidth: 220, fontSize: 13 }}>
+              {areas.map((a) => <MenuItem key={a} value={a} sx={{ fontSize: 13 }}>{a}</MenuItem>)}
+            </Select>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" disabled={busy || !text.trim()}
+                    onClick={() => save("amendNS", {
+                      subject: req.requirement_id, text,
+                      modality, discipline: area,
+                    })}>
+              Propose this change
+            </Button>
+            <Button color="inherit" disabled={busy} onClick={() => setEditing(false)}>Cancel</Button>
+          </Stack>
+        </Stack>
+      ) : (
+        <>
+          <Typography sx={{ fontFamily: SERIF, fontSize: 17, lineHeight: 1.55, mb: 2.5 }}>
+            {plain(req.predicate)}
+          </Typography>
+
+          <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: "wrap", gap: 0.75 }}>
+            <Chip size="small" variant="outlined" label={req.discipline} />
+            <Chip size="small" variant="outlined" label={req.modality.replace("_", " ")}
+                  sx={{ fontFamily: MONO }} />
+          </Stack>
+
+          <Stack direction="row" spacing={1} sx={{ mb: 3 }}>
+            <Button size="small" variant="outlined" onClick={() => setEditing(true)}>
+              Reword
+            </Button>
+            <Button size="small" color="inherit" variant="outlined" disabled={busy || req.retracted}
+                    onClick={() => save("retractNS", { subject: req.requirement_id })}>
+              {req.retracted ? "Withdrawal proposed" : "Withdraw"}
+            </Button>
+          </Stack>
+        </>
+      )}
 
       <Typography variant="h2" sx={{ fontSize: 13, mb: 0.5 }}>What's holding it up</Typography>
       <Typography variant="body2" sx={{ color: "text.secondary", mb: 3 }}>
@@ -149,13 +246,112 @@ function Detail({
   );
 }
 
+/**
+ * Writing a requirement that does not come from the source document.
+ *
+ * ⚠ The id is the author's to choose and is checked against what exists. spec
+ * would otherwise accept an assertNS over a live id, and the overlay drops it
+ * rather than shadowing the original — a silent no-op is the worst outcome, so
+ * the collision is caught here where it can be explained.
+ */
+function NewRequirement({
+  open, project, areas, existing, onClose, onChanged,
+}: {
+  open: boolean;
+  project: string;
+  areas: string[];
+  existing: Set<string>;
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [id, setId] = useState("");
+  const [text, setText] = useState("");
+  const [modality, setModality] = useState("MUST");
+  const [area, setArea] = useState(areas[0] ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!open) return null;
+  const clash = existing.has(id.trim().toLowerCase());
+
+  async function write() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await submitOp("assertNS", {
+        subject: id.trim().toLowerCase(),
+        text: text.trim(),
+        discipline: area,
+        modality,
+        // R0 is the only honest rung for a sentence that has just been written:
+        // nothing has decomposed it, nothing has grounded it, nothing checks it.
+        rung: "R0",
+        project,
+      }, corpusVersion());
+      onChanged();
+      onClose();
+      setId("");
+      setText("");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Drawer anchor="right" open onClose={onClose}
+            slotProps={{ paper: { sx: { width: { xs: "100%", sm: 560 }, p: 3 } } }}>
+      <Stack direction="row" alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="h2" sx={{ fontSize: 16, flex: 1 }}>New requirement</Typography>
+        <IconButton size="small" onClick={onClose} aria-label="Close">✕</IconButton>
+      </Stack>
+
+      {err ? <Alert severity="error" sx={{ mb: 2 }}><b>Not recorded.</b> {err}</Alert> : null}
+
+      <Stack spacing={2}>
+        <TextField size="small" label="Identifier" value={id} placeholder="auth-68"
+                   onChange={(e) => setId(e.target.value)}
+                   error={clash}
+                   helperText={clash ? "That identifier already exists — pick another." : "Lower case, e.g. auth-68."} />
+        <TextField multiline minRows={4} label="What it commits to" value={text}
+                   onChange={(e) => setText(e.target.value)}
+                   helperText="Mark the words that carry weight with `backticks` or **bold** — decomposition reads those to find terms." />
+        <Stack direction="row" spacing={2}>
+          <Select size="small" value={modality} onChange={(e) => setModality(String(e.target.value))}
+                  sx={{ minWidth: 150, fontFamily: MONO, fontSize: 13 }}>
+            {["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"].map((m) => (
+              <MenuItem key={m} value={m} sx={{ fontFamily: MONO, fontSize: 13 }}>{m}</MenuItem>
+            ))}
+          </Select>
+          <Select size="small" value={area} onChange={(e) => setArea(String(e.target.value))}
+                  sx={{ minWidth: 220, fontSize: 13 }}>
+            {areas.map((a) => <MenuItem key={a} value={a} sx={{ fontSize: 13 }}>{a}</MenuItem>)}
+          </Select>
+        </Stack>
+        <Box>
+          <Button variant="contained" disabled={busy || clash || !id.trim() || !text.trim()}
+                  onClick={write}>
+            Propose it
+          </Button>
+        </Box>
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          It lands as a proposal under your name, at the same starting point as
+          every imported requirement: written down, nothing checking it yet.
+        </Typography>
+      </Stack>
+    </Drawer>
+  );
+}
+
 export function Requirements({
-  project, reqs, terms, onGround,
+  project, reqs, terms, onGround, onChanged,
 }: {
   project: string;
   reqs: Requirement[];
   terms: Term[];
   onGround: (surface: string) => void;
+  onChanged: () => void;
 }) {
   const mine = useMemo(
     () => reqs.filter((r) => r.project === project).sort((a, b) => compareIds(a.requirement_id, b.requirement_id)),
@@ -174,6 +370,7 @@ export function Requirements({
   const [area, setArea] = useState("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [writing, setWriting] = useState(false);
 
   const shown = mine.filter((r) => {
     if (area !== "all" && r.discipline !== area) return false;
@@ -213,6 +410,9 @@ export function Requirements({
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           {shown.length} shown
         </Typography>
+        <Button size="small" variant="contained" onClick={() => setWriting(true)}>
+          New requirement
+        </Button>
       </Stack>
 
       <Paper variant="outlined">
@@ -256,6 +456,10 @@ export function Requirements({
                     <Chip size="small" variant="outlined" label={`${n} term${n === 1 ? "" : "s"}`}
                           sx={{ fontSize: 11 }} />
                   ) : null}
+                  {r.pending ? (
+                    <Chip size="small" color="info" sx={{ fontSize: 11 }}
+                          label={r.retracted ? "Withdrawal proposed" : "Change proposed"} />
+                  ) : null}
                   {retired
                     ? <Chip size="small" label="Retired" sx={{ fontSize: 11 }} />
                     : <StateChip state={stateOf(r)} />}
@@ -277,11 +481,22 @@ export function Requirements({
         ) : null}
       </Paper>
 
+      <NewRequirement
+        open={writing}
+        project={project}
+        areas={areas}
+        existing={new Set(mine.map((r) => r.requirement_id))}
+        onClose={() => setWriting(false)}
+        onChanged={onChanged}
+      />
+
       <Detail
         req={shown.find((r) => r.requirement_id === open) ?? null}
         terms={terms}
+        areas={areas}
         onClose={() => setOpen(null)}
         onGround={(surface) => { setOpen(null); onGround(surface); }}
+        onChanged={onChanged}
       />
     </Box>
   );

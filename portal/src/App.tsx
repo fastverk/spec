@@ -1,14 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  AppBar, Box, Chip, CssBaseline, List, ListItemButton, ListItemText,
-  MenuItem, Select, ThemeProvider, Toolbar, Typography,
+  AppBar, Box, Chip, CssBaseline, IconButton, List, ListItemButton, ListItemText,
+  MenuItem, Select, ThemeProvider, Toolbar, Tooltip, Typography,
 } from "@mui/material";
 import * as api from "./api";
 import type { Conflict, Discipline, Requirement, Spec, Term } from "./api";
-import { MONO, theme } from "./theme";
+import {
+  MONO, resolveTheme, storeChoice, storedChoice, type ThemeChoice,
+} from "./theme";
 import { Overview } from "./panes/Overview";
 import { Requirements } from "./panes/Requirements";
 import { Grounding } from "./panes/Grounding";
+import { Proposals } from "./panes/Proposals";
 import { Conflicts } from "./panes/Conflicts";
 import { Proof } from "./panes/Proof";
 import { Document } from "./panes/Document";
@@ -32,6 +35,7 @@ const NAV = [
   { id: "proof", label: "Proof", group: "Assurance" },
   { id: "plan", label: "Plan mode", group: "Assurance" },
   { id: "liveness", label: "Liveness", group: "Assurance" },
+  { id: "proposals", label: "Proposals", group: "Outputs" },
   { id: "document", label: "Document", group: "Outputs" },
   { id: "settings", label: "Settings", group: "Outputs" },
 ] as const;
@@ -45,6 +49,29 @@ export default function App() {
   const [pane, setPane] = useState<string>("overview");
   const [termRows, setTerms] = useState<Term[]>([]);
   const [groundSurface, setGroundSurface] = useState("");
+
+  /**
+   * Three states, not two. "system" stays stored as itself so someone who never
+   * touched the toggle keeps following their OS when it flips at sunset.
+   */
+  const [choice, setChoice] = useState<ThemeChoice>(storedChoice);
+  const [systemDark, setSystemDark] = useState(
+    () => typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches,
+  );
+  useEffect(() => {
+    if (typeof matchMedia === "undefined") return;
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    const on = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  const theme = useMemo(() => resolveTheme(choice, systemDark), [choice, systemDark]);
+  const dark = theme.palette.mode === "dark";
+
+  const refresh = useCallback(() => {
+    api.requirements().then(setReqs).catch(() => setReqs([]));
+    api.terms().then(setTerms).catch(() => setTerms([]));
+  }, []);
 
   useEffect(() => {
     api.requirements().then(setReqs).catch(() => setReqs([]));
@@ -86,11 +113,41 @@ export default function App() {
           <Typography variant="body2" sx={{ color: "text.secondary", fontFamily: MONO, fontSize: 11.5 }}>
             {reqs.length} requirements across {projects.length} projects
           </Typography>
+          {/* Cycles light → dark → follow the system, and SAYS which of the
+              three it is on. A two-state toggle cannot express "follow the
+              system", so it silently pins people to whatever it was when they
+              first loaded. */}
+          <Tooltip title={
+            choice === "system"
+              ? `Following your system (${dark ? "dark" : "light"})`
+              : `Always ${choice}`
+          }>
+            <IconButton
+              size="small"
+              sx={{ ml: 1.5 }}
+              aria-label={`Theme: ${choice}. Change it.`}
+              onClick={() => {
+                const next: ThemeChoice =
+                  choice === "light" ? "dark" : choice === "dark" ? "system" : "light";
+                setChoice(next);
+                storeChoice(next);
+              }}
+            >
+              <Box component="span" sx={{ fontSize: 15, lineHeight: 1 }}>
+                {choice === "system" ? "◐" : choice === "dark" ? "☾" : "☀"}
+              </Box>
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
       <Box sx={{ display: "flex", minHeight: "calc(100vh - 48px)" }}>
-        <Box sx={{ width: 208, borderRight: 1, borderColor: "divider", bgcolor: "#F5F7F9", py: 1 }}>
+        {/* A hair off the page ground in both modes, so the rail reads as a rail
+            without a border doing all the work. */}
+        <Box sx={(t) => ({
+          width: 208, borderRight: 1, borderColor: "divider", py: 1,
+          bgcolor: t.palette.mode === "dark" ? "#181C22" : "#F5F7F9",
+        })}>
           <List dense disablePadding>
             {NAV.map((n, i) => (
               <Box key={n.id}>
@@ -122,15 +179,18 @@ export default function App() {
             <Requirements
               project={project} reqs={reqs} terms={myTerms}
               onGround={(surface) => { setGroundSurface(surface); setPane("grounding"); }}
+              onChanged={refresh}
             />
           )}
           {pane === "grounding" && (
-            <Grounding terms={myTerms} requirements={mine} initialSurface={groundSurface} />
+            <Grounding terms={myTerms} requirements={mine} project={project}
+                       initialSurface={groundSurface} onChanged={refresh} />
           )}
           {pane === "conflicts" && <Conflicts project={project} confs={confs} />}
           {pane === "proof" && <Proof specs={specList} />}
           {pane === "plan" && <PlanMode />}
           {pane === "liveness" && <Liveness />}
+          {pane === "proposals" && <Proposals project={project} />}
           {pane === "document" && <Document project={project} reqs={reqs} />}
           {pane === "settings" && <Settings />}
         </Box>

@@ -27,6 +27,20 @@ export default defineConfig({
         target: process.env.SPEC_URL ?? "http://127.0.0.1:8091",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api\/spec/, ""),
+        // LOCAL DEV ONLY. spec refuses a write with no principal rather than
+        // attributing it to nobody — an append-only log of anonymous edits is
+        // worse than no log. In production the console's gateway injects these;
+        // here they come from SPEC_AUTHOR, so every proposal this portal writes
+        // still carries a real name.
+        configure: (proxy) => {
+          const who = process.env.SPEC_AUTHOR ?? "";
+          if (!who) return;
+          const [sub, email] = who.includes("@") ? [who.split("@")[0], who] : [who, `${who}@local`];
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("x-fastverk-user-sub", sub ?? who);
+            proxyReq.setHeader("x-fastverk-user-email", email ?? who);
+          });
+        },
       },
       "/api/ground": {
         target: process.env.ADAPTER_URL ?? "http://127.0.0.1:3010",

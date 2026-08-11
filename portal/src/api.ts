@@ -20,6 +20,10 @@ export type Requirement = {
   population: string;
   outcome: string;
   blocked_on: string;
+  /** Proposed but not yet promoted into the corpus. */
+  pending?: boolean;
+  pending_by?: string;
+  retracted?: boolean;
 };
 
 export type Discipline = {
@@ -85,18 +89,40 @@ export type Term = {
   term_source: string;
   bound_to: string;
   open: boolean;
+  pending?: boolean;
+  pending_by?: string;
+  retracted?: boolean;
+  retracted_reason?: string;
+  aligns_to?: string;
+  /** Cleared as not-a-term, and adopted into the corpus. */
+  retired?: boolean;
 };
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url} → ${res.status}`);
-  return (await res.json()) as T;
+  const body = (await res.json()) as T & { corpus_version?: string };
+  if (body && typeof body.corpus_version === "string" && body.corpus_version) {
+    readPoint = body.corpus_version;
+  }
+  return body;
 }
 
+// ⚠ Pick the first ARRAY that is not `unreachable_repos`. Keying on "the first
+// field that is not unreachable_repos" broke the moment payloads gained
+// `corpus_version` — a string — and would have returned it as the row list.
 const rowsOf = <T,>(d: Record<string, unknown>): T[] => {
-  const key = Object.keys(d).find((k) => k !== "unreachable_repos");
+  const key = Object.keys(d).find((k) => k !== "unreachable_repos" && Array.isArray(d[k]));
   return key ? ((d[key] as T[]) ?? []) : [];
 };
+
+/**
+ * The corpus state the payloads were emitted from — the read point every
+ * proposal must name. Captured on each fetch so a write always says which
+ * corpus its author was looking at.
+ */
+let readPoint = "";
+export const corpusVersion = () => readPoint;
 
 export const requirements = () =>
   getJson<Record<string, unknown>>("/api/spec/requirements").then(rowsOf<Requirement>);
@@ -132,6 +158,63 @@ export async function probe(invariantId: string, term: string): Promise<ProbeRes
   if (!res.ok) throw new Error(`adapter → ${res.status}`);
   return (await res.json()) as ProbeResult;
 }
+
+/**
+ * Submit ONE authoring op.
+ *
+ * ## Why a proposal rather than a save
+ *
+ * Nothing here edits the corpus. Every act is appended to spec's append-only log
+ * with its author, checked against the closed op vocabulary, and shown as
+ * PENDING until someone promotes it into the TTL the gates run over. So a person
+ * can always answer "who said this, and when" — and a wrong answer is
+ * withdrawable rather than baked in.
+ *
+ * ⛔ `parent` is the read point the author saw. spec requires it and there is no
+ * default: a proposal made against a corpus you were not looking at is a
+ * different proposal.
+ */
+export type OpKind =
+  | "bindTerm" | "alignTerm" | "retractTerm"
+  | "assertNS" | "amendNS" | "retractNS";
+
+export type OpResult = {
+  queued: boolean;
+  log_offset: number;
+  ops: Array<{ index: number; op: string; verdict: string; reason: string }>;
+};
+
+export async function submitOp(
+  op: OpKind,
+  fields: Record<string, string>,
+  parent: string,
+): Promise<OpResult> {
+  const res = await fetch("/api/spec/proposal/op", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ op, parent, surface: "Meridian", ...fields }),
+  });
+  const body = (await res.json()) as OpResult & { message?: string; error?: string };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `write → ${res.status}`);
+  }
+  return body;
+}
+
+export type Proposal = {
+  kind: string;
+  project: string;
+  subject: string;
+  detail: string;
+  author: string;
+  /** Already in the corpus the gates run over, as opposed to still waiting. */
+  adopted: boolean;
+};
+
+export const proposals = () =>
+  getJson<{ proposals?: Proposal[]; records?: number; write_enabled?: boolean }>(
+    "/api/spec/proposals",
+  );
 
 export class NoReadingProposed extends Error {
   constructor(readonly term: string) {
