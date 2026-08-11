@@ -458,3 +458,52 @@ au:outcomeOf a owl:ObjectProperty ;
     rdfs:domain au:Evaluation ; rdfs:range au:Outcome ;
     rdfs:label "outcome" ;
     rdfs:comment "Deliberately distinct from au:outcome on a Resolution: that records what a person decided, this records what a machine measured." .
+
+# =============================================================================
+# Terms — the named holes that make R2 a real rung
+# =============================================================================
+#
+# The ladder already DESCRIBES terms: R2 is "a skeleton with named holes, open
+# holes are enumerable", and R3 is "every term resolves to a registered
+# concept". Neither was expressible. `rfc:definesTerm` is domain `rfc:Document`
+# — it says which terms a document introduces, not which ones a CLAIM depends
+# on — so there was no way to write down the holes the rungs are defined by,
+# and therefore no way to promote a claim on evidence.
+#
+# Enumerability is the whole value. A claim with named holes can be asked about
+# precisely — only the unbound ones, one question each — which is what keeps the
+# human's job small. "This needs more work" is not enumerable and cannot be
+# handed to anyone.
+
+# ⚠ NOT rfc:Term. That class means a term the glossary DEFINES — its shape
+# requires an rfc:definition — and the whole reason R2 exists is that a claim can
+# depend on a term nothing has defined yet. Modelling a hole as a defined term
+# forces you to invent a definition to satisfy the shape, which is inventing the
+# very thing that is missing. (The SHACL suite caught exactly that on the first
+# attempt here.)
+#
+# A bound TermRef may point at an rfc:Term once one exists; an open one points at
+# nothing, and says so.
+au:TermRef a owl:Class ;
+    rdfs:label "Term reference" ;
+    rdfs:comment "A term a claim depends on, which may be defined nowhere. UNBOUND means an open hole: the claim cannot be checked until someone says what the words point at." .
+
+au:hasTerm a owl:ObjectProperty ;
+    rdfs:domain rfc:NormativeStatement ; rdfs:range au:TermRef ;
+    rdfs:label "has term" ;
+    rdfs:comment "A term this claim depends on. Enumerable holes are what make R2 a rung rather than a mood: the unbound ones can be asked about, one question each." .
+
+au:surface a owl:DatatypeProperty ;
+    rdfs:domain au:TermRef ; rdfs:range xsd:string ;
+    rdfs:label "surface" ;
+    rdfs:comment "The words as the author wrote them. Deliberately not normalized — the person confirming needs to recognise their own phrase." .
+
+au:boundTo a owl:DatatypeProperty ;
+    rdfs:domain au:TermRef ; rdfs:range xsd:string ;
+    rdfs:label "bound to" ;
+    rdfs:comment "The referent a person confirmed, in the project's own vocabulary. ABSENT means an open hole — absent rather than empty, so a hole cannot be mistaken for a binding to nothing." .
+
+au:termSource a owl:DatatypeProperty ;
+    rdfs:domain au:TermRef ; rdfs:range xsd:string ;
+    rdfs:label "term source" ;
+    rdfs:comment "How the term was identified — 'code-span' or 'emphasis' when read off the author's own markup. Recorded so a reader can tell a term the author marked from one a machine inferred; they are not equally trustworthy." .

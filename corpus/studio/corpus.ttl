@@ -41,9 +41,7 @@ st:auth-1 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Every organization kind (§2.1) may authenticate through SSO, email domain, or email invite. Each platform-owning org, reseller, broker, sponsor organization, and SAVVI is a distinct **WorkOS Organization**. WorkOS Organizations provide authentication (org-scoped sessions), SSO and other auth methods (domains, invitations, MFA where required — AUTH-54), and memberships with org-level roles such as `admin` (AUTH-53). Studio authorization is layered in the application database (§4.11); it is not WorkOS FGA. On the SAVVI organization, org `admin` also covers AUTH-27." ;
     rdfs:label "AUTH-1" ;
-    au:discipline st:identity ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:identity ; .
 
 st:auth-2 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
@@ -57,9 +55,7 @@ st:auth-2a a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "A user always acts in exactly **one active WorkOS Organization**. Authorization is evaluated for (user, active org); switching org re-derives roles, permissions, and visibility." ;
     rdfs:label "AUTH-2a" ;
-    au:discipline st:identity ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:identity ; .
 
 st:auth-2b a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
@@ -73,65 +69,49 @@ st:auth-53 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "An **org admin** holds AuthKit `admin` on their active membership (JWT claim, §4.11). That claim gates team creation (AUTH-52), team management (AUTH-9), visibility (§4.5.1), grant management (AUTH-30), and private-sponsor visibility (AUTH-12). Shorthand roles (§2.3) are org admins of those organization kinds. Because the claim lives in the session JWT, org-role changes take effect when the token refreshes (login, org switch, session refresh) — not necessarily on the next request, unlike database-backed authorization (§4.11)." ;
     rdfs:label "AUTH-53" ;
-    au:discipline st:identity ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:identity ; .
 
 st:auth-3 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "A **sponsor** is owned by exactly one **platform**. Sponsors are never shared across platforms." ;
     rdfs:label "AUTH-3" ;
-    au:discipline st:platforms ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:platforms ; .
 
 st:auth-42 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Sponsors are created under a platform by users who may create on that platform: any user of the platform-owning organization, SAVVI staff (§4.8), and any user of an org with a **reseller agreement** for the platform (§4.7). There is no per-user create designation. Regardless of who creates it, the sponsor is owned by the platform (AUTH-3). At create time the creator chooses team assignment(s) and the creating org's visibility; after creation, only an **org admin** of that org may change visibility (AUTH-41)." ;
     rdfs:label "AUTH-42" ;
-    au:discipline st:platforms ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:platforms ; .
 
 st:auth-50 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Sponsor ownership is a **two-level hierarchy**. Primary owner: the platform (AUTH-3) / platform-owning organization. Optional subordinate stamp: exactly one **reseller org** (`sponsors.reseller_organization_id`) for reseller-created sponsors (AUTH-44). Ownership is independent of team assignments (AUTH-48)." ;
     rdfs:label "AUTH-50" ;
-    au:discipline st:platforms ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:platforms ; .
 
 st:auth-51 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "The reseller stamp confers authority subordinate to the primary owner: - **Grant management** for the sponsor (§4.6), never beyond the reseller org's own granted set. - **Lifecycle management** (archive/offboard, etc.), subject to primary-owner override. - The primary owner may edit/revoke any grant and reassign or clear the stamp. - The stamp is not transferable by the reseller and does not by itself confer sponsor permissions — access still flows through the §4.6 grant and the reseller's own teams." ;
     rdfs:label "AUTH-51" ;
-    au:discipline st:platforms ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:platforms ; .
 
 st:auth-57 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Sponsor attribute edits require effective `sponsor:edit` (AUTH-14). Sponsor **deletion** is reserved to users of the platform-owning organization and SAVVI staff, and removes downstream data. There is no sponsor archive state — retirement is modeled by archiving plan years (story 33). A stamped reseller's lifecycle authority (AUTH-51) covers archival/offboarding workflows, not deletion." ;
     rdfs:label "AUTH-57" ;
-    au:discipline st:platforms ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:platforms ; .
 
 st:auth-58 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "**Task templates** are platform-scoped, optionally audienced to a reseller. Managing them (create/edit/delete) requires SAVVI staff or an org admin of the platform-owning organization. Instantiating a template follows normal task-creation rules (effective `sponsor:edit` on the target sponsor), and the template's platform/reseller audience must match the sponsor." ;
     rdfs:label "AUTH-58" ;
-    au:discipline st:platforms ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:platforms ; .
 
 st:auth-14 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Effective permission on a sponsor = union(visibility baseline §4.5.1, team-role permissions §2.5) ∩ grant set (AUTH-31). The union takes the max tier and keeps any orthogonal permission (`sponsor:analytics`, `deploy:*`) either side confers. Platform-owning org and SAVVI (§4.8) use the full set as the grant cap. One pure function (§4.11) answers point checks, lists, search, and deploy (AUTH-49)." ;
     rdfs:label "AUTH-14" ;
-    au:discipline st:permissions ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:permissions ; .
 
 st:auth-15 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -161,17 +141,13 @@ st:auth-4 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "A **team** is owned by exactly one WorkOS Organization." ;
     rdfs:label "AUTH-4" ;
-    au:discipline st:teams ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:teams ; .
 
 st:auth-5 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "A sponsor may be assigned to any number of teams. Cross-org assignment requires a **sponsor grant** (§4.6)." ;
     rdfs:label "AUTH-5" ;
-    au:discipline st:teams ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:teams ; .
 
 st:auth-6 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -193,17 +169,13 @@ st:auth-52 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Teams are created and deleted by **org admins** of the owning org. Team admins manage existing teams (AUTH-8) but do not create or delete them. Deleting a team drops its sponsor assignments; if it was the only team assigned to a `private` sponsor, that sponsor remains visible only to org admins (AUTH-12). A team may be left with no team admin; org admins (AUTH-9) remain its management path." ;
     rdfs:label "AUTH-52" ;
-    au:discipline st:teams ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:teams ; .
 
 st:auth-8 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Team `admin`s can rename the team, change its visibility, manage membership (all roles), and assign/unassign sponsors." ;
     rdfs:label "AUTH-8" ;
-    au:discipline st:teams ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:teams ; .
 
 st:auth-9 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -217,49 +189,37 @@ st:auth-10 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Team membership is admin-managed only (no self-service join). Roster presence is accountability, not the access gate for `public` sponsors (AUTH-35)." ;
     rdfs:label "AUTH-10" ;
-    au:discipline st:teams ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:teams ; .
 
 st:auth-35 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "A `public` sponsor confers the org's public baseline on every org user (intersected with the grant for granted sponsors, AUTH-31)." ;
     rdfs:label "AUTH-35" ;
-    au:discipline st:visibility ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:visibility ; .
 
 st:auth-41 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "Public baseline is org-level (`organizations.public_sponsor_permissions`); default `sponsor:edit`, may lower to `sponsor:view`, and may additionally include `sponsor:analytics`. Restricted baseline is always `sponsor:report`. Public baseline never includes `deploy:*`. After create, only an **org admin** may change a sponsor's visibility in that org." ;
     rdfs:label "AUTH-41" ;
-    au:discipline st:visibility ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:visibility ; .
 
 st:auth-11 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "`restricted`: org-wide `sponsor:report`; view/edit require a sufficient team role on an assigned team." ;
     rdfs:label "AUTH-11" ;
-    au:discipline st:visibility ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:visibility ; .
 
 st:auth-12 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "`private`: invisible (not-found) except to members of an assigned team (at their role's level), **org admins** of an org holding the sponsor in its pool (at that org's public baseline, still ∩ grant — AUTH-31), and SAVVI staff (§4.8)." ;
     rdfs:label "AUTH-12" ;
-    au:discipline st:visibility ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:visibility ; .
 
 st:auth-13 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Search covers the org's sponsor pool excluding AUTH-12-hidden sponsors; restricted surfaces at `sponsor:report`." ;
     rdfs:label "AUTH-13" ;
-    au:discipline st:visibility ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:visibility ; .
 
 st:auth-36 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -281,9 +241,7 @@ st:auth-39 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Granted sponsors enter the recipient org as `public`; recipient admins may tighten afterwards. Mind the combined default: with AUTH-41's default baseline, granting `{sponsor:edit}` immediately gives every user of the recipient org edit on the sponsor — grant narrowly or have the recipient tighten visibility when that is not intended." ;
     rdfs:label "AUTH-39" ;
-    au:discipline st:visibility ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:visibility ; .
 
 st:auth-38 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -305,17 +263,13 @@ st:auth-30 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Who may grant a sponsor to another WorkOS Organization: platform users with `sponsor:edit`, org admins, SAVVI staff (AUTH-20), and **reseller admins** for stamped sponsors (AUTH-51, no escalation). Each grant carries an explicit permission set from §2.4; orthogonal permissions (`sponsor:analytics`, `deploy:*`) only when listed. At most one grant exists per (sponsor, recipient org); granting again updates that grant's permission set (AUTH-32)." ;
     rdfs:label "AUTH-30" ;
-    au:discipline st:grants ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:grants ; .
 
 st:auth-31 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "In the recipient org, team roles and visibility baselines apply **intersected** with the grant (check-time, §4.11). An orthogonal permission carried by a grant is therefore effective only where the derived side also confers it: `sponsor:analytics` via a team role or a public baseline listing it (AUTH-41), `deploy:*` via team roles only (AUTH-26). Example — grant `{sponsor:view}`: | Broker team role | Role would confer | Effective on Acme | | ---------------- | ----------------------------------------------------------- | --------------------------------------------------------------- | | `implementor` | `sponsor:edit`, `sponsor:analytics`, `deploy:nonproduction` | `sponsor:view` (limited by grant; analytics/deploy not granted) | | `reporter` | `sponsor:report` | `sponsor:report` |" ;
     rdfs:label "AUTH-31" ;
-    au:discipline st:grants ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:grants ; .
 
 st:auth-32 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -329,9 +283,7 @@ st:auth-33 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Grants are non-transferable except stamped reseller orgs (AUTH-50/51), which extend grants to collaborating orgs (brokers, the sponsor's own org) **on behalf of the platform**, capped **at issue time** to the reseller's own granted set (no escalation, including edits to its own grant). Once issued, such grants are ordinary platform grants — AUTH-30/32 parties edit or revoke them; creator provenance is `sponsor_grants.created_by_id`. Narrowing the reseller's own grant later does not retroactively narrow grants it already issued." ;
     rdfs:label "AUTH-33" ;
-    au:discipline st:grants ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:grants ; .
 
 st:auth-34 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
@@ -345,17 +297,13 @@ st:auth-43 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "A **platform admin** or **SAVVI admin** may establish a **reseller agreement** between a platform and another WorkOS Organization. **Platform admins** may add a reseller **only by name and domain** (reuse the WorkOS Organization that owns the domain, or create and mirror one); they must not be offered an organization picker that would disclose other platforms' reseller partners. **SAVVI admins** may add by selecting an existing mirrored organization **or** by name and domain. Webhooks never invent agreements. The agreement confers `sponsor:create` (AUTH-42) and specifies a platform-owned **book team** and default **grant permission set** (typically `{sponsor:edit}`). Platform admins see only their agreements; SAVVI admins may manage any platform's." ;
     rdfs:label "AUTH-43" ;
-    au:discipline st:resellers ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:resellers ; .
 
 st:auth-44 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Reseller-created sponsors: stamp `reseller_organization_id` (AUTH-50/51), assign to the book team, and §4.6-grant to the reseller org (enters as `public`, AUTH-39). Immediate — no platform-owner approval. Platform admins may also create a sponsor and assign it to a reseller." ;
     rdfs:label "AUTH-44" ;
-    au:discipline st:resellers ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:resellers ; .
 
 st:auth-45 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
@@ -369,25 +317,19 @@ st:auth-46 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Removing an agreement drops `sponsor:create` only; stamps, grants, book-team assignments, and the reseller organization remain." ;
     rdfs:label "AUTH-46" ;
-    au:discipline st:resellers ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:resellers ; .
 
 st:auth-20 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Every sponsor is treated as granted to the SAVVI WorkOS Organization with the full permission set (`sponsor:edit`, `sponsor:analytics`, `deploy:nonproduction`, `deploy:production`, plus future). Owning-org visibility does not constrain SAVVI (§4.5.1)." ;
     rdfs:label "AUTH-20" ;
-    au:discipline st:savvi-access ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:savvi-access ; .
 
 st:auth-21 a rfc:NormativeStatement ;
     rfc:modality rfc:MAY ;
     rfc:predicate "Within SAVVI, auto-granted sponsors follow §4.5 (arrive `public`, AUTH-39); SAVVI admins may tighten visibility and use SAVVI teams normally." ;
     rdfs:label "AUTH-21" ;
-    au:discipline st:savvi-access ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:savvi-access ; .
 
 st:auth-22 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -401,9 +343,7 @@ st:auth-23 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "System grant is a **rule, not rows** in the effective-permission function (AUTH-14, §4.11)." ;
     rdfs:label "AUTH-23" ;
-    au:discipline st:savvi-access ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:savvi-access ; .
 
 st:auth-54 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -417,9 +357,7 @@ st:auth-27 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Platform create, import, and the in-app Impersonate entry point require **SAVVI admin**." ;
     rdfs:label "AUTH-27" ;
-    au:discipline st:savvi-access ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:savvi-access ; .
 
 st:auth-28 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -433,65 +371,49 @@ st:auth-29 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Impersonation sessions surface via `impersonator` / `act` claim (in-app banner) and WorkOS `session.created` audit events." ;
     rdfs:label "AUTH-29" ;
-    au:discipline st:savvi-access ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:savvi-access ; .
 
 st:auth-24 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "`sponsor:edit` never implies deploy. Public baseline never includes `deploy:*` (AUTH-41)." ;
     rdfs:label "AUTH-24" ;
-    au:discipline st:deploy ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:deploy ; .
 
 st:auth-25 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "`deploy:production` and `deploy:nonproduction` are distinct. Production envs require `deploy:production`; non-production accepts either." ;
     rdfs:label "AUTH-25" ;
-    au:discipline st:deploy ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:deploy ; .
 
 st:auth-26 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "`deploy:*` comes only from team roles (§2.5) and/or §4.6 grants." ;
     rdfs:label "AUTH-26" ;
-    au:discipline st:deploy ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:deploy ; .
 
 st:auth-49 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Deploy sponsor X to environment E iff effective permission on X includes `sponsor:edit` and the matching `deploy:*`, and E is on X's platform and visible to the user (AUTH-59)." ;
     rdfs:label "AUTH-49" ;
-    au:discipline st:deploy ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:deploy ; .
 
 st:auth-59 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "**Platform visibility**: a platform is visible to its owning org (as owner) and — as non-owner viewer — to orgs holding a §4.6 grant on any of its sponsors or a reseller agreement for it. SAVVI sees all platforms as owner. **Environment visibility** follows platform visibility." ;
     rdfs:label "AUTH-59" ;
-    au:discipline st:deploy ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:deploy ; .
 
 st:auth-60 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Platform create requires **SAVVI admin** (AUTH-27). Platform attribute edits and environment management (create/edit/delete) are reserved to the platform-owning organization (SAVVI acts as owner everywhere). Platform deletion requires SAVVI admin. An environment is **production** iff its stage is `production` (AUTH-25)." ;
     rdfs:label "AUTH-60" ;
-    au:discipline st:deploy ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:deploy ; .
 
 st:auth-18 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Onboarding a sponsor's WorkOS Organization: grant its sponsor to it (§4.6, typically `{sponsor:edit}`), auto-provision a default team owned by that org with the sponsor assigned, and add sponsor-org users per the onboarding agreement." ;
     rdfs:label "AUTH-18" ;
-    au:discipline st:sponsor-orgs ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:sponsor-orgs ; .
 
 st:auth-19 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -505,41 +427,31 @@ st:auth-55 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Membership/user deletion removes corresponding `team_memberships`. Org lifecycle webhooks only maintain the `organizations` mirror." ;
     rdfs:label "AUTH-55" ;
-    au:discipline st:identity-mapping ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:identity-mapping ; .
 
 st:auth-56 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "Authorization-data changes are recorded in `authz_audit_log`. The log is append-only; reading it is reserved to SAVVI admins." ;
     rdfs:label "AUTH-56" ;
-    au:discipline st:identity-mapping ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:identity-mapping ; .
 
 st:auth-61 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "Tasks carry their own visibility (`public` default / `restricted` / `private`), orthogonal to sponsor access. A task's **participants** — assignee, delegate, and subscribers — always see it in full detail, even without any permission on its sponsor. Non-participants need `sponsor:view` on the parent sponsor and see: | Task visibility | Participant | `sponsor:view` non-participant | | ------------------ | ----------- | ------------------------------ | | `public` (default) | full | full | | `restricted` | full | attributes only | | `private` | full | not-found (AUTH-17) | The attributes projection is an allowlist (title, type, status, priority, dates, assignment, hierarchy) — never description or comments. Full-detail access gates comments and related task operations." ;
     rdfs:label "AUTH-61" ;
-    au:discipline st:tasks ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:tasks ; .
 
 st:auth-62 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "Plan-year **documents** require `sponsor:view` via the parent sponsor (AUTH-16). Task-comment **attachments** are a distinct document kind and follow the visibility of the task whose comment carries them: full-detail access to that task is required; document rules never apply. S3 upload and download tokens are issued only after these same checks." ;
     rdfs:label "AUTH-62" ;
-    au:discipline st:tasks ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:tasks ; .
 
 st:auth-63 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "A user's **collaborating organizations** are: their own org, the platform-owning org and every grant-holding org of each sponsor in their org's pool, and SAVVI (AUTH-23). The user directory lists active members of collaborating orgs only (default scope) or own-org members only (team pickers, AUTH-6); an all-users scope is SAVVI-staff-only. The directory is never a vehicle to enumerate unrelated organizations' users." ;
     rdfs:label "AUTH-63" ;
-    au:discipline st:directory ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:directory ; .
 
 st:auth-64 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
@@ -553,17 +465,13 @@ st:auth-65 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;
     rfc:predicate "The full organization catalog is browsable by **SAVVI staff** (including selecting existing orgs as resellers, AUTH-43) and by **org admins** of reseller orgs under agreement or holding stamped sponsors (grant recipient pickers). **Platform-owning org admins do not** receive the full catalog — they add resellers by name and domain only (AUTH-43) so other platforms' reseller partners are not disclosed. Everyone else sees only organizations they belong to." ;
     rdfs:label "AUTH-65" ;
-    au:discipline st:directory ;
-    au:rung au:R0 ;
-    au:stalledOn "modality-unstated: the text states no modal verb, so rfc:MUST is a placeholder awaiting a person" .
+    au:discipline st:directory ; .
 
 st:auth-66 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST_NOT ;
     rfc:predicate "The local dev login (`/dev/login`) bypasses WorkOS and is gated by the `DEV_AUTH_ENABLED` runtime flag. It must never be enabled outside local development." ;
     rdfs:label "AUTH-66" ;
-    au:discipline st:dev-access ;
-    au:rung au:R0 ;
-    au:stalledOn "not-decomposed: modality was pattern-matched from the claim text and nobody has confirmed it; no terms grounded, so nothing can be checked yet" .
+    au:discipline st:dev-access ; .
 
 st:auth-37 a rfc:NormativeStatement ;
     rfc:modality rfc:MUST ;

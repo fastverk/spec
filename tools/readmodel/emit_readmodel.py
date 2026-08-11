@@ -301,9 +301,10 @@ def shape_witness_party(r):
 
 
 Q_REQUIREMENTS = """
-SELECT ?claim ?discipline ?modality ?rung ?stall ?impl ?population ?outcome
+SELECT ?claim ?predicate ?discipline ?modality ?rung ?stall ?impl ?population ?outcome
 WHERE {
   ?claim a rfc:NormativeStatement .
+  OPTIONAL { ?claim rfc:predicate ?predicate }
   OPTIONAL { ?claim au:discipline ?d . ?d rdfs:label ?discipline }
   OPTIONAL { ?claim rfc:modality ?modality }
   OPTIONAL { ?claim au:rung ?rung }
@@ -327,6 +328,9 @@ def shape_requirement(r):
     evaluated = r.outcome is not None or r.population is not None
     return {
         "requirement_id": local(r.claim),
+        # The sentence itself. Without it the generated document can only list
+        # identifiers, which is not a document anyone would read.
+        "predicate": str(r.predicate or ""),
         "discipline": str(r.discipline or ""),
         "modality": local(r.modality) or "",
         "rung": local(r.rung) or "",
@@ -341,6 +345,33 @@ def shape_requirement(r):
     }
 
 
+Q_TERMS = """
+SELECT ?claim ?term ?surface ?source ?bound
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:hasTerm ?term .
+  ?term au:surface ?surface .
+  OPTIONAL { ?term au:termSource ?source }
+  # Absent, not empty. An open hole and a term bound to nothing are different
+  # facts, and the UI must be able to tell them apart.
+  OPTIONAL { ?term au:boundTo ?bound }
+}
+ORDER BY ?claim ?surface
+"""
+
+
+def shape_term(r):
+    return {
+        "requirement_id": local(r.claim),
+        "term_id": local(r.term),
+        "surface": str(r.surface or ""),
+        # Whether the author marked it, or a machine inferred it. Not equally
+        # trustworthy, so not collapsed.
+        "term_source": str(r.source or ""),
+        "bound_to": "" if r.bound is None else str(r.bound),
+        "open": r.bound is None,
+    }
+
+
 ROUTES = [
     ("conflicts",   "conflicts",  "ListConflicts",       Q_CONFLICTS,   shape_conflict),
     ("envelopes",   "envelopes",  "ListEnvelopes",       Q_ENVELOPES,   shape_envelope),
@@ -349,6 +380,7 @@ ROUTES = [
     ("claims",      "claims",     "ListClaims",          Q_CLAIMS,      shape_claim),
     ("witness",     "parties",    "GetConflictWitness",  Q_WITNESS,     shape_witness_party),
     ("requirements", "requirements", "ListRequirements",  Q_REQUIREMENTS, shape_requirement),
+    ("terms",        "terms",        "ListTerms",         Q_TERMS,        shape_term),
 ]
 
 SERVICE = "spec.v1.Authoring"

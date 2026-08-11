@@ -39,6 +39,10 @@ rdf_dataset(
     srcs = [
         "corpus.ttl",
         "disciplines.ttl",
+        # The named holes, from tools/import/decompose.py. Separate file because
+        # it is a separate act: import captures, decomposition names what is
+        # missing, and the two are re-runnable independently.
+        "terms.ttl",
     ],
     in_format = "turtle",
     # //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the authoring gates

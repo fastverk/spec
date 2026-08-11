@@ -1,0 +1,968 @@
+{
+  "terms": [
+    {
+      "requirement_id": "auth-1",
+      "term_id": "term-workos-organization",
+      "surface": "WorkOS Organization",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-1",
+      "term_id": "term-admin",
+      "surface": "admin",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-10",
+      "term_id": "term-public",
+      "surface": "public",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-11",
+      "term_id": "term-restricted",
+      "surface": "restricted",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-11",
+      "term_id": "term-sponsor-report",
+      "surface": "sponsor:report",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-12",
+      "term_id": "term-org-admins",
+      "surface": "org admins",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-12",
+      "term_id": "term-private",
+      "surface": "private",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-13",
+      "term_id": "term-sponsor-report",
+      "surface": "sponsor:report",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-14",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-14",
+      "term_id": "term-sponsor-analytics",
+      "surface": "sponsor:analytics",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-18",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-20",
+      "term_id": "term-deploy-nonproduction",
+      "surface": "deploy:nonproduction",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-20",
+      "term_id": "term-deploy-production",
+      "surface": "deploy:production",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-20",
+      "term_id": "term-sponsor-analytics",
+      "surface": "sponsor:analytics",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-20",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-21",
+      "term_id": "term-public",
+      "surface": "public",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-23",
+      "term_id": "term-rule-not-rows",
+      "surface": "rule, not rows",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-24",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-24",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-25",
+      "term_id": "term-deploy-nonproduction",
+      "surface": "deploy:nonproduction",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-25",
+      "term_id": "term-deploy-production",
+      "surface": "deploy:production",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-26",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-27",
+      "term_id": "term-savvi-admin",
+      "surface": "SAVVI admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-29",
+      "term_id": "term-act",
+      "surface": "act",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-29",
+      "term_id": "term-impersonator",
+      "surface": "impersonator",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-29",
+      "term_id": "term-session-created",
+      "surface": "session.created",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-2a",
+      "term_id": "term-one-active-workos-organization",
+      "surface": "one active WorkOS Organization",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-3",
+      "term_id": "term-platform",
+      "surface": "platform",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-3",
+      "term_id": "term-sponsor",
+      "surface": "sponsor",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-30",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-30",
+      "term_id": "term-reseller-admins",
+      "surface": "reseller admins",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-30",
+      "term_id": "term-sponsor-analytics",
+      "surface": "sponsor:analytics",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-30",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-deploy-nonproduction",
+      "surface": "deploy:nonproduction",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-implementor",
+      "surface": "implementor",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-intersected",
+      "surface": "intersected",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-reporter",
+      "surface": "reporter",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-sponsor-analytics",
+      "surface": "sponsor:analytics",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-sponsor-report",
+      "surface": "sponsor:report",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-31",
+      "term_id": "term-sponsor-view",
+      "surface": "sponsor:view",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-33",
+      "term_id": "term-at-issue-time",
+      "surface": "at issue time",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-33",
+      "term_id": "term-sponsor-grants-created-by-id",
+      "surface": "sponsor_grants.created_by_id",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-35",
+      "term_id": "term-public",
+      "surface": "public",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-39",
+      "term_id": "term-public",
+      "surface": "public",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-39",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-4",
+      "term_id": "term-team",
+      "surface": "team",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-org-admin",
+      "surface": "org admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-organizations-public-sponsor-permissions",
+      "surface": "organizations.public_sponsor_permissions",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-sponsor-analytics",
+      "surface": "sponsor:analytics",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-sponsor-report",
+      "surface": "sponsor:report",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-41",
+      "term_id": "term-sponsor-view",
+      "surface": "sponsor:view",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-42",
+      "term_id": "term-org-admin",
+      "surface": "org admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-42",
+      "term_id": "term-reseller-agreement",
+      "surface": "reseller agreement",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-platform-admins",
+      "surface": "Platform admins",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-savvi-admin",
+      "surface": "SAVVI admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-savvi-admins",
+      "surface": "SAVVI admins",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-book-team",
+      "surface": "book team",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-grant-permission-set",
+      "surface": "grant permission set",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-or",
+      "surface": "or",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-platform-admin",
+      "surface": "platform admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-reseller-agreement",
+      "surface": "reseller agreement",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-sponsor-create",
+      "surface": "sponsor:create",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-43",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-44",
+      "term_id": "term-public",
+      "surface": "public",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-44",
+      "term_id": "term-reseller-organization-id",
+      "surface": "reseller_organization_id",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-46",
+      "term_id": "term-sponsor-create",
+      "surface": "sponsor:create",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-49",
+      "term_id": "term-deploy",
+      "surface": "deploy:*",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-49",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-5",
+      "term_id": "term-sponsor-grant",
+      "surface": "sponsor grant",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-50",
+      "term_id": "term-reseller-org",
+      "surface": "reseller org",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-50",
+      "term_id": "term-sponsors-reseller-organization-id",
+      "surface": "sponsors.reseller_organization_id",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-50",
+      "term_id": "term-two-level-hierarchy",
+      "surface": "two-level hierarchy",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-51",
+      "term_id": "term-grant-management",
+      "surface": "Grant management",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-51",
+      "term_id": "term-lifecycle-management",
+      "surface": "Lifecycle management",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-52",
+      "term_id": "term-org-admins",
+      "surface": "org admins",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-52",
+      "term_id": "term-private",
+      "surface": "private",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-53",
+      "term_id": "term-admin",
+      "surface": "admin",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-53",
+      "term_id": "term-org-admin",
+      "surface": "org admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-55",
+      "term_id": "term-organizations",
+      "surface": "organizations",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-55",
+      "term_id": "term-team-memberships",
+      "surface": "team_memberships",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-56",
+      "term_id": "term-authz-audit-log",
+      "surface": "authz_audit_log",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-57",
+      "term_id": "term-deletion",
+      "surface": "deletion",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-57",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-58",
+      "term_id": "term-task-templates",
+      "surface": "Task templates",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-58",
+      "term_id": "term-sponsor-edit",
+      "surface": "sponsor:edit",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-59",
+      "term_id": "term-environment-visibility",
+      "surface": "Environment visibility",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-59",
+      "term_id": "term-platform-visibility",
+      "surface": "Platform visibility",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-60",
+      "term_id": "term-savvi-admin",
+      "surface": "SAVVI admin",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-60",
+      "term_id": "term-production",
+      "surface": "production",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-61",
+      "term_id": "term-participants",
+      "surface": "participants",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-61",
+      "term_id": "term-private",
+      "surface": "private",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-61",
+      "term_id": "term-public",
+      "surface": "public",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-61",
+      "term_id": "term-restricted",
+      "surface": "restricted",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-61",
+      "term_id": "term-sponsor-view",
+      "surface": "sponsor:view",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-62",
+      "term_id": "term-attachments",
+      "surface": "attachments",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-62",
+      "term_id": "term-documents",
+      "surface": "documents",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-62",
+      "term_id": "term-sponsor-view",
+      "surface": "sponsor:view",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-63",
+      "term_id": "term-collaborating-organizations",
+      "surface": "collaborating organizations",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-65",
+      "term_id": "term-savvi-staff",
+      "surface": "SAVVI staff",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-65",
+      "term_id": "term-org-admins",
+      "surface": "org admins",
+      "term_source": "emphasis",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-66",
+      "term_id": "term-dev-login",
+      "surface": "/dev/login",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-66",
+      "term_id": "term-dev-auth-enabled",
+      "surface": "DEV_AUTH_ENABLED",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    },
+    {
+      "requirement_id": "auth-8",
+      "term_id": "term-admin",
+      "surface": "admin",
+      "term_source": "code-span",
+      "bound_to": "",
+      "open": true,
+      "project": "studio"
+    }
+  ],
+  "unreachable_repos": []
+}

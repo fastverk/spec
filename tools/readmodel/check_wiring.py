@@ -70,7 +70,14 @@ emitter = read(EMITTER)
 emit_routes = re.findall(
     r'\(\s*"([a-z_]+)",\s*"([a-z_]+)",\s*"(\w+)",\s*Q_\w+,\s*shape_\w+\s*\)', emitter
 )
-check(len(emit_routes) == 7, f"{EMITTER}: found {len(emit_routes)} routes, expected 7")
+# A bare count is not redundant with the per-route checks below: those assert
+# that whatever routes exist agree everywhere, and would stay green if a route
+# were silently DELETED from all seven places at once. This is the tripwire that
+# makes adding or removing one a deliberate edit. Bump it on purpose.
+#
+# 8 = concepts, disciplines, conflicts, frontier, measure, evaluations,
+#     requirements, terms.
+check(len(emit_routes) == 8, f"{EMITTER}: found {len(emit_routes)} routes, expected 8")
 emit_by_path = {p: (rows, method) for p, rows, method in emit_routes}
 
 emit_service = re.search(r'^SERVICE\s*=\s*"([^"]+)"', emitter, re.M)
