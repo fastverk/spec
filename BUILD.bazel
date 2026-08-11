@@ -6,4 +6,15 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "Cargo.toml",
     "Cargo.lock",
+    # ⚠ Exported from the ROOT package, not from a BUILD file inside .github/.
+    # Bazel treats directories beginning with a dot as hidden, so `//.github:...`
+    # is not a construct to rely on; `.github/` has no BUILD file, which makes
+    # this file part of the root package and `//:.github/workflows/ci.yml` a
+    # plain source label.
+    #
+    # //conformance:conformance_test reads it to assert that every package
+    # holding a conformance gate is named in ci.yml's EXPLICIT build and test
+    # lists. Those are package lists, not //..., so a gate can be added and never
+    # run — the same class of gap as a test wired to nothing.
+    ".github/workflows/ci.yml",
 ])

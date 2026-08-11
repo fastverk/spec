@@ -216,11 +216,18 @@ if rs_outcomes and rs_positive:
             f"{'refused (' + str(why) + ')' if why else 'accepted'}",
         )
 
-# ── 4. the TypeScript constants, when the console exists ──────────────────────
-# Skipped rather than failed before the port lands: a check that fails for the
-# whole life of a branch trains people to ignore it.
+# ── 4. the TypeScript constants ───────────────────────────────────────────────
+# ⛔ REQUIRED, not optional. This was guarded by an exists() check while the port
+# was being written, and the guard outlived its reason: once the file was not
+# staged as a Bazel data dep, the most valuable comparison in this file — the one
+# that catches `Examined` being dropped from one implementation and not the other
+# — skipped silently in CI and ran only on a laptop. A check that quietly does
+# nothing is worse than no check, because it is counted.
 ts_path = os.path.join(ROOT, TS_EVAL)
 ts_present = os.path.exists(ts_path)
+check(ts_present, f"{TS_EVAL} is missing or not staged — the Rust/TypeScript "
+                  f"constant comparison cannot run, and skipping it silently is "
+                  f"how the two implementations drift apart unnoticed")
 if ts_present:
     ts_eval = read(TS_EVAL)
     ts_outcomes = ts_str_array(ts_eval, "OUTCOMES")
@@ -319,6 +326,9 @@ for step in ("build", "test"):
 import hashlib
 
 bundle_path = os.path.join(ROOT, "console/db/bootstrap.sql")
+check(os.path.exists(bundle_path),
+      "console/db/bootstrap.sql is missing or not staged — the two migration "
+      "paths could then build different databases with nothing to say so")
 if os.path.exists(bundle_path):
     bundle = read("console/db/bootstrap.sql")
     mig_dir = os.path.join(ROOT, "console/db/migrations")

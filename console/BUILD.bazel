@@ -1,0 +1,24 @@
+package(default_visibility = ["//visibility:public"])
+
+# The console's inputs to //conformance:conformance_test, as source labels.
+#
+# The console is not built by Bazel — it is a Next.js app gated by its own CI job
+# (typecheck, the shared conformance cases, build). This filegroup exists only so
+# the stdlib checker can READ these files inside a Bazel sandbox.
+#
+# ⛔ `lib/evaluation.ts` is the important one. It carries the TypeScript half of
+# OUTCOMES and POSITIVE, and comparing them against the Rust constants is the
+# single most valuable thing check_conformance.py does — it is what would catch
+# `Examined` being dropped from one implementation and not the other. Unstaged,
+# that comparison skipped silently in CI and ran only on a laptop.
+#
+# ⚠ This file becomes dead when the console is extracted to its own repo. That is
+# the correct time to delete it, not before.
+filegroup(
+    name = "conformance_inputs",
+    srcs = [
+        "db/bootstrap.sql",
+        "lib/evaluation.ts",
+        "lib/overlay.ts",
+    ] + glob(["db/migrations/*.sql"]),
+)

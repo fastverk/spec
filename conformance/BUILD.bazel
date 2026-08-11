@@ -36,6 +36,19 @@ filegroup(
 # Reordering the guards in `evaluation::check` so the zero-check is unreachable
 # passes this and fails only //services/spec:spec_test. Do not read a green here
 # as the refusal being exercised.
+# ⚠ EVERY FILE THE CHECKER READS MUST BE HERE.
+#
+# Under `bazel test` there is no BUILD_WORKSPACE_DIRECTORY, so the script runs
+# against the runfiles tree and sees only what this list stages. Getting it wrong
+# fails in two different ways and only one of them is loud:
+#
+#   a read with no guard   crashes the test (which is how this list got fixed)
+#   a read behind exists() SKIPS, silently, while passing on a laptop
+#
+# The second is the one that matters. `//console:conformance_inputs` and
+# `//:.github/workflows/ci.yml` were both missing, so the Rust↔TypeScript constant
+# comparison and the bundle drift check ran nowhere in CI. Add to this list
+# whenever the checker learns to read something new.
 sh_test(
     name = "conformance_test",
     size = "small",
@@ -43,6 +56,8 @@ sh_test(
     data = [
         "check_conformance.py",
         ":cases",
+        "//:.github/workflows/ci.yml",
+        "//console:conformance_inputs",
         "//rdf/lint/authoring:vacuous-invariant.rq",
         "//services/spec:src",
         "//tools/proposals:materialize.py",
