@@ -1,0 +1,161 @@
+syntax = "proto3";
+
+package spec.v1;
+
+// ============================================================
+// The gate plane, as a contract.
+//
+// What the SPARQL gates say about a corpus, and what admitting a proposal would
+// do to them. RFC-004 §4.3 specifies this surface; RFC-005 decides which engine
+// answers.
+//
+// ⛔ IMPORTS NOTHING, and that is the same argument invariant.proto makes.
+// A gate report carries COUNTS — how many violations, how many candidates — and
+// never a row. Adding an import is the only way a customer's data becomes
+// reachable from a type this service returns, so the import graph is the review.
+// //proto/spec/v1:data_boundary_test asserts it rather than trusting it.
+//
+// ⚠ This file is the schema of record. Whether it is ever served over gRPC is a
+// separate decision with its own trigger condition (RFC-004 §4.3); the CLI that
+// produces these messages today is //java:gate_cli, and it is invoked by Bazel.
+// ============================================================
+
+// What a gate concluded, and how much it looked at.
+//
+// ⛔ THREE-VALUED ON PURPOSE. A zero-row gate over an EMPTY candidate set returns
+// zero rows and reads as PASSED. `envelope_unrecorded`'s candidates are
+// `?quantity a au:Quantity` and Studio's corpus has zero of those, so that gate
+// is green today having examined nothing — as are `vacuous_invariant` and
+// `conflict_hygiene_strict`, three of the four in the authoring suite. A person
+// skims past that. A model reports it as validation. PASSED and
+// EXAMINED_NOTHING must therefore be different values on the wire, not a count
+// somebody is trusted to read.
+enum GateStatus {
+  GATE_STATUS_UNSPECIFIED = 0;
+  // Violations found. `rows` is how many.
+  GATE_STATUS_FAILED = 1;
+  // Clean, over a non-empty candidate set.
+  GATE_STATUS_PASSED = 2;
+  // Clean, and the candidate set was EMPTY. The gate could not have failed.
+  GATE_STATUS_EXAMINED_NOTHING = 3;
+}
+
+// Where `examined` came from. Reported because the two are not equally strong
+// and a consumer deciding how much to trust the number needs to know which.
+enum PopulationSource {
+  POPULATION_SOURCE_UNSPECIFIED = 0;
+  // An authored `<gate>.population.rq`, per RFC-004 §5. Reviewed beside its
+  // gate; nothing mechanically proves it is that gate's candidate set, and it
+  // can OVERcount — a gate that examined nothing then wears a flattering
+  // number. //rdf/lint/authoring:population_coverage_test asserts one exists
+  // for every gate; nothing asserts it is correct.
+  POPULATION_SOURCE_AUTHORED = 1;
+  // Derived from the gate's own parsed WHERE with the HAVING stripped. Sound
+  // ONLY where the judgement is in the HAVING — a minority of gates. Where both
+  // are available they are compared and disagreement is reported.
+  POPULATION_SOURCE_DERIVED = 2;
+  // No candidate set could be established. `examined` is meaningless and the
+  // status will never be EXAMINED_NOTHING, because a gate whose blindness
+  // nobody can determine must not be reported as blind, nor as thorough.
+  POPULATION_SOURCE_UNKNOWN = 3;
+}
+
+message GateResult {
+  // The gate's name in the suite, e.g. "ladder_integrity".
+  string name = 1;
+  GateStatus status = 2;
+  // Violations found. Zero for anything other than FAILED.
+  int64 rows = 3;
+  // Candidates the gate could have judged. -1 when source is UNKNOWN.
+  //
+  // ⚠ NOT A DENOMINATOR. For a grouped gate this counts solutions, not groups,
+  // so it answers "did this examine anything at all" and nothing finer. Nothing
+  // should divide by it.
+  int64 examined = 4;
+  PopulationSource population_source = 5;
+  // A disagreement or incoherence worth a reader's attention — an authored
+  // population smaller than the violation count, or one that contradicts the
+  // derived count. Empty when there is nothing to say.
+  string note = 6;
+  // One offending row, for orientation.
+  //
+  // ⛔ A GATE ROW IS A CORPUS ROW, NEVER A CUSTOMER ROW. The corpus is spec's
+  // own — claims, terms, conflicts — so this does not cross the data boundary
+  // that grounding_adapter.proto exists to hold. It is capped at one
+  // deliberately: a full result set here would make this message a transport
+  // for the corpus rather than a report about it.
+  string first_row = 7;
+}
+
+message GateReport {
+  repeated GateResult gates = 1;
+  string corpus_version = 2;
+  int64 failed = 3;
+  int64 examined_nothing = 4;
+  // ⛔ NOT `failed == 0`. A suite where every gate examined nothing has no
+  // failures and has checked nothing, and calling that clean is the vacuous
+  // pass this whole system exists to refuse.
+  bool clean = 5;
+}
+
+// What one gate's verdict was before a proposal and after it.
+message GateDelta {
+  string name = 1;
+  GateStatus was = 2;
+  GateStatus now = 3;
+  int64 examined_was = 4;
+  int64 examined_now = 5;
+  int64 rows_was = 6;
+  int64 rows_now = 7;
+}
+
+message RunGatesRequest {
+  // Which corpus. The service resolves it; the caller never ships the graph.
+  string project = 1;
+  // Restrict to these gates. Empty = the whole suite.
+  repeated string gates = 2;
+}
+
+// "Given the corpus at this version plus these ops, what would the gates say?"
+//
+// ⛔ PURE. The proposed graph is built in memory and discarded. Nothing here
+// writes, and a proposal is not the corpus — the one moment that invariant is
+// load-bearing is the moment something asks what admitting it would do.
+message PreflightRequest {
+  // The read point the proposal was made against.
+  string parent_corpus_version = 1;
+  // Turtle to add and to remove.
+  //
+  // ⛔ TRIPLES, NOT OPS. The 17-constructor authoring vocabulary already has
+  // three implementations (TypeScript, Rust, Python); parsing it here would make
+  // a fourth, in a fourth language, and the closed vocabulary would then be
+  // closed in four places that can disagree. The caller translates ops to
+  // triples — that is what tools/proposals/materialize.py already does — and
+  // this side stays purely graph-level.
+  repeated string additions_turtle = 2;
+  repeated string removals_turtle = 3;
+}
+
+message PreflightResponse {
+  GateReport baseline = 1;
+  GateReport proposed = 2;
+  // ⛔ THE DELTA IS THE ANSWER, not `proposed`. "The gates pass over the
+  // proposed graph" is not what an author asked — they asked what THEIR change
+  // did. A suite already failing stays failing, and reporting that as this
+  // proposal's verdict attributes somebody else's defect to this edit.
+  repeated GateDelta delta = 3;
+  int64 gates_this_proposal_breaks = 4;
+  bool admissible = 5;
+}
+
+// Implemented BY SPEC, called by the console and by agents.
+//
+// ⚠ The inverse direction from GroundingAdapter, which the PROJECT implements
+// and spec calls. Both carry counts and never rows, for the same reason and by
+// the same mechanism.
+service Derivation {
+  // The gate suite over a corpus, as it stands.
+  rpc RunGates(RunGatesRequest) returns (GateReport);
+  // The gate suite over corpus + ops, and the difference.
+  rpc Preflight(PreflightRequest) returns (PreflightResponse);
+}

@@ -135,6 +135,17 @@ enum Outcome {
   OUTCOME_CANNOT_BE_GROUNDED = 3;
   // Evaluated, but over an empty population. Never a pass — see Population.
   OUTCOME_VACUOUS = 4;
+  // Measured, and the predicate deliberately NOT decided.
+  //
+  // ⛔ Without this an adapter physically cannot say the one honest thing about
+  // AUTH-24: "I measured 1,412 records and I refuse to decide the implication."
+  // `au:Examined` has existed in the ontology since RFC-002
+  // (rdf/ontology/authoring.ttl), is in OUTCOMES in console/lib/evaluation.ts,
+  // and is in spec.evaluation_log's CHECK — it was on every layer EXCEPT the
+  // wire, so a conforming adapter's only options were to overclaim or say
+  // nothing. Examined is not a weaker Passes; it is a measurement without a
+  // judgement, which is what a count over a schema can honestly produce.
+  OUTCOME_EXAMINED = 5;
 }
 
 // ============================================================

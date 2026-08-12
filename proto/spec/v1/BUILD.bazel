@@ -7,11 +7,13 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["spec.proto"])
 
+load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 exports_files([
     "invariant.proto",
     "grounding_adapter.proto",
+    "derivation.proto",
 ])
 
 # ⛔ The data boundary, asserted rather than remembered.
@@ -31,9 +33,35 @@ sh_test(
     args = [
         "$(rootpath invariant.proto)",
         "$(rootpath grounding_adapter.proto)",
+        "$(rootpath derivation.proto)",
     ],
     data = [
+        "derivation.proto",
         "grounding_adapter.proto",
         "invariant.proto",
     ],
+)
+
+# ── The first proto_library in this repo ───────────────────────────────────────
+#
+# Until now the .proto files were consumed only as SOURCE: services/spec's
+# build.rs hands them to prost, and nothing asked Bazel to understand them. That
+# was enough while the only consumer was one Rust crate compiling message types.
+# A JVM gate service is a second consumer in a second language, and two hand-run
+# codegen paths over one schema is how a "schema of record" stops being one.
+#
+# ⚠ DECLARED, NOT YET CONSUMED. No java_proto_library or rust_prost_library hangs
+# off this today — //java:gate_cli emits the same shape as hand-written JSON
+# (GateCli.toJson), deliberately, so adopting generated types later is a
+# serializer swap and not a rename. Wiring codegen before there is a service to
+# serve it would be scaffolding around a caller that does not exist.
+#
+# ⚠ `protobuf` is a dev_dependency in MODULE.bazel, so this target is available
+# to this repo's own builds and NOT propagated to consumers. That is correct
+# while nothing downstream generates from it, and is the thing to revisit the
+# day something does.
+proto_library(
+    name = "derivation_proto",
+    srcs = ["derivation.proto"],
+    visibility = ["//visibility:public"],
 )

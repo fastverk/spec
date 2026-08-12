@@ -26,10 +26,12 @@ set -uo pipefail
 
 inv=""
 adapter=""
+derivation=""
 for f in "$@"; do
   case "$f" in
     *invariant.proto) inv="$f" ;;
     *grounding_adapter.proto) adapter="$f" ;;
+    *derivation.proto) derivation="$f" ;;
   esac
 done
 
@@ -82,5 +84,24 @@ if [ "$status" -eq 0 ]; then
   echo "ok    invariant.proto imports nothing; DisplayExample is adapter-only"
   echo "ok    Population carries a count, not rows"
   echo "ok    spec.v1.Invariant cannot reach project data"
+fi
+# derivation.proto — the gate plane. Same rule, same reason.
+#
+# ⛔ A gate report carries COUNTS and one corpus row for orientation. The corpus
+# is spec's OWN, so a gate row is not a customer row — but the moment this file
+# imports grounding_adapter.proto, DisplayExample becomes reachable from a type
+# the gate service returns, and a customer's rows are one field away from being
+# at rest in spec's plane. The import graph is the review here exactly as it is
+# for invariant.proto.
+if [ -n "$derivation" ]; then
+  dimports=$(grep -E '^import ' "$derivation" || true)
+  if [ -n "$dimports" ]; then
+    echo "FAIL  derivation.proto has imports. It carries counts about spec's own"
+    echo "      corpus and must not be able to reach a customer row. Found:"
+    printf '        %s\n' "$dimports"
+    status=1
+  else
+    echo "ok    derivation.proto imports nothing"
+  fi
 fi
 exit "$status"
