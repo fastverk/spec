@@ -378,6 +378,63 @@ if m is not None and fixture_positive:
           f"population; the door refuses {sorted(fixture_positive)}. The gate that exists "
           f"to confirm the refusal independently is weaker than the refusal")
 
+# ── 9. the decomposition rule, EXECUTED on both sides ─────────────────────────
+#
+# ⛔ This is the one rule in the repo where both implementations actually run the
+# shared cases on an ordinary PR. Everywhere else the Rust half needs a
+# credential that has been skipping (see the module docstring), so the fixtures
+# are executed once and cross-checked by parsing constants. Here the original is
+# stdlib Python, so it can simply be imported and called — no toolchain, no
+# credential, no parsing of anything.
+#
+# It matters because the console PREVIEWS this rule while an author is still
+# typing, and a preview that disagreed with the decomposer would be worse than no
+# preview: it would be believed. 22 of Studio's 23 undecomposed requirements
+# carry no markup at all, and nothing has ever told their authors that.
+import importlib.util
+
+DEC_CASES = "conformance/decomposition_cases.json"
+TS_DECOMPOSE = "console/lib/decompose.ts"
+
+dec = load(DEC_CASES)
+dec_cases = dec.get("cases", [])
+check(len(dec_cases) >= 10, f"{DEC_CASES}: only {len(dec_cases)} cases")
+
+# Both directions, or the suite is passed trivially by a decomposer that marks
+# everything — or by one that marks nothing, which is the actual failure mode.
+check(any(not c.get("terms") for c in dec_cases),
+      f"{DEC_CASES}: no case expects an EMPTY decomposition — the state 22 of "
+      f"Studio's 23 undecomposed requirements are in")
+check(any(c.get("terms") for c in dec_cases),
+      f"{DEC_CASES}: no case expects any terms")
+for c in dec_cases:
+    check(bool(c.get("why")), f"{DEC_CASES}: {c.get('name', '?')}: no `why`")
+
+_spec = importlib.util.spec_from_file_location("_decompose", os.path.join(ROOT, "tools/import/decompose.py"))
+_dec_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_dec_mod)
+
+check(_dec_mod.MAX_TERM_WORDS == dec.get("max_term_words"),
+      f"tools/import/decompose.py: MAX_TERM_WORDS is {_dec_mod.MAX_TERM_WORDS}, "
+      f"{DEC_CASES} declares {dec.get('max_term_words')}")
+
+# The TypeScript constant is compared against the FIXTURE too, never against the
+# Python one. Two constants agreeing with a third is checkable from either side;
+# two agreeing with each other is a coincidence nobody re-checks.
+ts_dec = read(TS_DECOMPOSE)
+_ts_max = re.search(r"MAX_TERM_WORDS\s*=\s*(\d+)", ts_dec)
+check(_ts_max is not None, f"{TS_DECOMPOSE}: no MAX_TERM_WORDS")
+if _ts_max is not None:
+    check(int(_ts_max.group(1)) == dec.get("max_term_words"),
+          f"{TS_DECOMPOSE}: MAX_TERM_WORDS is {_ts_max.group(1)}, "
+          f"{DEC_CASES} declares {dec.get('max_term_words')}")
+
+for c in dec_cases:
+    got = [{"surface": s, "source": src} for s, src in _dec_mod.extract(c.get("predicate", ""))]
+    check(got == c.get("terms"),
+          f"tools/import/decompose.py disagrees with {DEC_CASES} on "
+          f"{c.get('name', '?')!r}: extracted {got}, fixture declares {c.get('terms')}")
+
 # ── report ────────────────────────────────────────────────────────────────────
 if failures:
     print(f"FAIL — {len(failures)} of {checks} checks failed:\n", file=sys.stderr)
