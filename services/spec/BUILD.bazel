@@ -22,6 +22,9 @@ fastverk_plugin(
     image_repository = "ghcr.io/fastverk/spec-server",
     panels = "//services/spec/ui:panels",
     proto_data = [
+        # The gate plane's contract — the one file here that generates a SERVER
+        # (tonic), because this crate implements it. See services/spec/build.rs.
+        "//proto/spec/v1:derivation.proto",
         "//proto/spec/v1:grounding_adapter.proto",
         "//proto/spec/v1:invariant.proto",
         "//proto/spec/v1:spec.proto",

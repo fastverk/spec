@@ -36,7 +36,11 @@ spec:
         # ⚠ A plain `docker run -p` against this image publishes a port nothing
         # answers on, for the same reason. That is the topology, not a bug.
         - name: gate
-          image: "{{ .Values.gate.image.repository }}:{{ .Values.gate.image.tag }}"
+          # `required`, because values.yaml says an empty tag "fails loudly at
+          # render" and until this line that was simply untrue: it rendered
+          # `spec-gate:` and failed in the cluster as ErrImagePull, one deploy and
+          # several minutes away from the mistake.
+          image: "{{ .Values.gate.image.repository }}:{{ required "gate.image.tag is required when gate.enabled — the deploying pipeline sets it to the pushed sha; an empty tag renders an invalid reference" .Values.gate.image.tag }}"
           imagePullPolicy: {{ .Values.gate.image.pullPolicy }}
           args: ["--port={{ .Values.gate.port }}"]
           # ⚠ NO probe on this container. It listens on loopback only, so the
@@ -47,7 +51,7 @@ spec:
             {{- toYaml .Values.gate.resources | nindent 12 }}
         {{- end }}
         - name: spec-server
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ .Values.image.repository }}:{{ required "image.tag is required — the deploying pipeline sets it to the spec commit sha; an empty tag renders an invalid reference" .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
@@ -70,6 +74,22 @@ spec:
             {{- end }}
             - name: SPEC_INDEX_TTL_SECS
               value: {{ .Values.indexTtlSeconds | quote }}
+            {{- if .Values.gate.enabled }}
+            # The gate plane, reachable only because the two containers share this
+            # pod's network namespace. Set ONLY when the sidecar is enabled: the
+            # Derivation service reads its absence as "not deployed" and answers
+            # FAILED_PRECONDITION naming this variable, which is a different and
+            # more useful thing than a connection refused.
+            - name: SPEC_GATE_ADDR
+              value: {{ printf "http://127.0.0.1:%v" .Values.gate.port | quote }}
+            {{- with .Values.gate.project }}
+            # Which corpus that image bakes. Optional, and unset means the service
+            # REFUSES a request that names a project rather than answering for
+            # whichever corpus happens to be loaded — see values.yaml.
+            - name: SPEC_GATE_PROJECT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- end }}
             {{- with .Values.pluginToken.existingSecret }}
             - name: FASTVERK_PLUGIN_TOKEN
               valueFrom:
