@@ -19,6 +19,33 @@ spec:
         - name: estate
           emptyDir: {}
       containers:
+        {{- if .Values.gate.enabled }}
+        # The gate plane — the SPARQL suite over the corpus, held warm.
+        #
+        # ⛔ NO VOLUME, and no corpus paths. The corpus ships INSIDE this image
+        # (//java:gate_image bakes corpus/studio + rdf/ontology). A gate report is
+        # only meaningful against a stated corpus, and mounting one here would let
+        # the image and the graph it gates version independently — two pods could
+        # then both be right and disagree, with nothing in either answer saying
+        # which corpus it read.
+        #
+        # ⛔ It binds 127.0.0.1. Containers in a pod share a network namespace, so
+        # spec-server reaches it on localhost and NOTHING ELSE CAN. The front door
+        # is the Rust process, which already holds the fleet's auth.
+        #
+        # ⚠ A plain `docker run -p` against this image publishes a port nothing
+        # answers on, for the same reason. That is the topology, not a bug.
+        - name: gate
+          image: "{{ .Values.gate.image.repository }}:{{ .Values.gate.image.tag }}"
+          imagePullPolicy: {{ .Values.gate.image.pullPolicy }}
+          args: ["--port={{ .Values.gate.port }}"]
+          # ⚠ NO probe on this container. It listens on loopback only, so the
+          # kubelet — which probes from outside the container's network namespace
+          # — cannot reach it, and a probe here would fail forever while the
+          # process is healthy. spec-server's own readiness covers the pod.
+          resources:
+            {{- toYaml .Values.gate.resources | nindent 12 }}
+        {{- end }}
         - name: spec-server
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
