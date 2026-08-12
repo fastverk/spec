@@ -355,6 +355,29 @@ vacuous_rq = read("rdf/lint/authoring/vacuous-invariant.rq")
 check("VACUOUS-PASS" in vacuous_rq and "NO-POPULATION" in vacuous_rq,
       "rdf/lint/authoring/vacuous-invariant.rq: lost one of its two branches")
 
+# ⛔ THE GATE MUST NOT BE WEAKER THAN THE DOOR IT CONFIRMS.
+#
+# The door refuses every outcome in POSITIVE over a zero population. The gate
+# listed only two of the three: `au:Examined` was missing, so an Examined/0
+# record was refused at the write path and ADMITTED in the corpus. That is not a
+# redundant check disagreeing about style — it is the independent confirmation
+# being strictly weaker than the thing it confirms, which is the same shape as
+# no confirmation at all, and it survived because nothing compared the two lists.
+#
+# Compared as SETS: order is meaningless in a SPARQL IN clause and meaningful in
+# POSITIVE, so requiring a sequence here would fail for a reason that is not a
+# defect.
+m = re.search(r"FILTER\(\?outcome IN \(([^)]*)\)\)", vacuous_rq)
+check(m is not None,
+      "rdf/lint/authoring/vacuous-invariant.rq: no `FILTER(?outcome IN (...))` — "
+      "the positive-outcome set cannot be compared against the door's")
+if m is not None and fixture_positive:
+    gated = {t.strip().removeprefix("au:") for t in m.group(1).split(",") if t.strip()}
+    check(gated == set(fixture_positive),
+          f"rdf/lint/authoring/vacuous-invariant.rq refuses {sorted(gated)} over a zero "
+          f"population; the door refuses {sorted(fixture_positive)}. The gate that exists "
+          f"to confirm the refusal independently is weaker than the refusal")
+
 # ── report ────────────────────────────────────────────────────────────────────
 if failures:
     print(f"FAIL — {len(failures)} of {checks} checks failed:\n", file=sys.stderr)

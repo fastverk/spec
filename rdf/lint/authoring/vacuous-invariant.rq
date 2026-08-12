@@ -21,7 +21,19 @@ WHERE {
     # population — there the check never ran at all, as opposed to running over
     # nothing, and conflating the two would make the gate impossible to satisfy
     # for any lagging implementation.
-    FILTER(?outcome IN (au:Passes, au:Fails))
+    #
+    # ⛔ au:Examined BELONGS IN THIS SET, and was missing. The door refuses all
+    # three — `POSITIVE = ["Passes", "Fails", "Examined"]` in
+    # console/lib/evaluation.ts, and the same list in
+    # services/spec/src/evaluation.rs — so this gate, whose whole job is to
+    # confirm that refusal independently, was strictly WEAKER than the thing it
+    # confirms. An Examined/0 record was refused at the door and admitted here,
+    # which means a corpus that acquired one by any other route (a hand-edited
+    # proposals.ttl, an import, a future adapter writing directly) would pass.
+    # au:Examined says the population is KNOWN and the predicate undecided; a
+    # known population of zero is the vacuous case exactly, and naming it
+    # Examined is the same claim as Passes with the load-bearing word removed.
+    FILTER(?outcome IN (au:Passes, au:Fails, au:Examined))
     BIND("VACUOUS-PASS" AS ?defect)
     BIND(CONCAT("examined 0 records but reports ", STR(?outcome)) AS ?detail)
   }

@@ -141,10 +141,12 @@ WHERE {
   }
   UNION
   {
-    # vacuous-invariant.rq must find BOTH planted shapes: a pass over an empty
-    # population, and an outcome with no population at all. Two, not one —
-    # a gate that only catches the zero and not the absence leaves the more
-    # audit-resistant of the two in place.
+    # vacuous-invariant.rq must find all THREE planted shapes: a pass over an
+    # empty population, an au:Examined over an empty population, and an outcome
+    # with no population at all. Three, not one — a gate that only catches the
+    # zero and not the absence leaves the more audit-resistant of the two in
+    # place, and a gate that lists fewer positive outcomes than the door does is
+    # weaker than the thing it exists to confirm.
     {
       SELECT (COUNT(*) AS ?actual)
       WHERE {
@@ -154,7 +156,7 @@ WHERE {
             { ?c a rfc:NormativeStatement ; au:evaluatedBy ?e .
               ?e au:population ?n ; au:outcomeOf ?o .
               FILTER(?n = 0)
-              FILTER(?o IN (au:Passes, au:Fails)) }
+              FILTER(?o IN (au:Passes, au:Fails, au:Examined)) }
             UNION
             { ?c a rfc:NormativeStatement ; au:evaluatedBy ?e .
               ?e au:outcomeOf ?o2 .
@@ -164,7 +166,47 @@ WHERE {
       }
     }
     BIND("vacuous-invariant" AS ?check)
-    BIND(2 AS ?expected)
+    BIND(3 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # envelope-unrecorded.rq must stay SILENT here: this fixture's infeasibility
+    # is recorded by fx:conflict-envelope, and the gate keys on whether one was
+    # documented rather than on whether one exists. The counterpart assertion —
+    # that it FIRES on an undocumented one — is fixtures/expect-undocumented.rq
+    # over fixtures/envelope-undocumented.ttl, because no fixture in this
+    # directory could ever have made it fire.
+    #
+    # This branch resolves the open note in BUILD.bazel: the property needed a
+    # query label from another package, and inlining the body the way every
+    # other assertion here does needs no label at all.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT ?q (MAX(?v) AS ?gl)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:LowerBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        {
+          SELECT ?q (MIN(?v) AS ?lu)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:UpperBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        ?q a au:Quantity .
+        FILTER(?gl > ?lu)
+        FILTER NOT EXISTS { ?conflict a au:Conflict ; au:onQuantity ?q . }
+      }
+    }
+    BIND("envelope-unrecorded-silent-when-documented" AS ?check)
+    BIND(0 AS ?expected)
     FILTER(?actual != ?expected)
   }
   UNION

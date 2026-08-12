@@ -1,0 +1,118 @@
+# envelope-undocumented.ttl — POSITIVE CONTROL fixture for envelope-unrecorded.rq.
+#
+# ⛔ THE ONE FIXTURE THAT GATE IS SUPPOSED TO FIRE ON, AND IT DID NOT EXIST.
+#
+# envelope-conflict.ttl is a positive control for every OTHER authoring gate.
+# For this one it is a negative control wearing a positive control's name: its
+# infeasibility IS recorded, by fx:conflict-envelope, so 0 rows there is the
+# correct answer and proves only that the gate can stay silent. envelope-clean.ttl
+# proves the same thing again. Nothing anywhere asked this gate to say yes.
+#
+# That is how it went unnoticed that the gate was also written in the flat
+# BIND(IF(...)) + HAVING(MAX > MIN) form that returns zero rows under ARQ for
+# every input (see envelope-unrecorded.rq's header, and empty-envelope.rq's).
+# Two independent reasons to detect nothing, and a green build under both.
+#
+# So: one quantity, two instruments, bounds that intersect to the empty set, and
+# deliberately NO au:Conflict naming it. This is precisely the state the gate
+# exists to refuse — an infeasibility nobody wrote down.
+#
+#   grid-services  MUST     deliver >= 90 MW   (interconnection commitment)
+#   civil          MUST_NOT exceed    60 MW    (transformer thermal limit)
+#
+#   => greatest lower bound 90 > least upper bound 60.  Deficit 30 MW. EMPTY.
+#   => no au:Conflict on fx:q-export-power.
+#
+# Expected: envelope-unrecorded.rq returns EXACTLY 1 row, deficit 30.0.
+# Pinned by fixtures/expect-undocumented.rq, which is the assertion that fails
+# if the gate ever goes quiet again.
+#
+# Deliberately kept minimal. Every other gate has its fixture already, and a
+# second fixture carrying planted hygiene and ladder defects would make this
+# file's one job harder to read.
+#
+# NOTE: every numeric value here is synthetic and every citation is illustrative.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:   <https://aion.savvi.io/ontology/authoring#> .
+@prefix fx:   <https://aion.savvi.io/fixture/undocumented#> .
+
+# -- provenance ---------------------------------------------------------------
+# Both claims are promoted, so ladder-integrity has nothing to say here and the
+# only thing this fixture can be about is the unrecorded envelope.
+
+fx:p-001 a au:Proposal ;
+    au:proposalId "p:fixture-undocumented-bootstrap" ;
+    au:surface au:Ingest ;
+    au:intent "Bootstrap import of the unrecorded-envelope control fixture." ;
+    au:verdict au:Admitted .
+
+fx:principal-grid  a au:Principal ; rdfs:label "grid services" .
+fx:principal-civil a au:Principal ; rdfs:label "civil & structural" .
+
+fx:grid-services a au:Discipline ; rdfs:label "grid services / interconnection" ;
+    au:stewardedBy fx:principal-grid .
+fx:civil a au:Discipline ; rdfs:label "civil & structural" ;
+    au:stewardedBy fx:principal-civil .
+
+# -- the quantity nobody wrote a conflict about -------------------------------
+
+fx:q-export-power a au:Quantity ;
+    rdfs:label "sustained export power at the substation transformer" ;
+    au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint fx:node-substation ;
+    au:estimator "SCADA" ;
+    au:timeBase "1h-sustained" .
+
+fx:node-substation a rfc:Term ; rdfs:label "substation transformer" ;
+    rfc:name "substation-transformer" ;
+    rfc:definition "The step-up transformer between the collector system and the transmission bus. The referent for the contested export quantity." .
+
+fx:scope-ic a au:Scope ;
+    au:jurisdiction "federal" ; au:issuingBody "RTO" ;
+    au:instrument "interconnection-agreement" ; au:edition "2026-01" ;
+    au:effectiveFrom "2026-01-01"^^xsd:date .
+
+fx:scope-civil a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "OEM" ;
+    au:instrument "transformer-datasheet" ; au:edition "rev-B" ;
+    au:effectiveFrom "2025-09-01"^^xsd:date .
+
+# -- the two claims -----------------------------------------------------------
+
+fx:ic-must-export a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "The facility MUST be capable of exporting at least its committed interconnection service level continuously." ;
+    rfc:rationale "Illustrative interconnection service provision." ;
+    au:discipline fx:grid-services ;
+    au:constrains fx:q-export-power ;
+    au:scopedBy fx:scope-ic ;
+    au:defeasible true ;
+    au:hasBound fx:b-export ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 .
+
+fx:b-export a au:Bound ; au:boundKind au:LowerBound ; au:boundValue 90.0 .
+
+fx:xfmr-thermal a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "Sustained export MUST NOT exceed the transformer's continuous thermal rating." ;
+    rfc:rationale "Illustrative equipment rating." ;
+    au:discipline fx:civil ;
+    au:constrains fx:q-export-power ;
+    au:scopedBy fx:scope-civil ;
+    au:defeasible false ;
+    au:hasBound fx:b-thermal ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 .
+
+fx:b-thermal a au:Bound ; au:boundKind au:UpperBound ; au:boundValue 60.0 ;
+    au:boundGuard "ambient_c >= 40" .
+
+# -- and deliberately nothing else --------------------------------------------
+#
+# No au:Conflict. No au:Resolution. No au:Waiver. Adding any au:Conflict with
+# au:onQuantity fx:q-export-power would turn this fixture into a second copy of
+# envelope-conflict.ttl and silence the gate — which is the whole point of what
+# is being controlled for, so if a future edit needs one, add a NEW quantity
+# rather than documenting this one.
