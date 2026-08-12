@@ -58,7 +58,7 @@ Requires **Node ≥ 24** (eve's own `engines` constraint) and a model credential
 
 ```sh
 npm install
-AI_GATEWAY_API_KEY=… SPEC_CONSOLE_URL=http://127.0.0.1:5177 npx eve dev
+AI_GATEWAY_API_KEY=… SPEC_CONSOLE_URL=http://127.0.0.1:5175 npx eve dev
 ```
 
 ### On Bedrock instead, bypassing the Vercel AI Gateway

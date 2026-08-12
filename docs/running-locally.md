@@ -97,7 +97,10 @@ export SPEC_AGENT_BEDROCK_MODEL="us.anthropic.claude-sonnet-4-5-20250929-v1:0"
 export AWS_REGION=us-east-1
 export SPEC_CONSOLE_URL=http://127.0.0.1:5175      # the console from §1
 
-npx eve build && npx eve dev
+npx eve build
+
+# ⛔ NOT `eve dev` — see "eve dev cannot build this agent" below.
+VERCEL=1 VERCEL_ENV=development npx eve start
 ```
 
 ⛔ **`SPEC_AGENT_BEDROCK_MODEL` must be set for `build` AND for `dev`/`start`.**
@@ -106,9 +109,63 @@ runtime to resolve the model. Set it for only one and they disagree:
 `MODEL_SELECTION_FAILED: Expected the authored agent config … to provide a dynamic
 model definition`.
 
-**Model access is per-model per-region in the Bedrock console and is off by
-default.** An untouched account returns `AccessDeniedException` for a model that
-plainly exists. That is the first thing to check if it fails.
+#### ⛔ `eve dev` cannot build this agent, and `eve start` refuses the caller
+
+Both halves of the documented `eve build && eve dev` path are broken, in
+different ways, and the workaround above threads between them.
+
+`eve dev` copies the agent into `.eve/dev-runtime/snapshots/<id>/source/agent/`
+and builds from there. `agent/tools/preview_decomposition.ts` and
+`propose_requirement.ts` import `../../../console/lib/decompose` — deliberately,
+so the rule has one definition — and that path escapes the snapshot, which
+contains no `console/`. The build fails with two `UNRESOLVED_IMPORT` errors
+before the server starts. `eve build` is unaffected: it bundles from the real
+tree, where the import resolves.
+
+So the agent must be run from the production build, `eve start` — and *that*
+rejects every request with `401 unauthorized`. `agent/channels/eve.ts` admits
+`vercelOidc()` and `localDev()`, and `localDev()` returns a principal only when
+`VERCEL` is set **and** `VERCEL_ENV === "development"`, or when eve is in dev
+mode. Under `eve start` neither holds.
+
+Hence `VERCEL=1 VERCEL_ENV=development`. It is a **local shim, and it must never
+be set in a deployment** — it is the switch that makes the agent admit an
+unauthenticated caller. The real fix is one of: give the agent its own copy of
+the decomposition rule (losing the single-definition property the conformance
+fixture exists to protect), make `console` a resolvable package rather than a
+relative path, or add a real auth strategy to the channel.
+
+#### Model access is per-model, per-account, and Anthropic wants a form
+
+**Anthropic models on Bedrock additionally require a use-case details form to be
+submitted for the account**, in the Bedrock console. Until it is, every Claude
+model id returns:
+
+```
+ResourceNotFoundException: Model use case details have not been submitted for
+this account. Fill out the Anthropic use case details form before using the
+model.
+```
+
+That is a **404, not a 403**, and it names a model that `bedrock
+list-foundation-models` will happily list — so it reads like a wrong model id
+rather than an entitlement problem. Both `740659854426` and `491117466965`
+returned it on 2026-08-12.
+
+To tell entitlement apart from credentials, call a non-Anthropic model with the
+same credentials — `us.amazon.nova-pro-v1:0` succeeded where every
+`us.anthropic.*` id failed. If Nova answers, the credential chain, region and
+signing are all correct and the problem is the form.
+
+⚠ **`--profile` does not reach the provider.** `@ai-sdk/amazon-bedrock@5` signs
+with `aws4fetch`; there is no `@aws-sdk/credential-providers` in the tree
+(`grep -c @aws-sdk agent/package-lock.json` → 0) and `agent.ts` passes no
+`credentialProvider`, so `AWS_PROFILE` is ignored. Materialize the credentials
+instead:
+
+```sh
+eval "$(aws configure export-credentials --profile <profile> --format env)"
+```
 
 ### On the Vercel AI Gateway instead
 

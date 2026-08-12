@@ -90,7 +90,12 @@ export default defineTool({
       // Returned so the model reports what the RULE found, not what it intended
       // the sentence to say.
       decomposes_to: extract(input.text),
-      seq: res["seq"] ?? null,
+      // ⚠ `log_seq`, not `seq`. The route answers
+      // `{queued, log_seq, log_offset, admissible_ops, …}`
+      // (proposal/op/route.ts), and reading a key it never sends is not a
+      // missing sequence number — it is a successful write that reports itself
+      // as unrecorded, every time, with nothing in the response to say so.
+      seq: res["log_seq"] ?? null,
       // ⚠ Said every time. `pending` is not `adopted`, and a model summarising
       // "recorded" as "added to the specification" would be describing invariant
       // ② exactly backwards.

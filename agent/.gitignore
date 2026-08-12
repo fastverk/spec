@@ -3,5 +3,9 @@ node_modules/
 # `eve build`, so it is reproducible rather than source.
 .eve/
 .output/
+# `eve build` also writes a Vercel build-output tree here. Same reasoning as
+# `.output/`, and it was untracked-but-not-ignored, so the first `eve build`
+# anyone ran left it showing up in `git status` as if it were source.
+.vercel/
 .env
 .env.local
