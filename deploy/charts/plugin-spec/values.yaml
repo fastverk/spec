@@ -108,3 +108,32 @@ resources:
     memory: 64Mi
   limits:
     memory: 256Mi
+
+# ── The gate plane sidecar ─────────────────────────────────────────────────────
+#
+# //java:gate_image — the SPARQL authoring suite plus the corpus it gates, in one
+# self-contained image. Serves /healthz, /gates and /preflight on loopback for
+# spec-server to proxy.
+#
+# ⚠ DISABLED BY DEFAULT. Nothing proxies to it yet — the Derivation gRPC service
+# in services/spec is unwritten, so turning this on adds a container that answers
+# only itself. It is here so the chart is ready, not because it is wired.
+gate:
+  enabled: false
+  image:
+    repository: 491117466965.dkr.ecr.us-east-1.amazonaws.com/spec-gate
+    # Set by the deploying pipeline, like image.tag above. Empty fails loudly at
+    # render; a stale pin deploys quietly.
+    tag: ""
+    pullPolicy: IfNotPresent
+  port: 8081
+  # ⚠ UNMEASURED. The corpus is 220 KB and four gates run in ~0.5s on a laptop,
+  # but nobody has measured the JVM's resident set under a warm Jena Model. These
+  # are a starting point to watch, NOT a sizing. Do not copy RFC-004 §4.3's
+  # "1 vCPU / 2 GB" — that was sized for a Fargate task nobody is building.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1Gi
