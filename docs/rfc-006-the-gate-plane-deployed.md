@@ -25,12 +25,30 @@ in Phases 0–5."** AWS already has something, it is already paid for, and the
 marginal cost of adding RPCs to a pod that exists is zero. That section should be
 read as superseded on cost, not on design.
 
-One correction worth recording because it nearly changed the plan: `ci.yml:75-90`
-looks like a live 401 against the private `fastverk-plugin-crates` repo, and
-`MODULE.bazel` records that the OCI image "could not be built by CI and had to be
-produced by hand." Both describe problems that were **fixed**. The comment block
-documents the App-token mint that solved it, and ECR shows a fresh image per
-commit. The image path is not a risk.
+Two corrections, both recorded because I got them wrong in sequence.
+
+`ci.yml:75-90` reads like a live 401 against the private `fastverk-plugin-crates`
+repo, and `MODULE.bazel` says the OCI image "could not be built by CI and had to
+be produced by hand." Both describe problems that were **fixed** — the block
+documents the App-token mint, and ECR shows a fresh image per commit.
+
+⛔ **But that does not mean a NEW image is cheap, and I then over-generalized it
+into "the image path is not a risk."** It is not: **nothing in this repository
+builds or pushes an image at all.** `ci.yml` has exactly two jobs, `gate` and
+`console`, and neither touches ECR — a grep suggesting otherwise was matching
+"s-ecr-ets". The `spec:<sha>` tags are pushed by the platform build-runner, per
+the Dockerfile's own note that "the platform's canonical build is the bazel
+`rules_fastverk_plugin` macro / `//services/spec:spec-image`; this Dockerfile is
+the pragmatic cross-arch path until the build-runner bakes the bazel image on a
+linux worker."
+
+So §3's sidecar needs a JVM image, and **producing one is work in `fastverk/build`,
+not here.** The three options, none free: teach the build-runner a second image;
+add an image build to spec's CI, duplicating a pipeline the platform deliberately
+centralised; or bundle a JRE into the existing `spec-server` image, which is
+distroless today and would grow by ~180 MB for a process most deployments will
+never call. **This is the open question gating deployment, and it is not
+answerable from inside this repo.**
 
 ## 2. The front door shares an ALB, and that is the whole cost story
 
@@ -151,9 +169,11 @@ invariant ⑤, and it is the same boundary RFC-004 §3.3 draws when it makes
 
 ## 6. Order, and the honest stopping point
 
-1. `//java:gate_binary` — a long-lived wrapper over `gate_cli`'s library, holding
-   a warm `Model`. Local, no AWS.
-2. The sidecar in `deploy/charts/plugin-spec`, and the loopback hop.
+1. ✅ `//java:gate_binary` — a long-lived wrapper over `gate_cli`'s library,
+   holding a warm `Model`. Local, no AWS. **Done.**
+2. ⛔ **BLOCKED on §1's second correction.** The sidecar needs a JVM image and
+   this repo cannot produce one. Decide where that image is built before writing
+   the chart change, or the chart will reference a tag nothing populates.
 3. The Ingress above, sharing `fastverk-public`, plus the cert and record.
 4. Vercel OIDC verification in the plugin.
 5. The console calls `Preflight` before submitting a proposal.
