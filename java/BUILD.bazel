@@ -239,18 +239,59 @@ pkg_tar(
     package_dir = "/app",
 )
 
+# ⛔ THE CORPUS SHIPS IN THE IMAGE, and this is a correction to the first version
+# of this target, which took corpus paths as deployment args.
+#
+# A gate report is only meaningful against a stated corpus. Mounting the corpus
+# at deploy time means the image and the graph it gates version independently,
+# so "vacuous_invariant EXAMINED_NOTHING" from one pod and "FAILED" from another
+# are both true and there is nothing in either answer to say which corpus it read.
+# The corpus is 220 KB of Turtle and is already a build artifact; shipping it here
+# makes the image self-describing and `corpus_version` a property of the artifact
+# rather than of a volume mount somebody has to get right.
+#
+# It also makes the image runnable with no arguments, which is what let this get
+# tested at all — see gate_image_load.
+pkg_tar(
+    name = "gate_corpus_layer",
+    srcs = [
+        "//corpus/studio:corpus.ttl",
+        "//corpus/studio:disciplines.ttl",
+        "//corpus/studio:proposals.ttl",
+        "//corpus/studio:terms.ttl",
+        "//rdf/lint/authoring:queries",
+        "//rdf/ontology:aion-rfc.ttl",
+        "//rdf/ontology:authoring.ttl",
+    ],
+    package_dir = "/corpus",
+)
+
 oci_image(
     name = "gate_image",
     base = "@java_base",
-    # ⚠ No CMD. The corpus paths and --gate flags are deployment facts, not build
-    # facts: the chart supplies them as args. Baking a corpus path here would put
-    # a deployment's layout inside an artifact that outlives it.
+    # The suite and the corpus it reads, both fixed at build time. A deployment
+    # chooses the PORT and nothing else — see the note on gate_corpus_layer.
+    cmd = [
+        "--gate=envelope_unrecorded=/corpus/envelope-unrecorded.rq",
+        "--gate=conflict_hygiene_strict=/corpus/conflict-hygiene-strict.rq",
+        "--gate=ladder_integrity=/corpus/ladder-integrity.rq",
+        "--gate=vacuous_invariant=/corpus/vacuous-invariant.rq",
+        "/corpus/aion-rfc.ttl",
+        "/corpus/authoring.ttl",
+        "/corpus/corpus.ttl",
+        "/corpus/disciplines.ttl",
+        "/corpus/terms.ttl",
+        "/corpus/proposals.ttl",
+    ],
     entrypoint = [
         "java",
         "-jar",
         "/app/gate_binary_deploy.jar",
     ],
-    tars = [":gate_binary_layer"],
+    tars = [
+        ":gate_binary_layer",
+        ":gate_corpus_layer",
+    ],
     visibility = ["//visibility:public"],
 )
 
