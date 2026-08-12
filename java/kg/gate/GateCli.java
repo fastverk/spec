@@ -74,9 +74,15 @@ public final class GateCli {
     public static void main(String[] argv) throws Exception {
         List<String> gateSpecs = new ArrayList<>();
         List<Path> corpus = new ArrayList<>();
+        List<Path> additions = new ArrayList<>();
+        List<Path> removals = new ArrayList<>();
         for (String a : argv) {
             if (a.startsWith("--gate=")) {
                 gateSpecs.add(a.substring("--gate=".length()));
+            } else if (a.startsWith("--add=")) {
+                additions.add(Path.of(a.substring("--add=".length())));
+            } else if (a.startsWith("--remove=")) {
+                removals.add(Path.of(a.substring("--remove=".length())));
             } else if (a.startsWith("--")) {
                 System.err.println("unknown flag: " + a);
                 System.exit(2);
@@ -90,16 +96,40 @@ public final class GateCli {
         }
 
         Model model = load(corpus);
-        List<GateResult> results = new ArrayList<>();
+        List<GateResult> baseline = runAll(gateSpecs, model);
+
+        if (additions.isEmpty() && removals.isEmpty()) {
+            System.out.println(toJson(baseline));
+            return;
+        }
+
+        // ⛔ PREFLIGHT IS PURE. The proposed graph is built in memory and thrown
+        // away; nothing here writes a file, and the corpus on disk is the corpus
+        // on disk when this returns. A proposal is not the corpus, and the one
+        // moment that invariant is load-bearing is the moment something asks
+        // what admitting it would do.
+        Model proposed = load(corpus);
+        for (Path r : removals) {
+            proposed.remove(load(List.of(r)));
+        }
+        for (Path a : additions) {
+            proposed.add(load(List.of(a)));
+        }
+        List<GateResult> after = runAll(gateSpecs, proposed);
+        System.out.println(toDeltaJson(baseline, after));
+    }
+
+    static List<GateResult> runAll(List<String> gateSpecs, Model model) throws Exception {
+        List<GateResult> out = new ArrayList<>();
         for (String spec : gateSpecs) {
             int eq = spec.indexOf('=');
             if (eq < 0) {
                 System.err.println("malformed --gate (expected NAME=PATH): " + spec);
                 System.exit(2);
             }
-            results.add(run(spec.substring(0, eq), Path.of(spec.substring(eq + 1)), model));
+            out.add(run(spec.substring(0, eq), Path.of(spec.substring(eq + 1)), model));
         }
-        System.out.println(toJson(results));
+        return out;
     }
 
     /**
@@ -240,6 +270,44 @@ public final class GateCli {
           // failures and has checked nothing, and calling that clean is the
           // vacuous pass this whole system exists to refuse.
           .append(",\n  \"clean\": ").append(failed == 0 && blind == 0)
+          .append("\n}");
+        return sb.toString();
+    }
+
+    /**
+     * What admitting the proposal would do to the gates.
+     *
+     * <p>⛔ The delta is the answer, not the after-state. "The gates pass" over a
+     * proposed graph is not the question an author asked — they asked what THEIR
+     * change did. A suite that was already failing stays failing, and reporting
+     * that as the proposal's verdict would attribute somebody else's defect to
+     * this edit.
+     *
+     * <p>⚠ `examined` moving is reported as a change even when the status does
+     * not, because a proposal that takes a gate from EXAMINED_NOTHING to
+     * examining 40 rows has done the most valuable thing available here, and a
+     * status-only diff would render it as no change at all.
+     */
+    static String toDeltaJson(List<GateResult> before, List<GateResult> after) {
+        StringBuilder sb = new StringBuilder("{\n  \"baseline\": ")
+            .append(toJson(before)).append(",\n  \"proposed\": ")
+            .append(toJson(after)).append(",\n  \"delta\": [\n");
+        List<String> rows = new ArrayList<>();
+        for (int i = 0; i < after.size() && i < before.size(); i++) {
+            GateResult b = before.get(i);
+            GateResult a = after.get(i);
+            if (b.status() == a.status() && b.examined() == a.examined()) continue;
+            rows.add("    {\"name\": \"" + esc(a.name())
+                   + "\", \"was\": \"" + b.status() + "\", \"now\": \"" + a.status()
+                   + "\", \"examined_was\": " + b.examined()
+                   + ", \"examined_now\": " + a.examined()
+                   + ", \"rows_was\": " + b.rows() + ", \"rows_now\": " + a.rows() + "}");
+        }
+        sb.append(String.join(",\n", rows)).append(rows.isEmpty() ? "" : "\n");
+        long broke = after.stream().filter(r -> r.status() == Status.FAILED).count()
+                   - before.stream().filter(r -> r.status() == Status.FAILED).count();
+        sb.append("  ],\n  \"gates_this_proposal_breaks\": ").append(Math.max(0, broke))
+          .append(",\n  \"admissible\": ").append(broke <= 0)
           .append("\n}");
         return sb.toString();
     }
