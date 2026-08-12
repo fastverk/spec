@@ -68,13 +68,43 @@ sparql_query_test(
     query = "expect-detections.rq",
 )
 
-# NOTE: the "envelope-unrecorded must stay silent on the conflict fixture"
-# assertion is NOT wired as its own target. It would need
-# query = "//rdf/lint/authoring:envelope-unrecorded.rq" — a query label from
-# another package — and whether sparql_query_test accepts that is untested here.
-# The property is already covered: :clean runs envelope_unrecorded over the clean
-# fixture, and expect-detections.rq pins every detection count over the conflict
-# fixture. Wire it once someone has a green build to iterate against.
+# ── The direction that was missing entirely ────────────────────────────────
+#
+# ⛔ Everything above proves the gates can stay SILENT, and proves five of the
+# six can SPEAK. envelope_unrecorded — the one authoring_gates.bzl calls the
+# load-bearing gate — could do neither, because no fixture in this directory
+# asks it to fire: :conflict_fixture records its own infeasibility with
+# fx:conflict-envelope, so zero rows there is CORRECT, and :clean_fixture is
+# silent by construction. A gate with two negative controls and no positive one
+# is an assertion, which is the thing this whole directory exists to refuse.
+#
+# It was, in fact, detecting nothing at all — written in the flat
+# BIND(IF(...)) + HAVING(MAX > MIN) form that returns zero rows under ARQ for
+# every input, the form empty-envelope.rq was rewritten out of and documents in
+# its own header. Neither control could see that.
+#
+# The earlier note here said this assertion needed a query label from another
+# package and was left unwired. It does not: inlining the gate's body, the way
+# expect-detections.rq already does for every other gate, needs no label.
+rdf_dataset(
+    name = "undocumented_fixture",
+    srcs = ["envelope-undocumented.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# Zero-row iff envelope-unrecorded.rq finds EXACTLY the one undocumented
+# infeasibility, with the right deficit. This is the assertion that fails if the
+# gate ever goes quiet again.
+sparql_query_test(
+    name = "expect_undocumented",
+    dataset = ":undocumented_fixture",
+    query = "expect-undocumented.rq",
+)
+
+# The silent direction now lives in expect-detections.rq as
+# "envelope-unrecorded-silent-when-documented", so both directions are wired for
+# every gate in the suite.
 
 exports_files(glob([
     "*.ttl",

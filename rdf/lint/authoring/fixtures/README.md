@@ -10,6 +10,29 @@ that fires on both files is a false-positive generator.
 |---|---|
 | `envelope-conflict.ttl` | **Positive control.** A four-discipline slice that is genuinely incoherent — the feasible sustained-discharge envelope is empty — plus one planted instance of every hygiene and ladder defect. |
 | `envelope-clean.ttl` | **Negative control.** The same slice, honestly adjudicated. Every gate must return zero rows. |
+| `envelope-undocumented.ttl` | **Positive control for `envelope-unrecorded.rq` alone.** An empty envelope with no `au:Conflict` naming it. |
+
+### Why the third fixture exists
+
+The first two are both *negative* controls for `envelope-unrecorded.rq`, and that
+went unnoticed for as long as the gate has existed. The conflict fixture records
+its own infeasibility with `fx:conflict-envelope`, so the gate is correctly silent
+there; the clean fixture is silent by construction. The gate `authoring_gates.bzl`
+calls **the load-bearing gate** had two proofs that it can say no and none that it
+can say yes.
+
+It could not. It was written in the flat `BIND(IF(…)) + HAVING(MAX > MIN)` form
+that `empty-envelope.rq` documents as returning zero rows under ARQ *for every
+input* — the measure was rewritten out of that form when it was caught and the
+gate was not. Two independent reasons to detect nothing, and neither control
+could see either one.
+
+`envelope-undocumented.ttl` is the direction that was missing: one quantity, two
+instruments, bounds intersecting to the empty set, and deliberately no
+`au:Conflict`. `expect-undocumented.rq` asserts the gate finds exactly one row
+with a deficit of 30.0 MW, and `expect-detections.rq` gained
+`envelope-unrecorded-silent-when-documented` so the silent direction is asserted
+rather than assumed.
 
 ## Verified results
 

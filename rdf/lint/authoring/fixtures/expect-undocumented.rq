@@ -1,0 +1,79 @@
+# ---
+# title: "Unrecorded-envelope detection count (adversarial control)"
+# description: "Zero-row iff envelope-unrecorded.rq detects EXACTLY the one undocumented infeasibility planted in envelope-undocumented.ttl, with the right deficit."
+# severity: error
+# tier: 3
+# rationale: "The load-bearing gate of RFC-002 had no positive control. envelope-conflict.ttl records its infeasibility with fx:conflict-envelope, so the gate is correctly silent there and that silence proves nothing; envelope-clean.ttl proves the same thing a second time. Nothing anywhere asked the gate to say yes — which is how it went unnoticed that it was also written in the flat BIND(IF(...)) + HAVING(MAX > MIN) form that returns zero rows under ARQ for every input. This is the missing direction, in the same counted zero-row idiom as expect-detections.rq: run the gate's body over a fixture built to trip it and emit a row if the count is not 1. If you change the gate's body, this file must change with it — that coupling is the point."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?check ?expected ?actual
+WHERE {
+  {
+    # The gate must find exactly the one planted undocumented envelope. A count
+    # of 0 is the regression this whole file exists for: it is what the flat
+    # form returned, for every input, while reading as a pass.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT ?q (MAX(?v) AS ?gl)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:LowerBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        {
+          SELECT ?q (MIN(?v) AS ?lu)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:UpperBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        ?q a au:Quantity .
+        FILTER(?gl > ?lu)
+        FILTER NOT EXISTS { ?conflict a au:Conflict ; au:onQuantity ?q . }
+      }
+    }
+    BIND("envelope-unrecorded" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # And it must be the RIGHT one, with the right arithmetic. A gate that fires
+    # on the correct quantity for the wrong reason is not detecting an empty
+    # envelope, and the count above cannot tell the difference.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        {
+          SELECT ?q (MAX(?v) AS ?gl)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:LowerBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        {
+          SELECT ?q (MIN(?v) AS ?lu)
+          WHERE {
+            ?c a rfc:NormativeStatement ; au:constrains ?q ; au:hasBound ?b .
+            ?b au:boundKind au:UpperBound ; au:boundValue ?v .
+          }
+          GROUP BY ?q
+        }
+        ?q a au:Quantity ; au:unit "MW" .
+        FILTER NOT EXISTS { ?conflict a au:Conflict ; au:onQuantity ?q . }
+        FILTER(?gl - ?lu = 30.0)
+      }
+    }
+    BIND("envelope-unrecorded-deficit-30MW" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+}
+ORDER BY ?check

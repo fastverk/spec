@@ -22,11 +22,19 @@
 #                                            That gate keys on whether an
 #                                            infeasibility was documented, not on
 #                                            whether one exists.
+#                                            ⚠ Which is why this fixture could
+#                                            never prove that gate detects
+#                                            anything, and for a long time
+#                                            nothing did. See
+#                                            envelope-undocumented.ttl.
 #   conflict-hygiene-strict.rq       4 rows (unwitnessed, unowned, expired-waiver,
 #                                            unbounded-waiver)
 #   ladder-integrity.rq              4 rows (3 defect kinds; bad-unprovenanced
 #                                            carries two — no promotedBy AND no
 #                                            stalledOn — one row per defect)
+#   vacuous-invariant.rq             3 rows (a pass over zero, an au:Examined over
+#                                            zero, and an outcome with no
+#                                            population at all)
 # MEASURES (reported, never fail the build):
 #   empty-envelope.rq                1 row  (deficit 27.0 MW, 4 disciplines)
 #   conflict-hygiene.rq              6 rows (adds the UNRESOLVED rows, which are a
@@ -292,3 +300,23 @@ fx:eval-derate-approval a au:Evaluation ;
     au:implementation "canonical" ;
     au:queryFingerprint "q:41be07" ;
     au:outcomeOf au:Passes .
+
+# VACUOUS-EXAMINED: examined nothing, recorded as au:Examined. The door already
+# refuses this — POSITIVE is Passes, Fails AND Examined in both evaluation.ts and
+# evaluation.rs — but the gate meant to confirm that refusal independently listed
+# only two of the three, so this shape was refused at the write path and admitted
+# in the corpus. It is the most plausible of the three to arrive by another
+# route: au:Examined is exactly what a grounding adapter is supposed to say, and
+# an adapter that measured nothing and said so would look correct.
+fx:cap-export-authz a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "Every export schedule MUST be authorized by the interconnection agreement before it is submitted." ;
+    au:discipline fx:market-tariff ;
+    au:rung au:R4 ; au:promotedBy fx:p-001 ;
+    au:evaluatedBy fx:eval-export-authz .
+
+fx:eval-export-authz a au:Evaluation ;
+    au:implementation "canonical" ;
+    au:population 0 ;
+    au:queryFingerprint "q:c3d80b" ;
+    au:outcomeOf au:Examined .
