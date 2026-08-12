@@ -8,6 +8,19 @@ description: >-
   fresh. ClusterIP — the in-cluster console discovers it via the
   fastverk.dev/plugin=spec Service label and reaches it over Service DNS.
 type: application
-# Chart version (bump on chart changes); appVersion tracks the shipped image tag.
-version: 0.1.4
-appVersion: "0.6.2"
+# Chart version (bump on chart changes); appVersion IS the shipped image tag —
+# templates/deployment.yaml reads it as the default for image.tag.
+#
+# ⛔ BOTH ARE OVERWRITTEN AT PUBLISH. The runner packages with
+# `--version 0.1.0-$SHA12 --app-version $SHA12`, so a published chart is always
+# 0.1.0-<sha>/<sha> whatever these say. They matter only for a render from a git
+# checkout.
+#
+# appVersion is EMPTY rather than a semver on purpose. It used to say "0.6.2", a
+# hand-built image from before this repo could build its own — and now that the
+# template falls back to appVersion, a stale value here would render a real-looking
+# reference to an image that has not existed for weeks. Empty makes a git-checkout
+# render fail loudly and asks for `--set image.tag=<sha>`, while every published
+# chart carries the commit it was built from.
+version: 0.1.5
+appVersion: ""
