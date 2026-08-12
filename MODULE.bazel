@@ -263,6 +263,26 @@ register_toolchains(
 bazel_dep(name = "rules_rust", version = "0.70.0", dev_dependency = True)
 bazel_dep(name = "protobuf", version = "33.4", dev_dependency = True)
 bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
+
+# The JRE base for //java:gate_image.
+#
+# ⛔ PINNED BY DIGEST, not by the `nonroot` tag it was resolved from. A tag is a
+# moving pointer: the image behind `nonroot` changes, and a build that reproduced
+# last week would silently produce a different runtime this week. `crane digest`
+# resolves it; re-run that to bump, and note the resolved value is a sha256:… —
+# crane prints its ERRORS on stdout too, so a "digest" that does not start with
+# sha256: is an error message being pinned as a base image.
+#
+# distroless/java21: no shell, no package manager, and a JRE rather than a JDK.
+# gate_binary is a fat deploy jar, so nothing needs to compile at runtime.
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci", dev_dependency = True)
+oci.pull(
+    name = "java_base",
+    digest = "sha256:7e37784d94dccbf5ccb195c73b295f5ad00cd266512dfbac12eb9c3c28f8077d",
+    image = "gcr.io/distroless/java21-debian12",
+    platforms = ["linux/amd64", "linux/arm64/v8"],
+)
+use_repo(oci, "java_base", "java_base_linux_amd64")
 bazel_dep(name = "rules_pkg", version = "1.0.1", dev_dependency = True)
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5", dev_dependency = True)
 
