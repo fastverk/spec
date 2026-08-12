@@ -155,7 +155,7 @@ register_toolchains(
 # rdf_validate_test (SHACL shapes) + sparql_query_test (consistency queries)
 # over the ontology files it hosts under rdf/.
 bazel_dep(name = "rules_rdf", version = "0.3.0")
-bazel_dep(name = "rules_jena", version = "0.3.0")
+bazel_dep(name = "rules_jena", version = "0.3.2")
 
 # Paper toolchain: tectonic compiles the crystallization whitepaper
 # (//paper:crystallization, formalizing docs/rfc-001b) to PDF. rules_*

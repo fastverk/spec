@@ -196,8 +196,9 @@ java_binary(
     srcs = ["kg/gate/GateCli.java"],
     main_class = "kg.gate.GateCli",
     visibility = ["//visibility:public"],
-    # The engine binary is DATA, not a dep — 0.3.0 ships it as a java_binary
-    # with the execution inline, so the only way to share it is to run it.
-    data = ["@rules_jena//jena/sparql:jena_sparql"],
-    deps = GATE_JENA_DEPS,
+    # ⛔ result_emit is the engine of record's own execution+formatting library
+    # (rules_jena >= 0.3.2). Linking it is what makes agreement with the
+    # sparql_query_test targets STRUCTURAL rather than asserted. At 0.3.0 this
+    # was a `data` dep on the jena_sparql binary and a subprocess per gate.
+    deps = GATE_JENA_DEPS + ["@rules_jena//jena/sparql:result_emit"],
 )

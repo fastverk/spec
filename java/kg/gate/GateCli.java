@@ -1,7 +1,8 @@
 package kg.gate;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -14,47 +15,47 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 
+import fastverk.rules_jena.sparql.ResultEmit;
 
 /**
  * Runs the gate suite over a corpus and reports, per gate, what it found AND how
  * much it looked at.
  *
- * <p>This is the first {@code java_binary} in {@code java/BUILD.bazel} — the
- * comment at its head has said since the migration that consumers keep the
- * entry points. spec is now a consumer.
+ * <p>The first {@code java_binary} in {@code java/BUILD.bazel} — the comment at
+ * its head has said since the migration that consumers keep the entry points.
+ * spec is now a consumer.
  *
  * <h2>Why this does not reimplement the gate</h2>
  *
- * <p>⛔ THE VERDICT IS NOT COMPUTED HERE. It comes from executing the engine
- * binary — {@code @rules_jena//jena/sparql:jena_sparql} — with the same flags
- * {@code sparql_query_test} passes it, and reading its exit code. So this binary
- * is not ASSERTED to agree with the gate targets; on the verdict it IS them.
+ * <p>⛔ THE VERDICT IS NOT COMPUTED HERE. It comes from
+ * {@link ResultEmit#executeAndEmit}, the exact call {@code JenaSparql} makes to
+ * satisfy the rules_rdf sparql_engine contract. That library exists so callers
+ * cannot drift — its own comment: "Keeping the formatter calls in one library
+ * guarantees the two paths emit byte-identical results."
  *
- * <p>That matters more than it sounds. The estate already runs three SPARQL
- * engines over two gate suites on two Jena versions (RFC-005 §1), and a fourth
- * opinion wearing the word "gate" would be worse than no service at all. A
- * conformance fixture would only prove two implementations agree on the cases
- * somebody thought of.
+ * <p>So this binary is not ASSERTED to agree with the {@code sparql_query_test}
+ * targets; on the verdict it IS them. That matters more than it sounds: the
+ * estate already runs three SPARQL engines over two gate suites on two Jena
+ * versions (RFC-005 §1), and a fourth opinion wearing the word "gate" would be
+ * worse than no service at all. A conformance fixture would only prove two
+ * implementations agree on the cases somebody thought of.
  *
- * <p>⚠ The obvious refactor — linking the engine's query execution as a library
- * — is NOT available at the pinned version. rules_jena 0.3.0 ships
- * {@code jena_sparql} as a java_binary with the execution inline; the
- * {@code result_emit} library that would make this an in-process call exists
- * only on rules_jena's main branch. When that version is adopted, the subprocess
- * per gate below collapses to a method call, which is the difference between a
- * CLI and something an agent can hit in a loop.
+ * <p>⚠ {@code result_emit} landed in rules_jena 0.3.2. This ran against 0.3.0
+ * first, where the execution is inline in the {@code jena_sparql} binary and the
+ * only way to share it was to exec it — a JVM start per gate, plus a temp file
+ * for the engine's stdin. The bump removed both. Worth knowing when reading old
+ * revisions of this file, and worth knowing generally: the sibling working copy
+ * at {@code fastverk/repos/rules_jena} was ahead of the release the build
+ * resolved, and reading it as though it were the release cost a build.
  *
- * <p>⚠ This class links {@code @gate_maven}'s Jena (5.2.0, the engine's version)
- * and NOT {@code @spec_maven}'s (5.0.0), so it cannot reuse {@code kg.Loader}.
- * Two Jena versions on one classpath means the answer depends on classpath
- * order. In-process Jena is used ONLY to merge the corpus and to derive the
- * examined count — never to decide a gate.
+ * <p>⚠ This links {@code @gate_maven}'s Jena (5.2.0, matching the engine) and NOT
+ * {@code @spec_maven}'s (5.0.0), so it cannot reuse {@code kg.Loader}. Two Jena
+ * versions on one classpath means the answer depends on classpath order.
  *
  * <h2>Usage</h2>
  *
  * <pre>
- *   gate_cli --engine=path/to/jena_sparql \
-            --gate=name=path/to/gate.rq [--gate=...] corpus1.ttl corpus2.ttl ...
+ *   gate_cli --gate=NAME=path/to/gate.rq [--gate=...] corpus1.ttl corpus2.ttl ...
  * </pre>
  *
  * <p>Writes a GateReport as JSON to stdout. Exits 0 if it ran, whatever the
@@ -64,7 +65,7 @@ import org.apache.jena.riot.RDFDataMgr;
  */
 public final class GateCli {
 
-    /** What a gate can be. Three-valued on purpose — see {@link #examine}. */
+    /** What a gate can be. Three-valued on purpose — see {@link #derived}. */
     enum Status { PASSED, FAILED, EXAMINED_NOTHING }
 
     record GateResult(String name, Status status, int rows, int examined,
@@ -73,12 +74,9 @@ public final class GateCli {
     public static void main(String[] argv) throws Exception {
         List<String> gateSpecs = new ArrayList<>();
         List<Path> corpus = new ArrayList<>();
-        Path engine = null;
         for (String a : argv) {
             if (a.startsWith("--gate=")) {
                 gateSpecs.add(a.substring("--gate=".length()));
-            } else if (a.startsWith("--engine=")) {
-                engine = Path.of(a.substring("--engine=".length()));
             } else if (a.startsWith("--")) {
                 System.err.println("unknown flag: " + a);
                 System.exit(2);
@@ -86,21 +84,12 @@ public final class GateCli {
                 corpus.add(Path.of(a));
             }
         }
-        if (gateSpecs.isEmpty() || corpus.isEmpty() || engine == null) {
-            System.err.println(
-                "usage: gate_cli --engine=JENA_SPARQL --gate=NAME=QUERY.rq [...] CORPUS.ttl [...]");
+        if (gateSpecs.isEmpty() || corpus.isEmpty()) {
+            System.err.println("usage: gate_cli --gate=NAME=QUERY.rq [...] CORPUS.ttl [...]");
             System.exit(2);
         }
 
         Model model = load(corpus);
-        // Serialized ONCE and reused. The engine takes its dataset on stdin, so
-        // this is the byte stream every gate sees — merging per gate would let
-        // two gates disagree about the corpus they judged.
-        Path merged = Files.createTempFile("gate-corpus", ".ttl");
-        try (var w = Files.newBufferedWriter(merged, StandardCharsets.UTF_8)) {
-            model.write(w, "TURTLE");
-        }
-
         List<GateResult> results = new ArrayList<>();
         for (String spec : gateSpecs) {
             int eq = spec.indexOf('=');
@@ -108,10 +97,8 @@ public final class GateCli {
                 System.err.println("malformed --gate (expected NAME=PATH): " + spec);
                 System.exit(2);
             }
-            results.add(run(spec.substring(0, eq), Path.of(spec.substring(eq + 1)),
-                            model, engine, merged));
+            results.add(run(spec.substring(0, eq), Path.of(spec.substring(eq + 1)), model));
         }
-        Files.deleteIfExists(merged);
         System.out.println(toJson(results));
     }
 
@@ -132,72 +119,46 @@ public final class GateCli {
         return model;
     }
 
-    static GateResult run(String name, Path queryPath, Model model, Path engine, Path merged)
-            throws Exception {
-        Query query = QueryFactory.create(Files.readString(queryPath, StandardCharsets.UTF_8));
-
-        // ⛔ The verdict. Same binary, same flags sparql_query_test passes.
-        ProcessBuilder pb = new ProcessBuilder(
-                engine.toString(),
-                "--rule-name=" + name,
-                "--in-format=turtle",
-                "--query=" + queryPath,
-                "--out-format=tsv");
-        pb.redirectInput(merged.toFile());
-        pb.redirectErrorStream(false);
-        Process proc = pb.start();
-        String stdout;
-        try (InputStream in = proc.getInputStream()) {
-            stdout = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        }
-        int code = proc.waitFor();
-        if (code != 0) {
-            // Exit 2 is a usage error and 3 a malformed dataset. Neither is a
-            // gate verdict, and reporting either as FAILED would manufacture a
-            // violation nobody found.
-            throw new IllegalStateException(
-                "engine exited " + code + " for gate " + name + " — not a verdict");
-        }
-        List<String> lines = stdout.lines().toList();
-        // TSV carries a header row; a gate with no violations emits the header
-        // and nothing else. Guard the empty case rather than subtracting blind.
+    static GateResult run(String name, Path queryPath, Model model) throws Exception {
+        Query gate = QueryFactory.create(Files.readString(queryPath, StandardCharsets.UTF_8));
+        List<String> lines = emit(gate, model).lines().toList();
         int rows = lines.isEmpty() ? 0 : Math.max(0, lines.size() - 1);
         String firstRow = rows > 0 ? lines.get(1) : "";
 
         // The authored candidate set, per RFC-004 §5: <gate>.population.rq.
-        Path popPath = Path.of(
-            queryPath.toString().replaceFirst("\\.rq$", ".population.rq"));
+        Path popPath = Path.of(queryPath.toString().replaceFirst("\\.rq$", ".population.rq"));
         int examined = -1;
         String source = "none";
         String note = "";
         if (Files.exists(popPath)) {
-            examined = countRows(popPath, engine, merged, name + "_population");
+            Query pop = QueryFactory.create(Files.readString(popPath, StandardCharsets.UTF_8));
+            examined = rowsOf(pop, model);
             source = "authored";
             // ⛔ GUARD 1. A population smaller than the violation count is
-            // incoherent: the gate found rows the population says do not exist,
-            // so the two describe different candidate sets. Cannot detect
-            // OVERcounting — that is the risk RFC-004 names and this convention
-            // accepts — but it catches the file drifting NARROWER than its gate.
+            // incoherent: the gate found rows the population says cannot exist,
+            // so the two describe different candidate sets. This catches the file
+            // drifting NARROWER than its gate. It cannot catch OVERcounting —
+            // that is the risk RFC-004 names and this convention accepts.
             if (examined < rows) {
                 note = "population (" + examined + ") < violations (" + rows
                      + ") — the population query does not cover its own gate";
             }
         }
+
         // ⛔ GUARD 2. Where the judgement IS in a HAVING, the candidate set is
         // derivable from the parsed query. Derive it anyway and report
-        // disagreement: two independent answers to one question are worth more
-        // than either alone, and this is the only mechanical check on an
-        // authored population there is.
-        int derived = examine(query, model);
+        // disagreement: it is the only mechanical check on an authored
+        // population that exists, and it applies to a minority of gates.
+        int derived = derived(gate, model);
         if (derived >= 0 && examined >= 0 && derived != examined) {
-            note = "authored population " + examined + " disagrees with the "
-                 + "count derived from the gate's own WHERE (" + derived + ")";
+            note = "authored population " + examined + " disagrees with the count "
+                 + "derived from the gate's own WHERE (" + derived + ")";
         } else if (derived >= 0 && examined < 0) {
             examined = derived;
             source = "derived";
         }
 
-        // ⛔ Order matters. A gate with violations is FAILED even if `examined`
+        // ⛔ Order matters. A gate with violations is FAILED even when `examined`
         // is unknown; only a CLEAN gate can be EXAMINED_NOTHING. And -1 is
         // UNKNOWN, never zero — a gate whose blindness nobody can determine must
         // not be reported as blind, nor as thorough.
@@ -207,88 +168,53 @@ public final class GateCli {
         return new GateResult(name, status, rows, examined, source, note, firstRow);
     }
 
-    /** Run a query through the engine and count its rows, header excluded. */
-    static int countRows(Path queryPath, Path engine, Path merged, String ruleName)
-            throws Exception {
-        ProcessBuilder pb = new ProcessBuilder(
-                engine.toString(), "--rule-name=" + ruleName, "--in-format=turtle",
-                "--query=" + queryPath, "--out-format=tsv");
-        pb.redirectInput(merged.toFile());
-        Process proc = pb.start();
-        String stdout;
-        try (InputStream in = proc.getInputStream()) {
-            stdout = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+    /** The engine of record's own execution, as TSV. */
+    static String emit(Query q, Model model) {
+        ByteArrayOutputStream buf = new ByteArrayOutputStream();
+        ByteArrayOutputStream errBuf = new ByteArrayOutputStream();
+        try (PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
+             PrintStream err = new PrintStream(errBuf, true, StandardCharsets.UTF_8)) {
+            ResultEmit.executeAndEmit(model, q, "tsv", false, out, err);
         }
-        if (proc.waitFor() != 0) return -1;
-        List<String> lines = stdout.lines().toList();
+        return buf.toString(StandardCharsets.UTF_8);
+    }
+
+    /** Row count, TSV header excluded. */
+    static int rowsOf(Query q, Model model) {
+        List<String> lines = emit(q, model).lines().toList();
         return lines.isEmpty() ? 0 : Math.max(0, lines.size() - 1);
     }
 
     /**
-     * How many candidate solutions the gate's own WHERE clause has.
+     * The candidate count derived from the gate's own parsed WHERE clause.
      *
-     * <p>A zero-row gate over an EMPTY candidate set returns zero rows and reads
-     * as PASS. {@code envelope_unrecorded}'s candidates are
-     * {@code ?quantity a au:Quantity} and Studio's corpus has zero such nodes —
-     * so that gate is green today having examined nothing. A person skims past
-     * that; a model reports it as validation.
+     * <p>⛔ SOUND ONLY WHERE THE JUDGEMENT IS IN A HAVING, and the first version
+     * of this did not check. Stripping HAVING separates candidates from judgement
+     * only when the judgement is there. {@code ladder-integrity.rq} puts its
+     * judgement in {@code FILTER NOT EXISTS} inside the pattern, so the WHERE
+     * matches violations and nothing else — the derived count read 0 for a gate
+     * that had just examined 133 claims, and all four authoring gates reported
+     * EXAMINED_NOTHING over a corpus CI calls green. A blind-gate detector that
+     * fires on every healthy gate teaches the reader to ignore it.
      *
-     * <p>⛔ Derived from the PARSED query, never from a hand-written sibling file.
-     * RFC-004 §5 proposed a {@code <gate>.population.rq} convention and named its
-     * own defect: an independently authored population query can OVERCOUNT,
-     * turning a gate that examined nothing into a green gate wearing a large
-     * number — strictly worse than today's silence. Taking
-     * {@link Query#getQueryPattern} verbatim makes that unrepresentable: the
-     * population cannot describe a WHERE clause the gate does not have.
-     *
-     * <p>⚠ This counts SOLUTIONS, not groups. For a grouped gate the number
-     * answers "how many candidate rows did this look at", which is the question
-     * EXAMINED_NOTHING exists for. It is not a denominator and nothing should
-     * divide by it.
-     *
-     * @return the solution count, or -1 when the question cannot be answered
-     *     soundly — a non-SELECT gate, or one whose judgement is not in a HAVING
-     *     and therefore has no candidate set separable from its verdict. -1 is
-     *     UNKNOWN and never reads as EXAMINED_NOTHING.
+     * @return the count, or -1 for UNKNOWN — a non-SELECT gate, or one with no
+     *     HAVING and therefore no candidate set separable from its verdict.
      */
-    static int examine(Query gate, Model model) {
+    static int derived(Query gate, Model model) {
         if (!gate.isSelectType()) return -1;
-        // ⛔ MEASURED, AND THE FIRST VERSION OF THIS WAS WRONG. Stripping HAVING
-        // only separates candidates from judgement when the judgement IS in the
-        // HAVING. Most gates here are not written that way: ladder-integrity puts
-        // its judgement in FILTER NOT EXISTS *inside* the WHERE, so the pattern
-        // matches violations and nothing else — and "examined" came back 0 for a
-        // gate that had just read 133 claims, making every passing gate report
-        // EXAMINED_NOTHING. A blind-gate detector that fires on every healthy
-        // gate is worse than none: it trains the reader to ignore it.
-        //
-        // So the derivation is claimed ONLY where it is sound. No HAVING means no
-        // separable candidate set, and the honest answer is "unknown", not a
-        // number. RFC-004 §5's <gate>.population.rq exists for exactly this case
-        // and this is the evidence for it — the authored population is not
-        // avoidable, only relocatable (see RFC-005 §4, revised).
         if (gate.getHavingExprs().isEmpty()) return -1;
         Query pop = QueryFactory.make();
         pop.setQuerySelectType();
         pop.setQueryResultStar(true);
         pop.setQueryPattern(gate.getQueryPattern());
         pop.setPrefixMapping(gate.getPrefixMapping());
-        // GROUP BY / HAVING / LIMIT / OFFSET are all deliberately not carried
-        // over. HAVING is the gate's judgement; this is the population it judged.
-        try (org.apache.jena.query.QueryExecution qe =
-                 org.apache.jena.query.QueryExecutionFactory.create(pop, model)) {
-            int n = 0;
-            for (org.apache.jena.query.ResultSet rs = qe.execSelect(); rs.hasNext(); rs.next()) {
-                n++;
-            }
-            return n;
-        }
+        return rowsOf(pop, model);
     }
 
     /**
      * The GateReport, as JSON.
      *
-     * <p>Field names match the message RFC-004 §4.3 specifies so that adopting
+     * <p>Field names match the message RFC-004 §4.3 specifies, so adopting
      * {@code derivation.proto} later is a serializer swap and not a rename. Hand
      * written because {@code proto/spec/v1} has no {@code proto_library} at all
      * today — that is its own step.
@@ -310,8 +236,8 @@ public final class GateCli {
         long blind = results.stream().filter(r -> r.status() == Status.EXAMINED_NOTHING).count();
         sb.append("  ],\n  \"failed\": ").append(failed)
           .append(",\n  \"examined_nothing\": ").append(blind)
-          // Not `failed == 0`. A suite where every gate examined nothing has no
-          // failures and has checked nothing, and calling that "clean" is the
+          // ⛔ Not `failed == 0`. A suite where every gate examined nothing has no
+          // failures and has checked nothing, and calling that clean is the
           // vacuous pass this whole system exists to refuse.
           .append(",\n  \"clean\": ").append(failed == 0 && blind == 0)
           .append("\n}");
