@@ -115,18 +115,38 @@ resources:
 # self-contained image. Serves /healthz, /gates and /preflight on loopback for
 # spec-server to proxy.
 #
-# ⚠ DISABLED BY DEFAULT. Nothing proxies to it yet — the Derivation gRPC service
-# in services/spec is unwritten, so turning this on adds a container that answers
-# only itself. It is here so the chart is ready, not because it is wired.
+# ✅ IT IS WIRED NOW. This block used to say "nothing proxies to it yet — the
+# Derivation gRPC service in services/spec is unwritten". That service exists:
+# spec-server serves `spec.v1.Derivation` (RunGates, Preflight) on the same gRPC
+# port as the nav plane and reaches this container over loopback.
+#
+# ⚠ STILL DISABLED BY DEFAULT, for a different reason than before. Enabling it is
+# a deployment decision — it adds a JVM with an unmeasured resident set to a
+# running pod — not a wiring gap. With it OFF, Derivation answers
+# FAILED_PRECONDITION naming $SPEC_GATE_ADDR, which says "no gate plane here"
+# rather than pretending the call is merely unimplemented.
 gate:
   enabled: false
   image:
     repository: 491117466965.dkr.ecr.us-east-1.amazonaws.com/spec-gate
-    # Set by the deploying pipeline, like image.tag above. Empty fails loudly at
-    # render; a stale pin deploys quietly.
+    # Set by the deploying pipeline, like image.tag above. Empty now really does
+    # fail at render (`required` in deployment.yaml) — until that landed, this
+    # comment described a guard that did not exist and an empty tag rendered
+    # `spec-gate:`, failing in the cluster as ErrImagePull instead.
     tag: ""
     pullPolicy: IfNotPresent
   port: 8081
+  # Which corpus the image above bakes, passed to spec-server as
+  # $SPEC_GATE_PROJECT.
+  #
+  # ⛔ DELIBERATELY EMPTY, and empty is not "any". The sidecar parses whatever its
+  # image baked and reports no version, so spec-server cannot tell which corpus it
+  # is holding. With this unset, a RunGates naming a project is REFUSED rather
+  # than answered over whichever corpus happens to be loaded — a verdict about the
+  # wrong graph is indistinguishable from a verdict about the right one. Set it to
+  # what the image bakes (`studio` today) once that is pinned deliberately rather
+  # than by whichever build produced the tag.
+  project: ""
   # ⚠ UNMEASURED. The corpus is 220 KB and four gates run in ~0.5s on a laptop,
   # but nobody has measured the JVM's resident set under a warm Jena Model. These
   # are a starting point to watch, NOT a sizing. Do not copy RFC-004 §4.3's

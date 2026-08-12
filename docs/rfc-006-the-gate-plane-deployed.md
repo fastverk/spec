@@ -171,9 +171,11 @@ invariant ⑤, and it is the same boundary RFC-004 §3.3 draws when it makes
 
 1. ✅ `//java:gate_binary` — a long-lived wrapper over `gate_cli`'s library,
    holding a warm `Model`. Local, no AWS. **Done.**
-2. ⛔ **BLOCKED on §1's second correction.** The sidecar needs a JVM image and
-   this repo cannot produce one. Decide where that image is built before writing
-   the chart change, or the chart will reference a tag nothing populates.
+2. ✅ **UNBLOCKED, and done.** This read "BLOCKED on §1's second correction — the
+   sidecar needs a JVM image and this repo cannot produce one." It can now:
+   `//java:gate_image` builds here and `ci.yml`'s `image` job pushes it to
+   `spec-gate` per-sha. The tag nothing populated is populated. The chart's
+   sidecar is in `deploy/charts/plugin-spec`, disabled by default.
 3. The Ingress above, sharing `fastverk-public`, plus the cert and record.
 4. Vercel OIDC verification in the plugin.
 5. The console calls `Preflight` before submitting a proposal.
@@ -186,8 +188,26 @@ only make it callable *from Vercel*, and if that stalls on a certificate or a
 DNS delegation, everything before it still works from inside the cluster and from
 CI.
 
-⚠ The chart in this repo is stale against what is deployed:
-`deploy/charts/plugin-spec/values.yaml` still points at the **aion-dev** ECR
-(`042825952740`) while the live pod runs from fastverk's own
-(`491117466965`). Fix that before touching the chart, or the first sync will
-move the image backwards.
+⭐ **A step this list never had, now done: the service itself.** The numbering
+above jumps from the sidecar to the Ingress as though `Derivation` were free —
+§5 names the two RPCs and nothing was going to serve them. `services/spec` now
+does, on the same gRPC port as the nav plane, proxying to the sidecar on
+loopback. The numbering is left alone so existing references still resolve; read
+this as 2½, and note what it means for **step 3**: the Ingress now has something
+to expose that is not `LayoutService`.
+
+The service also answers what §5 left implicit — what happens when the plane is
+asked something it cannot honestly answer. Three refusals, each in place of a
+confident wrong answer: `removals_turtle` (the sidecar has no removal channel,
+so the result would be the proposal minus its deletions), a pinned
+`parent_corpus_version` (unverifiable — the sidecar reports no version), and a
+gate name that is not in the suite (silently dropping it makes a typo read as a
+gate that passed).
+
+✅ The stale-chart warning that stood here is resolved:
+`deploy/charts/plugin-spec/values.yaml` pointed at the **aion-dev** ECR
+(`042825952740`) while the live pod ran from fastverk's own (`491117466965`),
+which would have moved the image backwards on the first sync. It now names
+fastverk's, with both image tags supplied by the deploying pipeline and
+`required` — an empty tag used to render `spec:` and fail in the cluster, which
+is the same class of mistake one layer further out.

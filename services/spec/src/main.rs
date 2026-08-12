@@ -87,6 +87,25 @@ async fn main() -> Result<()> {
             .map(std::path::PathBuf::from),
     ));
 
+    // The gate plane's client. Constructed unconditionally: whether the sidecar is
+    // deployed is a fact about the pod, and the service reports it per-call
+    // (FAILED_PRECONDITION naming $SPEC_GATE_ADDR) rather than by being absent
+    // from the server — an UNIMPLEMENTED would say this build cannot gate, which
+    // is a different and untrue thing.
+    //
+    // ⚠ No boot-time probe. The JVM beside us is still parsing its corpus while
+    // this line runs, so a probe here would report a healthy sidecar as absent for
+    // the first few seconds and log a warning that is wrong more often than right.
+    let gate = Arc::new(spec::gate::GateClient::from_env());
+    match gate.addr() {
+        Some(addr) => tracing::info!(%addr, project = gate.serves_project().unwrap_or("<unset>"),
+                                     "gate plane configured (spec.v1.Derivation)"),
+        None => tracing::info!(
+            "no gate sidecar ({} unset); spec.v1.Derivation will report FAILED_PRECONDITION",
+            spec::gate::GATE_ADDR_ENV
+        ),
+    }
+
     let panels = load_panels(args.panel_bundle);
     let gateway_token = std::env::var("FASTVERK_PLUGIN_TOKEN").ok();
     let http = spec::http::router(
@@ -135,6 +154,10 @@ async fn main() -> Result<()> {
                 .with_panels(panels)
                 .into_server(),
             )
+            // The gate plane (RFC-006 §5). Same server as the nav plane: one
+            // gRPC port, two services, and the ALB target group that will front
+            // it does not need to learn a second one.
+            .add_service(spec::derivation::DerivationService::new(gate).into_server())
             .serve(grpc_addr)
             .await
             .map_err(anyhow::Error::from)

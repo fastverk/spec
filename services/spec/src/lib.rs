@@ -18,7 +18,9 @@
 //! (`kind`/`target` just fall blank).
 
 pub mod backend;
+pub mod derivation;
 pub mod evaluation;
+pub mod gate;
 pub mod http;
 pub mod json;
 pub mod mcp;
@@ -36,6 +38,18 @@ pub const AUTHORING_SERVICE: &str = "spec.v1.Authoring";
 /// prost-generated `spec.v1` message types (messages only; v1 is HTTP-only).
 pub mod proto {
     include!(concat!(env!("OUT_DIR"), "/spec.v1.rs"));
+}
+
+/// tonic-generated `spec.v1` gate-plane types + the `Derivation` server.
+///
+/// ⛔ A SECOND MODULE FOR THE SAME PROTO PACKAGE, and it is not a mistake.
+/// prost names its output after the package, so both codegen passes write
+/// `spec.v1.rs` and one would silently overwrite the other — build.rs has the
+/// full argument and gives this pass its own `OUT_DIR/derivation/`. The two carry
+/// disjoint types (`derivation.proto` imports nothing and shares no message with
+/// `spec.proto`), so nothing is duplicated here but the package name.
+pub mod derivation_proto {
+    include!(concat!(env!("OUT_DIR"), "/derivation/spec.v1.rs"));
 }
 
 pub use backend::SpecBackend;
