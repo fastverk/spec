@@ -1,0 +1,23 @@
+# ---
+# title: ladder integrity — population
+# description: >
+#   Every claim the ladder-integrity gate could judge: a normative statement
+#   carrying a rung. The gate's own WHERE cannot answer this, because its
+#   judgement lives in FILTER NOT EXISTS inside the pattern — so on a healthy
+#   corpus it matches nothing and a derived count reads zero for a gate that just
+#   examined the whole corpus.
+# severity: error
+# ---
+# ⛔ AUTHORED, AND THAT IS THE RISK. Nothing mechanically proves this pattern is
+# the gate's candidate set. If it drifts wider than the gate, a gate that
+# examined nothing wears a large number and reads as thorough — strictly worse
+# than silence. Two cheap guards exist and neither is a proof: gate_cli refuses a
+# population smaller than the violation count, and where the gate has a HAVING it
+# derives the count independently and reports disagreement. Review this file and
+# its gate together or not at all.
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+SELECT ?claim
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:rung ?rung .
+}

@@ -1,0 +1,12 @@
+# ---
+# title: conflict hygiene (strict) — population
+# description: >
+#   Every recorded conflict. The gate checks each for a witness, an owner where
+#   it crosses disciplines, and a non-expired exemption.
+# severity: error
+# ---
+PREFIX au: <https://aion.savvi.io/ontology/authoring#>
+SELECT ?conflict
+WHERE {
+  ?conflict a au:Conflict .
+}

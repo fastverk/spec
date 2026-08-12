@@ -1,0 +1,13 @@
+# ---
+# title: envelope unrecorded — population
+# description: >
+#   The quantities this gate could find an unrecorded envelope on. Studio's
+#   corpus has ZERO of these, which is the whole reason the status is
+#   three-valued: the gate is green today having examined nothing.
+# severity: error
+# ---
+PREFIX au: <https://aion.savvi.io/ontology/authoring#>
+SELECT ?quantity
+WHERE {
+  ?quantity a au:Quantity .
+}

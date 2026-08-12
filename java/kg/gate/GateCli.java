@@ -67,7 +67,8 @@ public final class GateCli {
     /** What a gate can be. Three-valued on purpose — see {@link #examine}. */
     enum Status { PASSED, FAILED, EXAMINED_NOTHING }
 
-    record GateResult(String name, Status status, int rows, int examined, String firstRow) {}
+    record GateResult(String name, Status status, int rows, int examined,
+                      String populationSource, String note, String firstRow) {}
 
     public static void main(String[] argv) throws Exception {
         List<String> gateSpecs = new ArrayList<>();
@@ -163,14 +164,64 @@ public final class GateCli {
         int rows = lines.isEmpty() ? 0 : Math.max(0, lines.size() - 1);
         String firstRow = rows > 0 ? lines.get(1) : "";
 
-        int examined = examine(query, model);
+        // The authored candidate set, per RFC-004 §5: <gate>.population.rq.
+        Path popPath = Path.of(
+            queryPath.toString().replaceFirst("\\.rq$", ".population.rq"));
+        int examined = -1;
+        String source = "none";
+        String note = "";
+        if (Files.exists(popPath)) {
+            examined = countRows(popPath, engine, merged, name + "_population");
+            source = "authored";
+            // ⛔ GUARD 1. A population smaller than the violation count is
+            // incoherent: the gate found rows the population says do not exist,
+            // so the two describe different candidate sets. Cannot detect
+            // OVERcounting — that is the risk RFC-004 names and this convention
+            // accepts — but it catches the file drifting NARROWER than its gate.
+            if (examined < rows) {
+                note = "population (" + examined + ") < violations (" + rows
+                     + ") — the population query does not cover its own gate";
+            }
+        }
+        // ⛔ GUARD 2. Where the judgement IS in a HAVING, the candidate set is
+        // derivable from the parsed query. Derive it anyway and report
+        // disagreement: two independent answers to one question are worth more
+        // than either alone, and this is the only mechanical check on an
+        // authored population there is.
+        int derived = examine(query, model);
+        if (derived >= 0 && examined >= 0 && derived != examined) {
+            note = "authored population " + examined + " disagrees with the "
+                 + "count derived from the gate's own WHERE (" + derived + ")";
+        } else if (derived >= 0 && examined < 0) {
+            examined = derived;
+            source = "derived";
+        }
 
         // ⛔ Order matters. A gate with violations is FAILED even if `examined`
-        // could not be computed; only a CLEAN gate can be EXAMINED_NOTHING.
+        // is unknown; only a CLEAN gate can be EXAMINED_NOTHING. And -1 is
+        // UNKNOWN, never zero — a gate whose blindness nobody can determine must
+        // not be reported as blind, nor as thorough.
         Status status = rows > 0 ? Status.FAILED
                 : examined == 0 ? Status.EXAMINED_NOTHING
                 : Status.PASSED;
-        return new GateResult(name, status, rows, examined, firstRow);
+        return new GateResult(name, status, rows, examined, source, note, firstRow);
+    }
+
+    /** Run a query through the engine and count its rows, header excluded. */
+    static int countRows(Path queryPath, Path engine, Path merged, String ruleName)
+            throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(
+                engine.toString(), "--rule-name=" + ruleName, "--in-format=turtle",
+                "--query=" + queryPath, "--out-format=tsv");
+        pb.redirectInput(merged.toFile());
+        Process proc = pb.start();
+        String stdout;
+        try (InputStream in = proc.getInputStream()) {
+            stdout = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
+        if (proc.waitFor() != 0) return -1;
+        List<String> lines = stdout.lines().toList();
+        return lines.isEmpty() ? 0 : Math.max(0, lines.size() - 1);
     }
 
     /**
@@ -250,7 +301,9 @@ public final class GateCli {
               .append("\", \"status\": \"").append(r.status())
               .append("\", \"rows\": ").append(r.rows())
               .append(", \"examined\": ").append(r.examined())
-              .append(", \"first_row\": \"").append(esc(r.firstRow())).append("\"}")
+              .append(", \"population_source\": \"").append(r.populationSource())
+              .append("\", \"note\": \"").append(esc(r.note()))
+              .append("\", \"first_row\": \"").append(esc(r.firstRow())).append("\"}")
               .append(i < results.size() - 1 ? ",\n" : "\n");
         }
         long failed = results.stream().filter(r -> r.status() == Status.FAILED).count();
