@@ -3,6 +3,12 @@ load(":gates.bzl", "spec_corpus_gates")
 
 package(default_visibility = ["//visibility:public"])
 
+# The gate/measure split, as a source file, so
+# //rdf/lint/authoring:population_coverage_test can READ `_GATES` rather than
+# restate it. A test that carries its own copy of the list cannot notice a gate
+# being added without one.
+exports_files(["authoring_gates.bzl"])
+
 # The RFC vocabulary as a dataset. Consumers fold this into their corpus
 # via `deps = ["@spec//rdf:vocab"]` so the gate queries resolve the
 # rfc: terms.
