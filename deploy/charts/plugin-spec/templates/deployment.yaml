@@ -40,7 +40,19 @@ spec:
           # render" and until this line that was simply untrue: it rendered
           # `spec-gate:` and failed in the cluster as ErrImagePull, one deploy and
           # several minutes away from the mistake.
-          image: "{{ .Values.gate.image.repository }}:{{ required "gate.image.tag is required when gate.enabled — the deploying pipeline sets it to the pushed sha; an empty tag renders an invalid reference" .Values.gate.image.tag }}"
+          # Same appVersion fallback as spec-server below, and it lands on the
+          # right tag for a different reason: ci.yml pushes this image as
+          # spec-gate:${GITHUB_SHA::12}, the same 12 characters the publisher
+          # writes into appVersion. So the gate image for THIS commit is exactly
+          # appVersion.
+          #
+          # ⚠ The assumption is that ci.yml's `image` job ran for this sha. It is
+          # push-only (skipped on pull_request), so a chart published from a
+          # branch build can name a spec-gate tag that was never pushed. Harmless
+          # while gate.enabled is false — this container is not rendered at all —
+          # and an ErrImagePull rather than a wrong image if it is. Pin
+          # gate.image.tag explicitly to override.
+          image: "{{ .Values.gate.image.repository }}:{{ required "no gate image tag: neither gate.image.tag nor the chart's appVersion is set" (.Values.gate.image.tag | default .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.gate.image.pullPolicy }}
           args: ["--port={{ .Values.gate.port }}"]
           # ⚠ NO probe on this container. It listens on loopback only, so the
@@ -51,7 +63,21 @@ spec:
             {{- toYaml .Values.gate.resources | nindent 12 }}
         {{- end }}
         - name: spec-server
-          image: "{{ .Values.image.repository }}:{{ required "image.tag is required — the deploying pipeline sets it to the spec commit sha; an empty tag renders an invalid reference" .Values.image.tag }}"
+          # ⛔ THE TAG FALLS BACK TO appVersion, AND THAT IS THE FIX FOR A REAL
+          # OUTAGE. The publisher was supposed to stamp image.tag into values.yaml
+          # before packaging, and for this chart it silently stopped: the runner
+          # only stamps when the chart's image repo is one it pushed, comparing
+          # $ECR/<CHART NAME> against what was pushed. This chart is `plugin-spec`
+          # and its image is pushed to `spec` (the runner derives that from the
+          # Bazel target basename, //services/spec:spec-image_push), so the two
+          # can never match and the stamp takes its "leave values.yaml untouched"
+          # branch. The chart then publishes with tag: "" and the deploy is dead.
+          #
+          # `helm package --app-version "$SHA12"` runs UNCONDITIONALLY on every
+          # publish, so appVersion carries the commit even when the stamp does
+          # not. Reading the tag from the artifact's own metadata makes the chart
+          # self-describing instead of dependent on a step that can quietly skip.
+          image: "{{ .Values.image.repository }}:{{ required "no image tag: neither .Values.image.tag nor the chart's appVersion is set. A published chart always carries appVersion (helm package --app-version); rendering from a git checkout needs --set image.tag=<sha>" (.Values.image.tag | default .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
