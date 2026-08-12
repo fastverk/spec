@@ -149,6 +149,22 @@ public final class GateCli {
         return model;
     }
 
+    /**
+     * A copy of `base` with `turtle` added.
+     *
+     * <p>⛔ A COPY. The caller's model is never mutated — a long-lived process
+     * that added a proposal's triples to its warm corpus would answer every later
+     * question over a graph nobody promoted, which is invariant ② failing
+     * silently and for the life of the process.
+     */
+    static Model copyWith(Model base, String turtle) {
+        Model out = ModelFactory.createDefaultModel();
+        out.add(base);
+        RDFDataMgr.read(out, new java.io.ByteArrayInputStream(
+            turtle.getBytes(StandardCharsets.UTF_8)), Lang.TURTLE);
+        return out;
+    }
+
     static GateResult run(String name, Path queryPath, Model model) throws Exception {
         Query gate = QueryFactory.create(Files.readString(queryPath, StandardCharsets.UTF_8));
         List<String> lines = emit(gate, model).lines().toList();

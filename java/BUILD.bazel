@@ -191,14 +191,30 @@ java_library(
 # and this binary's whole value is being the SAME answer the sparql_query_test
 # targets give. `result_emit` is the library JenaSparql itself calls; linking it
 # makes agreement structural rather than asserted. RFC-005 §3 has the argument.
+java_library(
+    name = "gate_lib",
+    srcs = ["kg/gate/GateCli.java"],
+    visibility = ["//visibility:public"],
+    deps = GATE_JENA_DEPS + ["@rules_jena//jena/sparql:result_emit"],
+)
+
 java_binary(
     name = "gate_cli",
-    srcs = ["kg/gate/GateCli.java"],
     main_class = "kg.gate.GateCli",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":gate_lib"],
+)
+
+# The same gates, held warm behind loopback HTTP. See GateServer's header for
+# why this hop is not gRPC and why /preflight takes additions only.
+java_binary(
+    name = "gate_binary",
+    srcs = ["kg/gate/GateServer.java"],
+    main_class = "kg.gate.GateServer",
     visibility = ["//visibility:public"],
     # ⛔ result_emit is the engine of record's own execution+formatting library
     # (rules_jena >= 0.3.2). Linking it is what makes agreement with the
     # sparql_query_test targets STRUCTURAL rather than asserted. At 0.3.0 this
     # was a `data` dep on the jena_sparql binary and a subprocess per gate.
-    deps = GATE_JENA_DEPS + ["@rules_jena//jena/sparql:result_emit"],
+    deps = GATE_JENA_DEPS + [":gate_lib"],
 )
