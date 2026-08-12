@@ -235,3 +235,46 @@ jobs:
       - name: build
         working-directory: console
         run: pnpm exec next build
+
+  # ── Push the gate image ────────────────────────────────────────────────────
+  #
+  # ⛔ NEVER ON pull_request. The `if` below gates on push-to-main and manual
+  # dispatch, mirroring migrate.yml — a PR can come from a fork, and a fork's
+  # workflow requesting an OIDC token that assumes an ECR push role is a supply
+  # chain hole with a green tick on it. The trust policy on fastverk-ecr-push
+  # allows `repo:fastverk/spec:*`, which does NOT distinguish a fork's PR from a
+  # merge, so the workflow has to.
+  #
+  # ⚠ `needs: gate` is load-bearing, not tidiness. Pushing an image built from a
+  # commit whose gates never ran publishes an artifact nobody checked, and the
+  # tag is a commit SHA so it will look authoritative forever.
+  #
+  # ⚠ A job whose every step is `if:`-skipped still concludes SUCCESS. Read
+  # `.jobs[].conclusion` filtered by SHA when checking whether this ran; a green
+  # tick here is consistent with nothing having been pushed.
+  image:
+    needs: gate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # OIDC. No access keys anywhere in this repo's secrets, and nothing to
+      # rotate — the token is minted per run and expires with it.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: assume the push role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::491117466965:role/fastverk-ecr-push
+          aws-region: us-east-1
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      # rules_oci pushes from Bazel, so the registry credential has to reach the
+      # docker config the rule reads — which ecr-login above has just written.
+      - name: push
+        run: |
+          bazel ${BAZEL_FLAGS} run //java:gate_image_push -- \
+            --tag "${GITHUB_SHA::12}" --tag latest
