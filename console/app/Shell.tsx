@@ -19,6 +19,10 @@ import { MONO } from "./theme";
 
 const NAV = [
   { href: "/overview", label: "Overview", group: "Project" },
+  // ⛔ First in the authoring group, because until now the console could reword
+  // a requirement and withdraw one and not WRITE one. `assertNS` has been in the
+  // vocabulary since RFC-002 and had no caller anywhere in `app/`.
+  { href: "/write", label: "Write", group: "Project" },
   { href: "/requirements", label: "Requirements", group: "Project" },
   { href: "/grounding", label: "Grounding", group: "Project" },
   { href: "/conflicts", label: "Conflicts", group: "Assurance" },

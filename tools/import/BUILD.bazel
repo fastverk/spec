@@ -1,0 +1,18 @@
+package(default_visibility = ["//visibility:public"])
+
+# `decompose.py` is not run by Bazel — the import pipeline is a hand-run tool, by
+# design (RFC-002: the corpus is generated, and generating it is a deliberate
+# step). This package exists so the file can be STAGED as data for a test that
+# needs to read it.
+#
+# ⛔ `//conformance:conformance_test` IMPORTS THIS MODULE AND CALLS IT. The
+# decomposition rule now has two implementations — this one, which produces the
+# corpus, and `console/lib/decompose.ts`, which previews it while an author is
+# still typing — and a preview that disagreed with the decomposer would be worse
+# than no preview, because it would be believed. So the checker executes
+# `conformance/decomposition_cases.json` against BOTH, and needs the real file
+# rather than a description of it.
+exports_files([
+    "decompose.py",
+    "authreq_to_ttl.py",
+])
