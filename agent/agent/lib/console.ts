@@ -11,7 +11,11 @@
  * holding INSERT on a log with no DELETE, and every one of those checks living
  * in a second place where it could silently differ.
  */
-const BASE = (process.env["SPEC_CONSOLE_URL"] ?? "http://127.0.0.1:5177").replace(/\/$/, "");
+// ⚠ 5175 is the port `console/package.json`'s `dev` script actually binds
+// (`next dev -H 127.0.0.1 -p 5175`). The default was 5177, so an agent started
+// without SPEC_CONSOLE_URL failed every tool call with a connection refused
+// against a port nothing has ever served.
+const BASE = (process.env["SPEC_CONSOLE_URL"] ?? "http://127.0.0.1:5175").replace(/\/$/, "");
 
 export type Overlay = {
   corpus_version: string;

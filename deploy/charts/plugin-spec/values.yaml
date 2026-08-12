@@ -1,10 +1,22 @@
 replicaCount: 1
 
-# The aion-dev EKS cluster pulls plugin images from the aion-dev PRIVATE ECR (CI
-# cross-compiles linux/amd64 and mirrors ghcr.io/fastverk/spec-server -> here).
+# ⚠ THIS FILE WAS STALE AGAINST WHAT IS DEPLOYED. It named the aion-dev ECR
+# (042825952740) and tag 0.6.2, while the live pod in the `fastverk` cluster runs
+# 491117466965.dkr.ecr.us-east-1.amazonaws.com/spec:<commit-sha>. Syncing the
+# chart as written would have moved the image BACKWARDS, across accounts, to a
+# tag that does not exist in the repository it would have pulled from.
+#
+# ⛔ NOTHING IN THIS REPO BUILDS OR PUSHES THAT IMAGE. `.github/workflows/ci.yml`
+# has two jobs, `gate` and `console`, and neither touches ECR — the tags are spec
+# commit SHAs pushed by the platform build-runner, per the Dockerfile's own note
+# that "the platform's canonical build is the bazel rules_fastverk_plugin macro /
+# //services/spec:spec-image". So the tag here is not something a spec PR can
+# advance, and pinning one would drift the moment the runner pushes again.
 image:
-  repository: 042825952740.dkr.ecr.us-east-1.amazonaws.com/spec-server
-  tag: "0.6.2"
+  repository: 491117466965.dkr.ecr.us-east-1.amazonaws.com/spec
+  # Set by the deploying pipeline. Left empty rather than pinned to a stale value
+  # — an empty tag fails loudly at render, a wrong one deploys quietly.
+  tag: ""
   pullPolicy: IfNotPresent
 
 # The plugin's HTTP/JSON facade (/healthz, /describe, /panels.binpb, /mcp, + the

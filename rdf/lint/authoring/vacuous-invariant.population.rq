@@ -1,0 +1,15 @@
+# ---
+# title: vacuous invariant — population
+# description: >
+#   Every recorded evaluation. The gate judges whether any of them reports a
+#   positive outcome over a zero population; this is the set it judges over. An
+#   empty answer means no claim has ever been evaluated — which is Studio's state
+#   today, and is exactly what must not read as "no vacuous results found".
+# severity: error
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+SELECT ?evaluation
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:evaluatedBy ?evaluation .
+}

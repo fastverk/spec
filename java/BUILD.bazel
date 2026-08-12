@@ -1,4 +1,22 @@
-load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+# The engine of record's own Maven set. Kept separate from JENA_DEPS below:
+# they are DIFFERENT JENA VERSIONS (5.2.0 vs 5.0.0) and must never meet on one
+# classpath. See //docs/rfc-005-one-engine-of-record.md.
+# ⛔ NOT `load("@rules_jena//jena:defs.bzl", "JENA_DEPS")`. Those labels live in
+# rules_jena's own `@jena_maven`, which Bzlmod does not make visible outside the
+# module that declared it — the build fails with "No repository visible as
+# '@jena_maven'". The version is restated in `@gate_maven` instead; MODULE.bazel
+# says so at the install, and RFC-005 §3 records that the restatement is an
+# ungated drift risk.
+GATE_JENA_DEPS = [
+    "@gate_maven//:org_apache_jena_jena_arq",
+    "@gate_maven//:org_apache_jena_jena_core",
+    "@gate_maven//:org_apache_jena_jena_base",
+    "@gate_maven//:org_apache_jena_jena_iri",
+    "@gate_maven//:org_slf4j_slf4j_simple",
+]
 
 package(default_visibility = ["//visibility:public"])
 
@@ -162,4 +180,95 @@ java_library(
         ":gate_harness",
         ":write_ops",
     ],
+)
+
+# ── The gate runner ────────────────────────────────────────────────────────────
+#
+# The first java_binary in this file. The comment above has said since the
+# migration that consumers keep the entry points; spec is now a consumer.
+#
+# ⛔ NOTE THE DEPS. This target links @rules_jena's Jena (5.2.0) and NOT
+# @spec_maven's (5.0.0) — deliberately, and it is why it cannot reuse :loader.
+# Two Jena versions on one classpath means the answer depends on classpath order,
+# and this binary's whole value is being the SAME answer the sparql_query_test
+# targets give. `result_emit` is the library JenaSparql itself calls; linking it
+# makes agreement structural rather than asserted. RFC-005 §3 has the argument.
+java_library(
+    name = "gate_lib",
+    srcs = ["kg/gate/GateCli.java"],
+    visibility = ["//visibility:public"],
+    deps = GATE_JENA_DEPS + ["@rules_jena//jena/sparql:result_emit"],
+)
+
+java_binary(
+    name = "gate_cli",
+    main_class = "kg.gate.GateCli",
+    visibility = ["//visibility:public"],
+    runtime_deps = [":gate_lib"],
+)
+
+# The same gates, held warm behind loopback HTTP. See GateServer's header for
+# why this hop is not gRPC and why /preflight takes additions only.
+java_binary(
+    name = "gate_binary",
+    srcs = ["kg/gate/GateServer.java"],
+    main_class = "kg.gate.GateServer",
+    visibility = ["//visibility:public"],
+    # ⛔ result_emit is the engine of record's own execution+formatting library
+    # (rules_jena >= 0.3.2). Linking it is what makes agreement with the
+    # sparql_query_test targets STRUCTURAL rather than asserted. At 0.3.0 this
+    # was a `data` dep on the jena_sparql binary and a subprocess per gate.
+    deps = GATE_JENA_DEPS + [":gate_lib"],
+)
+
+# ── The gate plane as an image ─────────────────────────────────────────────────
+#
+# Built by Bazel and pushed by CI, so the sidecar RFC-006 §3 wants is producible
+# from THIS repo. Before this, nothing here built an image at all — ci.yml has
+# two jobs and neither touches a registry, and the `spec:<sha>` tags come from
+# the platform build-runner. That made the JVM sidecar blocked on work in another
+# repo; it no longer is.
+#
+# ⛔ The deploy jar, not the runfiles tree. `java_binary` also emits a launcher
+# script that expects a runfiles layout and a JAVA_HOME; in a distroless image
+# there is no shell to run it. The fat jar has one dependency — a JRE — and the
+# base supplies exactly that.
+pkg_tar(
+    name = "gate_binary_layer",
+    srcs = [":gate_binary_deploy.jar"],
+    package_dir = "/app",
+)
+
+oci_image(
+    name = "gate_image",
+    base = "@java_base",
+    # ⚠ No CMD. The corpus paths and --gate flags are deployment facts, not build
+    # facts: the chart supplies them as args. Baking a corpus path here would put
+    # a deployment's layout inside an artifact that outlives it.
+    entrypoint = [
+        "java",
+        "-jar",
+        "/app/gate_binary_deploy.jar",
+    ],
+    tars = [":gate_binary_layer"],
+    visibility = ["//visibility:public"],
+)
+
+# ⛔ An image that assembles is not an image that runs. This loads it into the
+# local daemon so `docker run` can prove the entrypoint resolves, the JRE is
+# present, and the jar starts — the three things a green `oci_image` does NOT
+# tell you. The plugin image in this repo was once "produced by hand" precisely
+# because nobody found out until deploy time.
+oci_load(
+    name = "gate_image_load",
+    image = ":gate_image",
+    repo_tags = ["spec-gate:local"],
+)
+
+# Pushed by CI. The tag comes from the pipeline, never from here — see the note
+# on `image.tag` in deploy/charts/plugin-spec/values.yaml.
+oci_push(
+    name = "gate_image_push",
+    image = ":gate_image",
+    repository = "491117466965.dkr.ecr.us-east-1.amazonaws.com/spec-gate",
 )

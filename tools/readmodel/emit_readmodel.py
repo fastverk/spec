@@ -23,8 +23,20 @@ panels by reading files — exactly what it already does for the Lean spec index
 Consequences worth stating plainly:
   * The read model is as fresh as the last build, not live. For a spec corpus that
     is the right trade: claims change at review cadence, not per-request.
-  * There is exactly ONE SPARQL implementation of record. No drift risk between a
-    Rust query path and the Jena gates.
+  * No Rust query path is introduced, so there is no drift risk between a Rust
+    engine and the Jena gates.
+
+    ⚠ This bullet used to read "there is exactly ONE SPARQL implementation of
+    record. No drift risk." That was false four lines above `from rdflib import
+    Graph`. This file's queries run under RDFLIB; the gates run under ARQ
+    (Jena 5.2.0, via rules_jena's JenaSparql), and `kg.GateHarness` runs a THIRD
+    path — in-process ARQ on Jena 5.0.0. Three engines, and the sentence claiming
+    one is why nobody was looking. ARQ-vs-ARQ divergence is already documented and
+    load-bearing: see the ⛔ header of rdf/lint/authoring/envelope-unrecorded.rq,
+    a gate that returned zero rows for every input and read as passing. Nothing
+    compares this file's aggregations against ARQ's. RFC-005 names the Bazel
+    sparql_query_test path as the engine of record and this file as the one to
+    retire, not reconcile.
   * The plugin needs no new crate, so the browser read model ships without
     touching MODULE.bazel.
 
