@@ -1,4 +1,20 @@
-load("@rules_java//java:defs.bzl", "java_library")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library")
+# The engine of record's own Maven set. Kept separate from JENA_DEPS below:
+# they are DIFFERENT JENA VERSIONS (5.2.0 vs 5.0.0) and must never meet on one
+# classpath. See //docs/rfc-005-one-engine-of-record.md.
+# ⛔ NOT `load("@rules_jena//jena:defs.bzl", "JENA_DEPS")`. Those labels live in
+# rules_jena's own `@jena_maven`, which Bzlmod does not make visible outside the
+# module that declared it — the build fails with "No repository visible as
+# '@jena_maven'". The version is restated in `@gate_maven` instead; MODULE.bazel
+# says so at the install, and RFC-005 §3 records that the restatement is an
+# ungated drift risk.
+GATE_JENA_DEPS = [
+    "@gate_maven//:org_apache_jena_jena_arq",
+    "@gate_maven//:org_apache_jena_jena_core",
+    "@gate_maven//:org_apache_jena_jena_base",
+    "@gate_maven//:org_apache_jena_jena_iri",
+    "@gate_maven//:org_slf4j_slf4j_simple",
+]
 
 package(default_visibility = ["//visibility:public"])
 
@@ -162,4 +178,26 @@ java_library(
         ":gate_harness",
         ":write_ops",
     ],
+)
+
+# ── The gate runner ────────────────────────────────────────────────────────────
+#
+# The first java_binary in this file. The comment above has said since the
+# migration that consumers keep the entry points; spec is now a consumer.
+#
+# ⛔ NOTE THE DEPS. This target links @rules_jena's Jena (5.2.0) and NOT
+# @spec_maven's (5.0.0) — deliberately, and it is why it cannot reuse :loader.
+# Two Jena versions on one classpath means the answer depends on classpath order,
+# and this binary's whole value is being the SAME answer the sparql_query_test
+# targets give. `result_emit` is the library JenaSparql itself calls; linking it
+# makes agreement structural rather than asserted. RFC-005 §3 has the argument.
+java_binary(
+    name = "gate_cli",
+    srcs = ["kg/gate/GateCli.java"],
+    main_class = "kg.gate.GateCli",
+    visibility = ["//visibility:public"],
+    # The engine binary is DATA, not a dep — 0.3.0 ships it as a java_binary
+    # with the execution inline, so the only way to share it is to run it.
+    data = ["@rules_jena//jena/sparql:jena_sparql"],
+    deps = GATE_JENA_DEPS,
 )
