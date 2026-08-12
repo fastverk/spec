@@ -30,6 +30,25 @@ export async function GET() {
   const who = await principal();
   return NextResponse.json({
     corpus_version: CORPUS_VERSION,
+    // ⛔ WHICH CODE IS ANSWERING. `corpus_version` names the DATA this build
+    // shipped with, not the BUILD, and the two come apart exactly when it
+    // matters: a fix can be merged, green, and not deployed, and every other
+    // number on this endpoint stays correct while the console serves the old
+    // code. Measured the hard way — after a merge there was no way, from
+    // outside, to tell whether production had picked it up. Page-chunk hashes
+    // do not survive a different builder, so guessing from static assets
+    // answers a different question than the one being asked.
+    //
+    // Short sha and stage only. The branch, the message and the author are not
+    // facts a PUBLIC endpoint needs to hand out.
+    deployment: {
+      commit: (process.env["VERCEL_GIT_COMMIT_SHA"] ?? "").trim().slice(0, 7),
+      // ⚠ "local" is not a Vercel stage — it is the ABSENCE of one, and saying
+      // so is different from claiming production. An empty commit under stage
+      // "production" means the system environment variables are not exposed,
+      // which is a deployment defect and reads as one.
+      stage: (process.env["VERCEL_ENV"] ?? "").trim() || "local",
+    },
     rows,
     log_backend: backend(),
     write_enabled: writeEnabled(),
