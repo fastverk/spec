@@ -410,6 +410,11 @@ check(any(c.get("terms") for c in dec_cases),
 for c in dec_cases:
     check(bool(c.get("why")), f"{DEC_CASES}: {c.get('name', '?')}: no `why`")
 
+# ⚠ Bytecode writing off BEFORE the import. Under `bazel test` the runfiles tree
+# is not a place to be creating `__pycache__`, and a checker that fails because it
+# tried to write next to the file it was reading would be an infuriating way to
+# learn that.
+sys.dont_write_bytecode = True
 _spec = importlib.util.spec_from_file_location("_decompose", os.path.join(ROOT, "tools/import/decompose.py"))
 _dec_mod = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_dec_mod)

@@ -18,6 +18,12 @@ filegroup(
     name = "conformance_inputs",
     srcs = [
         "db/bootstrap.sql",
+        # The console's half of the decomposition rule. Its MAX_TERM_WORDS is
+        # compared against conformance/decomposition_cases.json — never against
+        # the Python constant directly, because two constants agreeing with a
+        # third is checkable from either side and two agreeing with each other is
+        # a coincidence nobody re-checks.
+        "lib/decompose.ts",
         "lib/evaluation.ts",
         "lib/overlay.ts",
     ] + glob(["db/migrations/*.sql"]),
