@@ -12,12 +12,12 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import { useMemo, useState } from "react";
 
-import { advise, droppedEmphasis, extract } from "../../lib/decompose";
-import type { Row } from "../../lib/overlay";
-import { inProject, openingProject, projectsIn } from "../../lib/project";
-import { MONO, SERIF } from "../theme";
-import { OverlayError, PaneHead, ProjectPicker, ReadOnly } from "../ui";
-import { submitOp, useOverlay } from "../useOverlay";
+import { advise, droppedEmphasis, extract } from "../../../lib/decompose";
+import type { Row } from "../../../lib/overlay";
+import { inProject, openingProject, projectsIn } from "../../../lib/project";
+import { MONO, SERIF } from "../../theme";
+import { OverlayError, PaneHead, ProjectPicker, ReadOnly } from "../../ui";
+import { submitOp, useOverlay } from "../../useOverlay";
 
 const MODALITIES = ["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"];
 

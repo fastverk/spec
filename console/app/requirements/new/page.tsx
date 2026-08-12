@@ -1,4 +1,4 @@
-import { requirements } from "../../lib/corpus";
+import { requirements } from "../../../lib/corpus";
 import { WriteClient } from "./WriteClient";
 
 // The corpus is needed for three things: the disciplines a new claim may be

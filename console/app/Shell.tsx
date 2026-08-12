@@ -17,14 +17,22 @@ import { usePathname } from "next/navigation";
 
 import { MONO } from "./theme";
 
+// ⛔ ENTITIES, NOT ACTIVITIES.
+//
+// This was Write / Requirements / Grounding — three places, organised by what
+// you were doing. So one word lived in three of them with three shapes, the
+// sentence that needed a term was in a different pane from the term, and
+// `sponsor:edit` — one decision that unblocks eleven claims — had no address you
+// could send anyone.
+//
+// A requirement and a term are THINGS. Each has a URL, a status in one shared
+// vocabulary, and the outstanding work on it. Writing and grounding are things
+// you do to one: /requirements/new and the walkthrough on a requirement's own
+// page, reaching the same ops as before.
 const NAV = [
   { href: "/overview", label: "Overview", group: "Project" },
-  // ⛔ First in the authoring group, because until now the console could reword
-  // a requirement and withdraw one and not WRITE one. `assertNS` has been in the
-  // vocabulary since RFC-002 and had no caller anywhere in `app/`.
-  { href: "/write", label: "Write", group: "Project" },
   { href: "/requirements", label: "Requirements", group: "Project" },
-  { href: "/grounding", label: "Grounding", group: "Project" },
+  { href: "/terms", label: "Terms", group: "Project" },
   { href: "/conflicts", label: "Conflicts", group: "Assurance" },
   { href: "/proposals", label: "Proposals", group: "Outputs" },
   { href: "/document", label: "Document", group: "Outputs" },

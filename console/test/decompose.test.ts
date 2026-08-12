@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 
 import cases from "../../conformance/decomposition_cases.json";
-import { MAX_TERM_WORDS, advise, droppedEmphasis, extract } from "../lib/decompose";
+import { MAX_TERM_WORDS, advise, droppedEmphasis, extract, spans } from "../lib/decompose";
 
 type Case = {
   name: string;
@@ -47,6 +47,58 @@ describe("extract", () => {
       expect(extract(c.predicate)).toEqual(c.terms);
     });
   }
+});
+
+describe("spans", () => {
+  // ⛔ THE INVARIANT THE HIGHLIGHTING RESTS ON. The requirement page colours each
+  // marked word by the state of the term it belongs to, so a span the rule did
+  // not turn into a term — or a term with no span — would be a word painted with
+  // someone else's status. Both come from one scan for exactly this reason, and
+  // this asserts it over every case in the fixture rather than trusting it.
+  for (const c of CASES) {
+    it(`agrees with extract on: ${c.name}`, () => {
+      const fromSpans = spans(c.predicate)
+        .filter((s) => s.isTerm)
+        .map((s) => ({ surface: s.surface, source: s.source }));
+      // Same set — order differs by design: extract() is rule order (every code
+      // span, then every emphasis), spans() is document order.
+      expect([...fromSpans].sort((a, b) => a.surface.localeCompare(b.surface))).toEqual(
+        [...c.terms].sort((a, b) => a.surface.localeCompare(b.surface)),
+      );
+    });
+  }
+
+  it("tiles the string: slices between spans reconstruct the original", () => {
+    // The renderer walks these offsets and slices the text between them. An
+    // off-by-one would silently drop or duplicate the author's words.
+    const p = "A `sponsor:edit` holder is never an **org admin** here.";
+    let at = 0;
+    let rebuilt = "";
+    for (const s of spans(p)) {
+      rebuilt += p.slice(at, s.start) + p.slice(s.start, s.end);
+      at = s.end;
+    }
+    rebuilt += p.slice(at);
+    expect(rebuilt).toBe(p);
+  });
+
+  it("marks a repeated surface as the same term, not a second one", () => {
+    const got = spans("`public` is not the same as **public** stress.");
+    expect(got).toHaveLength(2);
+    expect(got[0]?.isTerm).toBe(true);
+    expect(got[1]?.isTerm).toBe(false);
+    // The second occurrence resolves to the FIRST one's spelling, so it picks up
+    // that term's grounding state rather than rendering as an unknown word.
+    expect(got[1]?.surface).toBe("public");
+  });
+
+  it("keeps an over-long bolded span visible, flagged as dropped", () => {
+    // Hiding it would leave the author wondering why their bold did nothing.
+    const got = spans("This **must never happen under any circumstances** ever.");
+    expect(got).toHaveLength(1);
+    expect(got[0]?.dropped).toBe(true);
+    expect(got[0]?.isTerm).toBe(false);
+  });
 });
 
 describe("advise", () => {

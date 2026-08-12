@@ -42,6 +42,53 @@ export type MarkedTerm = {
 };
 
 /**
+ * One marked span, WHERE it is in the text.
+ *
+ * The requirement detail page renders the author's sentence with each marked
+ * span coloured by whether its term has been grounded, so it needs positions the
+ * rule itself has no use for. Those positions come from the SAME scan the rule
+ * runs — see `scan` — rather than from a second pass with the same regexes
+ * written out again, which is how two things that must agree stop agreeing.
+ */
+export type MarkedSpan = {
+  start: number;
+  /** Exclusive, and covers the marks themselves, so slices tile the string. */
+  end: number;
+  surface: string;
+  source: TermSource;
+  /**
+   * Whether THIS occurrence is the one that produced the term. A surface marked
+   * twice is one hole, so the second occurrence is still highlighted — it is the
+   * same word — but it did not create anything.
+   */
+  isTerm: boolean;
+  /** Emphasis longer than `MAX_TERM_WORDS`: shown struck through, not hidden. */
+  dropped: boolean;
+};
+
+type RawMark = { start: number; end: number; text: string; source: TermSource };
+
+/**
+ * Every marked span in document order, before any rule is applied.
+ *
+ * ⚠ THE ONLY PLACE THE MARKUP SYNTAX IS WRITTEN DOWN. `extract` and `spans` are
+ * both derived from this, so the terms the corpus gets and the spans the page
+ * highlights cannot come apart — there is one scan and two views of it.
+ */
+function scan(predicate: string): RawMark[] {
+  const marks: RawMark[] = [];
+  for (const m of predicate.matchAll(/`([^`]+)`/g)) {
+    marks.push({ start: m.index, end: m.index + m[0].length, text: (m[1] ?? "").trim(), source: "code-span" });
+  }
+  for (const m of predicate.matchAll(/\*\*([^*]+)\*\*/g)) {
+    marks.push({ start: m.index, end: m.index + m[0].length, text: (m[1] ?? "").trim(), source: "emphasis" });
+  }
+  return marks;
+}
+
+const tooLong = (m: RawMark) => m.source === "emphasis" && m.text.split(/\s+/).length > MAX_TERM_WORDS;
+
+/**
  * Every term the author marked, code spans first and emphasis after.
  *
  * Nothing is inferred. A decomposer that guessed noun phrases would produce a
@@ -50,6 +97,7 @@ export type MarkedTerm = {
  * returns nothing, and the caller's job is to say so rather than to guess.
  */
 export function extract(predicate: string): MarkedTerm[] {
+  const marks = scan(predicate);
   const out: MarkedTerm[] = [];
   // Case-insensitive, because `Public` and `public` are one hole. The surface
   // KEPT is the one the author wrote first — normalizing it would silently
@@ -59,25 +107,51 @@ export function extract(predicate: string): MarkedTerm[] {
   // ⚠ Both passes run to completion in order: every code span, then every
   // emphasis. Interleaving them by position would change which source label a
   // surface marked both ways receives.
-  for (const m of predicate.matchAll(/`([^`]+)`/g)) {
-    const s = (m[1] ?? "").trim();
-    if (!s || seen.has(s.toLowerCase())) continue;
-    seen.add(s.toLowerCase());
-    out.push({ surface: s, source: "code-span" });
-  }
-
-  for (const m of predicate.matchAll(/\*\*([^*]+)\*\*/g)) {
-    const s = (m[1] ?? "").trim();
-    if (!s || seen.has(s.toLowerCase())) continue;
-    // ⛔ The length test is on EMPHASIS only. A backtick is unambiguous; bold is
-    // also used for stress, and a decomposer that took every bolded clause fills
-    // the queue with noise people learn to ignore.
-    if (s.split(/\s+/).length > MAX_TERM_WORDS) continue;
-    seen.add(s.toLowerCase());
-    out.push({ surface: s, source: "emphasis" });
+  for (const source of ["code-span", "emphasis"] as const) {
+    for (const m of marks) {
+      if (m.source !== source || !m.text || seen.has(m.text.toLowerCase())) continue;
+      // ⛔ The length test is on EMPHASIS only. A backtick is unambiguous; bold is
+      // also used for stress, and a decomposer that took every bolded clause fills
+      // the queue with noise people learn to ignore.
+      if (tooLong(m)) continue;
+      seen.add(m.text.toLowerCase());
+      out.push({ surface: m.text, source });
+    }
   }
 
   return out;
+}
+
+/**
+ * Every marked span in DOCUMENT order, each resolved to the term it belongs to.
+ *
+ * `surface` is the canonical one — the first occurrence's spelling — so a span
+ * reading `Public` resolves to the term `public` was recorded under and picks up
+ * that term's grounding state. Rendering it under its own spelling would show
+ * two differently-coloured copies of one hole.
+ */
+export function spans(predicate: string): MarkedSpan[] {
+  const canonical = new Map<string, MarkedTerm>();
+  for (const t of extract(predicate)) canonical.set(t.surface.toLowerCase(), t);
+
+  const claimed = new Set<string>();
+  return scan(predicate)
+    .filter((m) => m.text !== "")
+    .sort((a, b) => a.start - b.start)
+    .map((m) => {
+      const key = m.text.toLowerCase();
+      const term = canonical.get(key);
+      const first = Boolean(term) && !claimed.has(key);
+      if (first) claimed.add(key);
+      return {
+        start: m.start,
+        end: m.end,
+        surface: term?.surface ?? m.text,
+        source: m.source,
+        isTerm: first,
+        dropped: tooLong(m),
+      };
+    });
 }
 
 /**

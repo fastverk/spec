@@ -61,6 +61,43 @@ npm install
 AI_GATEWAY_API_KEY=… SPEC_CONSOLE_URL=http://127.0.0.1:5177 npx eve dev
 ```
 
+### On Bedrock instead, bypassing the Vercel AI Gateway
+
+```sh
+export SPEC_AGENT_BEDROCK_MODEL="us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+export AWS_REGION=us-east-1
+npx eve build && npx eve start          # AWS creds from env, or a task role
+```
+
+Verified to reach `bedrock-runtime.us-east-1.amazonaws.com/model/…/converse-stream`
+through `@ai-sdk/amazon-bedrock` with no Vercel in the path. The provider pins the
+same `@ai-sdk/provider@4.0.7` that eve's `ai@7` peer resolves, so it needs no shim.
+
+Worth it beyond the billing: the prompt carries a customer's authorization
+vocabulary — their roles, their permission names, their org structure. Invariant ①
+keeps their DATA out of spec; their MODEL still goes to whoever serves the tokens,
+and Bedrock keeps that in an account SAVVI controls. On Fargate or Lambda a task
+role signs the request, so there is no key in an environment variable and nothing
+to rotate.
+
+**Two footguns, both hit while wiring this, both loud rather than silent:**
+
+1. **The env var must be set for `build` AND for `start`.** `agent.ts` is
+   evaluated at build time to compile the manifest, and again at runtime to
+   resolve the dynamic model. Set it for only one and the two disagree —
+   `MODEL_SELECTION_FAILED: Expected the authored agent config … to provide a
+   dynamic model definition`.
+2. **A live provider may only be returned from `step.started`.** A static
+   `model: bedrock(id)` is *serialized* into the manifest as the string
+   `amazon-bedrock/us.anthropic.…`, which is a Vercel **gateway** id. The agent
+   then compiles, reports that id, looks entirely correct, and routes every call
+   back through the gateway — failing with `AI Gateway received no credentials`
+   for a model you believed you were reaching directly.
+
+Bedrock model access is granted per model per region in the AWS console and is
+**not** on by default; an untouched account returns `AccessDeniedException` for a
+model that plainly exists.
+
 `eve info` reports discovery without needing either. Without a credential the
 runtime starts, accepts a session, receives the message and stops at the model
 call with `MODEL_CALL_FAILED / gateway-auth-missing-credentials` — everything
