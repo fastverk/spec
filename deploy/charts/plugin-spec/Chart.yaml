@@ -22,5 +22,5 @@ type: application
 # reference to an image that has not existed for weeks. Empty makes a git-checkout
 # render fail loudly and asks for `--set image.tag=<sha>`, while every published
 # chart carries the commit it was built from.
-version: 0.1.5
+version: 0.1.6
 appVersion: ""
