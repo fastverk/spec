@@ -1,0 +1,630 @@
+{
+  "orders": [
+    {
+      "agents": 0,
+      "disciplines": "firesafety 9 \u00b7 cyber 5 \u00b7 warranty 4 \u00b7 electrochem 1",
+      "obligation_count": 20,
+      "order": {
+        "acceptance": [
+          {
+            "check": "//thermal:derate_envelope_test",
+            "source": "config"
+          },
+          {
+            "check": "acceptance is conditioned on the state-of-charge limits stated in the analysis as submitted",
+            "source": "https://ampere.example/corpus#ahj-soc-cap"
+          }
+        ],
+        "as_of": "sha256:5297acc11c42511e",
+        "budget": {
+          "max_probes": 40,
+          "max_tokens": 2000000
+        },
+        "conflict_holds": [
+          "https://ampere.example/corpus#INV-03",
+          "https://ampere.example/corpus#INV-05",
+          "https://ampere.example/corpus#INV-11"
+        ],
+        "discipline": "https://ampere.example/corpus#d-warranty",
+        "forbidden": [
+          "src/bid/**",
+          "src/compliance/**",
+          "src/settle/**"
+        ],
+        "glossary": [
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-cell-temp"
+          },
+          {
+            "disjoint_from": [
+              "https://ampere.example/corpus#q-cycle-rainflow",
+              "https://ampere.example/corpus#q-cycle-shallow"
+            ],
+            "quantity": "https://ampere.example/corpus#q-cycle-efc"
+          },
+          {
+            "disjoint_from": [
+              "https://ampere.example/corpus#q-soc-market-model",
+              "https://ampere.example/corpus#q-soc-telemetered"
+            ],
+            "quantity": "https://ampere.example/corpus#q-soc-bms"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-sustained-discharge"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-telemetry-latency"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-throughput-annual"
+          }
+        ],
+        "obligations": [
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ahj-cell-temp-limit",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ahj-deflagration-venting",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ahj-derived-sustained-cap",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ahj-no-override",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ahj-soc-cap",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ahj-soc-floor",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-asset-inventory",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-electronic-perimeter",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-evidence-retention",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-inspect-control-traffic",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-patch-assessment",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#fire-access-pathway",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#fire-enclosure-separation",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#fire-group-energy-cap",
+            "discipline": "https://ampere.example/corpus#d-firesafety",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#warranty-cycle-definition",
+            "discipline": "https://ampere.example/corpus#d-warranty",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#warranty-derate-curve",
+            "discipline": "https://ampere.example/corpus#d-electrochem",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#warranty-firmware-current",
+            "discipline": "https://ampere.example/corpus#d-warranty",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#warranty-sustained-cap",
+            "discipline": "https://ampere.example/corpus#d-warranty",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#warranty-throughput-budget",
+            "discipline": "https://ampere.example/corpus#d-warranty",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": false,
+            "claim": "https://ampere.example/corpus#cip-cert-rotation",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R3",
+            "stalled_on": "no model of the control path's behaviour during rotation; cannot be typed until the DER fleet control spec states its reconnect semantics"
+          }
+        ],
+        "order_id": "wo-041",
+        "scope": "https://ampere.example/corpus#s-oem-warranty",
+        "write_capability": {
+          "artifact_paths": [
+            "src/thermal/**"
+          ],
+          "spec_ops": [
+            "assertNS@R0"
+          ]
+        }
+      },
+      "order_id": "wo-041",
+      "scope": "s-oem-warranty",
+      "state": "HELD \u00b7 INV-03, INV-05, INV-11",
+      "state_code": "WORK_ORDER_STATE_HELD",
+      "write_capability": "src/thermal/**"
+    },
+    {
+      "agents": 0,
+      "disciplines": "cyber 5 \u00b7 market 5",
+      "obligation_count": 11,
+      "order": {
+        "acceptance": [
+          {
+            "check": "//bid:capacity_commitment_test",
+            "source": "config"
+          },
+          {
+            "check": "shall deliver its committed capacity during each performance assessment interval",
+            "source": "https://ampere.example/corpus#mkt-b-must-deliver"
+          }
+        ],
+        "as_of": "sha256:5297acc11c42511e",
+        "budget": {
+          "max_probes": 20,
+          "max_tokens": 1500000
+        },
+        "conflict_holds": [
+          "https://ampere.example/corpus#INV-03"
+        ],
+        "discipline": "https://ampere.example/corpus#d-market",
+        "forbidden": [
+          "src/compliance/**",
+          "src/thermal/**"
+        ],
+        "glossary": [
+          {
+            "disjoint_from": [
+              "https://ampere.example/corpus#q-cap-contracted",
+              "https://ampere.example/corpus#q-cap-insured",
+              "https://ampere.example/corpus#q-cap-nameplate",
+              "https://ampere.example/corpus#q-cap-permitted"
+            ],
+            "quantity": "https://ampere.example/corpus#q-cap-accredited"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-sustained-discharge"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-telemetry-latency"
+          }
+        ],
+        "obligations": [
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-asset-inventory",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-electronic-perimeter",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-evidence-retention",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-inspect-control-traffic",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-patch-assessment",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#mkt-b-accreditation",
+            "discipline": "https://ampere.example/corpus#d-market",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#mkt-b-four-hour-duration",
+            "discipline": "https://ampere.example/corpus#d-market",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#mkt-b-must-deliver",
+            "discipline": "https://ampere.example/corpus#d-market",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#mkt-b-must-offer",
+            "discipline": "https://ampere.example/corpus#d-market",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#mkt-b-nonperformance-charge",
+            "discipline": "https://ampere.example/corpus#d-market",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": false,
+            "claim": "https://ampere.example/corpus#cip-cert-rotation",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R3",
+            "stalled_on": "no model of the control path's behaviour during rotation; cannot be typed until the DER fleet control spec states its reconnect semantics"
+          }
+        ],
+        "order_id": "wo-042",
+        "scope": "https://ampere.example/corpus#s-market-b",
+        "write_capability": {
+          "artifact_paths": [
+            "src/bid/**"
+          ],
+          "spec_ops": [
+            "assertNS@R0"
+          ]
+        }
+      },
+      "order_id": "wo-042",
+      "scope": "s-market-b",
+      "state": "HELD \u00b7 INV-03",
+      "state_code": "WORK_ORDER_STATE_HELD",
+      "write_capability": "src/bid/**"
+    },
+    {
+      "agents": 0,
+      "disciplines": "interconnection 7 \u00b7 cyber 5 \u00b7 software 2 \u00b7 protection 1",
+      "obligation_count": 17,
+      "order": {
+        "acceptance": [
+          {
+            "check": "//interconnect:ride_through_test",
+            "source": "config"
+          }
+        ],
+        "as_of": "sha256:5297acc11c42511e",
+        "budget": {
+          "max_probes": 20,
+          "max_tokens": 1500000
+        },
+        "conflict_holds": [
+          "https://ampere.example/corpus#INV-03",
+          "https://ampere.example/corpus#INV-07",
+          "https://ampere.example/corpus#INV-11",
+          "https://ampere.example/corpus#INV-14"
+        ],
+        "discipline": "https://ampere.example/corpus#d-interconnection",
+        "forbidden": [
+          "src/bid/**",
+          "src/thermal/**"
+        ],
+        "glossary": [
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-reactive-power"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-setpoint"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-sustained-discharge"
+          },
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-telemetry-latency"
+          }
+        ],
+        "obligations": [
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-asset-inventory",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-electronic-perimeter",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-evidence-retention",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-inspect-control-traffic",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#cip-patch-assessment",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ctl-agc-latency",
+            "discipline": "https://ampere.example/corpus#d-protection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#ctl-setpoint-clamp",
+            "discipline": "https://ampere.example/corpus#d-software",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#der-anti-islanding",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#der-default-control-mode",
+            "discipline": "https://ampere.example/corpus#d-software",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#der-mode-exclusivity",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#der-ride-through",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#lgia-delivery-point",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#lgia-max-injection",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#lgia-protection-settings",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#lgia-reactive-capability",
+            "discipline": "https://ampere.example/corpus#d-interconnection",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": false,
+            "claim": "https://ampere.example/corpus#cip-cert-rotation",
+            "discipline": "https://ampere.example/corpus#d-cyber",
+            "rung": "R3",
+            "stalled_on": "no model of the control path's behaviour during rotation; cannot be typed until the DER fleet control spec states its reconnect semantics"
+          },
+          {
+            "binding": false,
+            "claim": "https://ampere.example/corpus#ctl-mode-arbitration",
+            "discipline": "https://ampere.example/corpus#d-software",
+            "rung": "R3",
+            "stalled_on": "the priority is not documented anywhere; it currently exists only as code in the controller, which is INV-07's real state"
+          }
+        ],
+        "order_id": "wo-046",
+        "scope": "https://ampere.example/corpus#s-lgia",
+        "write_capability": {
+          "artifact_paths": [
+            "src/interconnect/**"
+          ],
+          "spec_ops": [
+            "assertNS@R0"
+          ]
+        }
+      },
+      "order_id": "wo-046",
+      "scope": "s-lgia",
+      "state": "HELD \u00b7 INV-03, INV-07, INV-11, INV-14",
+      "state_code": "WORK_ORDER_STATE_HELD",
+      "write_capability": "src/interconnect/**"
+    },
+    {
+      "agents": 0,
+      "disciplines": "taxfinance 3",
+      "obligation_count": 4,
+      "order": {
+        "acceptance": [
+          {
+            "check": "//itc:domestic_content_test",
+            "source": "config"
+          }
+        ],
+        "as_of": "sha256:5297acc11c42511e",
+        "budget": {
+          "max_probes": 10,
+          "max_tokens": 1000000
+        },
+        "conflict_holds": [
+          "https://ampere.example/corpus#INV-12",
+          "https://ampere.example/corpus#INV-13"
+        ],
+        "discipline": "https://ampere.example/corpus#d-tax",
+        "forbidden": [
+          "src/bid/**"
+        ],
+        "glossary": [
+          {
+            "disjoint_from": [],
+            "quantity": "https://ampere.example/corpus#q-domestic-content"
+          }
+        ],
+        "obligations": [
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#tax-domestic-content",
+            "discipline": "https://ampere.example/corpus#d-taxfinance",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#tax-placed-in-service",
+            "discipline": "https://ampere.example/corpus#d-taxfinance",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": true,
+            "claim": "https://ampere.example/corpus#tax-recapture-period",
+            "discipline": "https://ampere.example/corpus#d-taxfinance",
+            "rung": "R4",
+            "stalled_on": ""
+          },
+          {
+            "binding": false,
+            "claim": "https://ampere.example/corpus#tax-cost-substantiation",
+            "discipline": "https://ampere.example/corpus#d-taxfinance",
+            "rung": "R3",
+            "stalled_on": "no claim in the corpus states which party is obligated to produce supplier certifications; the obligation has no subject"
+          }
+        ],
+        "order_id": "wo-057",
+        "scope": "https://ampere.example/corpus#s-tax-code",
+        "write_capability": {
+          "artifact_paths": [
+            "src/itc/**"
+          ],
+          "spec_ops": [
+            "assertNS@R0"
+          ]
+        }
+      },
+      "order_id": "wo-057",
+      "scope": "s-tax-code",
+      "state": "HELD \u00b7 INV-12, INV-13",
+      "state_code": "WORK_ORDER_STATE_HELD",
+      "write_capability": "src/itc/**"
+    }
+  ],
+  "unreachable_repos": []
+}

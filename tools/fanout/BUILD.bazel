@@ -1,0 +1,29 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# The fanout assembler — joins over ARQ's TSVs, stdlib only, no second RDF
+# engine. See derive.py's docstring and rdf/fanout/fanout.bzl for the macro
+# that wires it.
+py_binary(
+    name = "derive",
+    srcs = ["derive.py"],
+    main = "derive.py",
+)
+
+# The derivation, held to the corpus it derives from — both directions:
+# ampere as committed (every order held somewhere, because seven conflicts
+# are open and closure touch is honest), and ampere with INV-03 adjudicated
+# (wo-042's one hold releases, READY). The held→released transition is
+# spec#45's done-bar, exercised here at the derivation layer; the dispatch
+# door's half lives in services/spec/src/workorder.rs.
+py_test(
+    name = "ampere_fanout_test",
+    size = "small",
+    srcs = ["ampere_fanout_test.py"],
+    data = [
+        "//corpus/ampere:workorders",
+        "//corpus/ampere:workorders_inv03_resolved",
+        "//corpus/ampere:workorders_unrunged",
+    ],
+)

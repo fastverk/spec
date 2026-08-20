@@ -121,8 +121,25 @@ rs_rm = read(RS_READMODEL)
 block = re.search(r"pub const ROUTES:[^=]*=\s*&\[(.*?)\];", rs_rm, re.S)
 check(block is not None, f"{RS_READMODEL}: no ROUTES table found")
 rs_routes = re.findall(r'\("([a-z_]+)",\s*"([a-z_]+)"\)', block.group(1)) if block else []
+# Captured before `rs_routes` is rebound to the routes.rs SOURCE below; section
+# 6 needs the rows_field of a derived route, which no emitter knows.
+rs_route_rows = dict(rs_routes)
+
+# Routes whose payload the BUILD derives (fanout, under ARQ) rather than the
+# emitter (rdflib). Read from the Rust source, exactly like LOG_BACKED_ROUTES
+# below, so the exception has ONE definition and cannot drift between the two
+# descriptions that both have to know about it.
+derived = set(
+    re.findall(
+        r'"([a-z_]+)"',
+        (re.search(r"pub const DERIVED_ROUTES:[^=]*=\s*&\[(.*?)\];", rs_rm, re.S)
+         or type("m", (), {"group": lambda *_: ""})()).group(1),
+    )
+)
+check(bool(derived), f"{RS_READMODEL}: no DERIVED_ROUTES table")
 check(
-    dict(rs_routes) == {p: rows for p, (rows, _) in emit_by_path.items()},
+    {p: rows for p, rows in rs_routes if p not in derived}
+    == {p: rows for p, (rows, _) in emit_by_path.items()},
     f"{RS_READMODEL}: ROUTES {dict(rs_routes)} != emitter {{path: rows_field}} "
     f"{ {p: rows for p, (rows, _) in emit_by_path.items()} }",
 )
@@ -158,7 +175,11 @@ check(
     f"{RS_ROUTES}: a log-backed route is served but not declared ({sorted(log_backed)})",
 )
 check(
-    {path: method for method, _verb, path in (declared_reads or []) if path not in log_backed}
+    {
+        path: method
+        for method, _verb, path in (declared_reads or [])
+        if path not in log_backed and path not in derived
+    }
     == {path: method for path, (_rows, method) in emit_by_path.items()},
     f"{RS_ROUTES}: AUTHORING_READS disagrees with the emitter's (path, method) pairs",
 )
@@ -175,7 +196,22 @@ check(declared_writes is not None, f"{RS_ROUTES}: no AUTHORING_WRITES table")
 # counted.
 check(
     {m for m, _v, _p in (declared_writes or [])}
-    == {"SubmitProposal", "PreviewProposal", "SubmitOp", "SubmitEvaluation"},
+    == {
+        "SubmitProposal",
+        "PreviewProposal",
+        "SubmitOp",
+        "SubmitEvaluation",
+        # A dispatch is neither a judgement nor a measurement: it authorizes
+        # writes to a path set, and refuses (409) rather than queues when the
+        # gate says no. See services/spec/src/workorder.rs.
+        "DispatchWorkOrder",
+        # A measurement, like SubmitEvaluation: the platform meters the spend
+        # and reports it; spec keeps the account (#46).
+        "ReportSpend",
+        # And the release valve: without it a dispatched order with no budget
+        # could never end, so its scope stayed claimed against every sibling.
+        "CloseWorkOrder",
+    },
     f"{RS_ROUTES}: AUTHORING_WRITES is {declared_writes}",
 )
 for _m, verb, _p in declared_writes or []:
@@ -183,7 +219,7 @@ for _m, verb, _p in declared_writes or []:
 
 # every DECLARED route must be a REGISTERED axum route — the two are connected by
 # nothing but a string, so nothing but a check can connect them
-for path in emit_by_path:
+for path in list(emit_by_path) + sorted(derived):
     check(
         f'.route("/{path}", get(' in rs_http,
         f"{RS_HTTP}: no `.route(\"/{path}\", get(...))` for a declared route",
@@ -227,23 +263,39 @@ panels = re.findall(
     textproto,
     re.S,
 )
-check(len(panels) == 10, f"{PANELS_TEXTPROTO}: parsed {len(panels)} table panels, expected 10")
+# Counted rather than derived, deliberately — same reason AUTHORING_WRITES is
+# spelled out: a panel silently disappearing from the bundle is exactly the
+# failure a count catches and a derivation does not. 11 = 3 index + 8 authoring
+# (the 8th is `workorders`, whose payload the BUILD derives — #45).
+check(len(panels) == 11, f"{PANELS_TEXTPROTO}: parsed {len(panels)} table panels, expected 11")
 authoring_panels = [p for p in panels if p[1] == SERVICE]
 check(
-    len(authoring_panels) == 7,
-    f"{PANELS_TEXTPROTO}: {len(authoring_panels)} authoring panels, expected 7",
+    len(authoring_panels) == 8,
+    f"{PANELS_TEXTPROTO}: {len(authoring_panels)} authoring panels, expected 8",
 )
+
+# A panel may populate from an EMITTED route or a BUILD-DERIVED one; both are
+# served the same way, so both belong in the method→(rows_field, path) table
+# the panel checks resolve through.
+read_by_path = dict(emit_by_path)
+for path in sorted(derived):
+    method = next((m for m, _v, p in (declared_reads or []) if p == path), None)
+    if check(
+        method is not None,
+        f"{RS_ROUTES}: derived route {path!r} is in DERIVED_ROUTES but declared in no read table",
+    ):
+        read_by_path[path] = (rs_route_rows.get(path), method)
 for panel_id, _svc, method, rows_field in authoring_panels:
     # the panel_id is the route path for every authoring panel except `frontier`,
     # whose rows_field is `stalls` — so key on the method, which is unambiguous
-    match = [p for p, (_, m) in emit_by_path.items() if m == method]
+    match = [p for p, (_, m) in read_by_path.items() if m == method]
     if not check(match, f"{PANELS_TEXTPROTO}: panel {panel_id} populates unknown method {method!r}"):
         continue
     path = match[0]
     check(
-        rows_field == emit_by_path[path][0],
+        rows_field == read_by_path[path][0],
         f"{PANELS_TEXTPROTO}: panel {panel_id} rows_field {rows_field!r} != "
-        f"emitted {emit_by_path[path][0]!r}",
+        f"emitted {read_by_path[path][0]!r}",
     )
     check(
         panel_id == path,

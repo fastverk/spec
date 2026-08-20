@@ -52,6 +52,7 @@ use crate::json as spec_json;
 use crate::evaluation::{self, Evaluated};
 use crate::overlay::Pending;
 use crate::proposal::{self, Principal, ProposalLog};
+use crate::workorder::{self, Running};
 use crate::proto::SpecLang;
 use crate::readmodel::ReadModel;
 use crate::routes::describe_web_routes;
@@ -66,6 +67,34 @@ pub struct HttpState {
     pub log: Arc<ProposalLog>,
     /// Measurements, not judgements — see `crate::evaluation`.
     pub evaluations: Arc<ProposalLog>,
+    /// Dispatches: neither judgement nor measurement, but an authorization to
+    /// write. A THIRD log, for the reason `main.rs` gives for the second —
+    /// replaying "who decided this", "what did it measure" and "who was
+    /// allowed to write where" from one file would make them one question.
+    pub dispatches: Arc<ProposalLog>,
+    /// RFC-004 §8 Q7's breaker: `$SPEC_AGENT_ENABLED`, DEFAULT FALSE. An
+    /// instance that has not been told it may fan agents out does not,
+    /// whatever else is configured. A field rather than an env read at the
+    /// door, for the reason the test harness gives: these tests share one
+    /// process and `set_var` races.
+    pub agents_enabled: bool,
+    /// Serializes read-check-append on the dispatch log.
+    ///
+    /// ⛔ The gate's decision is made from a SNAPSHOT of the log and then
+    /// written back to it. Without this, two dispatches arriving together both
+    /// read "nothing running", both pass the overlap check, and both append —
+    /// authorizing two agent sets against one path tree, which is the exact
+    /// cross-scope write P7's exit bar forbids and the one thing this door
+    /// exists to prevent. `ProposalLog::append` locks its own write, which
+    /// makes the WRITE atomic and the DECISION not.
+    ///
+    /// ⚠ Per-process. Two replicas of this service behind one log still race,
+    /// and nothing here would notice. That is a real limit, stated rather than
+    /// papered over: spec is deployed as a single replica today (see the
+    /// chart), and the durable fix is arbitration in the log itself — an
+    /// append-and-verify, or a lease of the kind the platform's fanout
+    /// scheduler already takes per package.
+    pub dispatch_gate: Arc<std::sync::Mutex<()>>,
     pub panels: Option<Arc<Vec<u8>>>,
 }
 
@@ -116,6 +145,11 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/proposals", get(list_proposals))
         .route("/evaluations", get(list_evaluations))
         .route("/evaluation", post(submit_evaluation))
+        .route("/workorders", get(list_work_orders))
+        .route("/workorder/dispatch", post(dispatch_work_order))
+        .route("/workorder/spend", post(report_spend))
+        .route("/workorder/close", post(close_work_order))
+        .route("/ledger", get(list_ledger))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
         .route("/proposal/verdict-preview", post(preview_proposal))
@@ -363,6 +397,407 @@ async fn submit_evaluation(
             Json(json!({ "error": "E_LOG_APPEND", "message": why })),
         ),
     }
+}
+
+/// `GET /workorders` — the derived orders, with the dispatch gate's answer.
+///
+/// The payload's `state` was computed at derivation from `conflict_holds`
+/// alone, because the build cannot see the dispatch log. RUNNING is overlaid
+/// here — the same shape as `Evaluated::apply` next door, corpus first, log on
+/// top.
+async fn list_work_orders(State(s): State<HttpState>) -> ApiResult {
+    let rm = s.readmodel.clone();
+    let dispatches = s.dispatches.clone();
+    run(move || {
+        let mut payload = rm.route("workorders");
+        // A read may not fabricate. An unreadable log means the STATE column is
+        // unknown, not READY — so the rows are returned with the derivation's
+        // own state and the failure is named beside them, the same shape the
+        // read model already uses for a missing payload.
+        let running = match Running::read(dispatches.path()) {
+            Ok(r) => r,
+            Err(why) => {
+                payload["dispatch_log_unreadable"] = json!(why);
+                return payload;
+            }
+        };
+        if let Some(rows) = payload.get_mut("orders").and_then(Value::as_array_mut) {
+            for row in rows.iter_mut() {
+                let Some(id) = row.get("order_id").and_then(Value::as_str).map(str::to_string)
+                else {
+                    continue;
+                };
+                if running.is_running(&id) {
+                    let agents = running.agents(&id);
+                    row["state_code"] = json!(workorder::STATE_RUNNING);
+                    row["state"] = json!(format!("RUNNING · {agents} agents"));
+                    row["agents"] = json!(agents);
+                }
+            }
+        }
+        payload["dispatch_enabled"] = json!(dispatches.enabled());
+        payload
+    })
+    .await
+}
+
+/// `POST /workorder/dispatch` — authorize agents to build against one order.
+///
+/// ⛔ Refuses before appending, and the refusals are not overridable here:
+/// a held order dispatches when its conflict is adjudicated, which is a
+/// different act with its own record. See `crate::workorder`.
+async fn dispatch_work_order(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    // An agent may not dispatch. `proposal::check_op` restricts an agent to
+    // assertNS at R0; dispatch authorizes writes to a path set, so an agent
+    // that could dispatch could widen its own scope by choosing a better
+    // order — the containment RFC-002 §10 mechanism 4 describes.
+    if who.agent {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "E_AGENT_MAY_NOT_DISPATCH",
+                "message": "an agent principal may not dispatch work orders — dispatch \
+                            authorizes writes to a path set, and an agent that could choose \
+                            its own order could widen its own scope",
+            })),
+        );
+    }
+    // ⛔ The breaker, DEFAULT OFF (RFC-004 §8 Q7). Separate from the log check
+    // below and checked first: "nowhere to write it" and "not allowed to do it"
+    // are different refusals, and collapsing them would let configuring a log
+    // silently turn agents on.
+    if !s.agents_enabled {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_AGENTS_DISABLED",
+                "message": "$SPEC_AGENT_ENABLED is not set; this instance does not dispatch \
+                            agents. The default is off — an instance fans agents out because \
+                            someone decided it should, never because nothing said otherwise",
+            })),
+        );
+    }
+    if !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_DISPATCH_LOG is unset; this instance authorizes no dispatches",
+            })),
+        );
+    }
+    let order_id = body
+        .get("order_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if order_id.is_empty() {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({
+                "error": "E_MALFORMED",
+                "message": "`order_id` is required — a dispatch names one order",
+            })),
+        );
+    }
+    let agents = body.get("agents").and_then(Value::as_i64).unwrap_or(0);
+
+    let payload = s.readmodel.route("workorders");
+    let orders = workorder::orders(&payload);
+
+    // ⛔ Everything from here to the append is one critical section — see
+    // `HttpState::dispatch_gate`. No `.await` inside it; every call is
+    // synchronous by construction, and adding one would deadlock this rather
+    // than silently reopening the race.
+    let _gate = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(r) => r,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "E_LOG_UNREADABLE", "message": why })),
+            )
+        }
+    };
+    let verdict = workorder::check(&order_id, &orders, &running);
+    if !verdict.is_dispatched() {
+        // 409: the request is well-formed and the state refuses it. Not 422 —
+        // nothing about the body is wrong, and a caller retrying after the
+        // conflict is adjudicated will succeed with the same bytes.
+        return (StatusCode::CONFLICT, Json(verdict.to_json()));
+    }
+    let order = &orders[&order_id];
+    let as_of = payload
+        .get("orders")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.iter().find(|r| r["order_id"] == order_id.as_str()))
+        .and_then(|r| r.pointer("/order/as_of"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let rec = workorder::record(order, &as_of, &who.email, agents);
+    match s.dispatches.append(&rec) {
+        Ok(offset) => (
+            StatusCode::ACCEPTED,
+            Json(json!({
+                "verdict": workorder::DISPATCHED,
+                "order_id": order_id,
+                "as_of": as_of,
+                "agents": agents,
+                "log_offset": offset,
+            })),
+        ),
+        Err(why) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        ),
+    }
+}
+
+/// `POST /workorder/spend` — record what a dispatched thread reported spending.
+///
+/// A MEASUREMENT, like `POST /evaluation`: the platform's scheduler holds the
+/// ceiling and accumulates the number; spec keeps the account. A report that
+/// crosses the ceiling is ACCEPTED and then stops the order — refusing it would
+/// leave the account understated at exactly the moment it matters most — and
+/// the stop is appended as its own event with a named cause.
+async fn report_spend(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    // An agent may not report its own spend: the number would be self-reported
+    // by the party it constrains. The platform reports it, under a machine
+    // credential, the way a consumer's CI reports a population.
+    if who.agent {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "E_AGENT_MAY_NOT_REPORT_SPEND",
+                "message": "an agent may not report the spend of the thread it is running — \
+                            the platform that metered it reports it",
+            })),
+        );
+    }
+    if !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_DISPATCH_LOG is unset; this instance keeps no ledger",
+            })),
+        );
+    }
+    let payload = s.readmodel.route("workorders");
+    let orders = workorder::orders(&payload);
+    // Same critical section as dispatch, for the same reason: the stop decision
+    // is read from the log and written back to it.
+    let _gate = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(r) => r,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "E_LOG_UNREADABLE", "message": why })),
+            )
+        }
+    };
+    let spend = match workorder::check_spend(&body, &orders, &running) {
+        Ok(sp) => sp,
+        Err(why) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({ "error": "E_MALFORMED_SPEND", "message": why })),
+            )
+        }
+    };
+    if let Err(why) = s.dispatches.append(&spend.record(&who.email)) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        );
+    }
+    let order = &orders[&spend.order_id];
+    // ⚠ The HIGH-WATER mark, not the submitted number. A stale report carrying
+    // a lower total is recorded and then ignored by the replay, so answering
+    // with the submitted figure would tell the caller a remaining balance the
+    // ledger does not agree with — and the caller is usually a machine that
+    // will act on it.
+    let (recorded, _) = running.spent(&spend.order_id);
+    let effective = recorded.max(spend.tokens);
+    let exhausted = order.budget_tokens > 0
+        && effective >= order.budget_tokens
+        && running.is_running(&spend.order_id);
+    if exhausted {
+        // The stop, as an event with a cause. Appended AFTER the spend, so a
+        // reader replaying the log sees the number that caused it first.
+        let stop = workorder::stop_record(
+            &spend.order_id,
+            workorder::STOP_BUDGET_EXHAUSTED,
+            effective,
+            &who.email,
+        );
+        if let Err(why) = s.dispatches.append(&stop) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+            );
+        }
+    }
+    let remaining = if order.budget_tokens > 0 {
+        (order.budget_tokens - effective).max(0)
+    } else {
+        0
+    };
+    (
+        StatusCode::ACCEPTED,
+        Json(json!({
+            "order_id": spend.order_id,
+            "spent_tokens": effective,
+            // What was submitted, when it differs — so a caller sending a stale
+            // snapshot learns that it was, rather than silently disagreeing
+            // with the ledger forever.
+            "reported_tokens": spend.tokens,
+            "budget_tokens": order.budget_tokens,
+            "remaining_tokens": remaining,
+            "stopped": exhausted,
+            "stop_cause": if exhausted { workorder::STOP_BUDGET_EXHAUSTED } else { "" },
+        })),
+    )
+}
+
+/// `POST /workorder/close` — end a running thread, with a cause.
+///
+/// The release valve the enum implied and nothing provided: before this, only a
+/// budget crossing wrote a terminal event, so a dispatched order with no
+/// ceiling stayed RUNNING forever and its scope and paths stayed claimed
+/// against every sibling.
+async fn close_work_order(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    // Ending a thread frees its paths for the next dispatch, so it is the same
+    // authority as starting one.
+    if who.agent {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "E_AGENT_MAY_NOT_CLOSE",
+                "message": "an agent may not close its own work order — closing frees the \
+                            paths for the next dispatch, which is the authority that \
+                            started it",
+            })),
+        );
+    }
+    if !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_DISPATCH_LOG is unset; this instance records no dispatches",
+            })),
+        );
+    }
+    let payload = s.readmodel.route("workorders");
+    let orders = workorder::orders(&payload);
+    let _gate = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(r) => r,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "E_LOG_UNREADABLE", "message": why })),
+            )
+        }
+    };
+    let (order_id, cause) = match workorder::check_close(&body, &orders, &running) {
+        Ok(c) => c,
+        Err(why) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({ "error": "E_MALFORMED_CLOSE", "message": why })),
+            )
+        }
+    };
+    let (spent, _) = running.spent(&order_id);
+    let rec = workorder::stop_record(&order_id, cause, spent, &who.email);
+    match s.dispatches.append(&rec) {
+        Ok(offset) => (
+            StatusCode::ACCEPTED,
+            Json(json!({
+                "order_id": order_id,
+                "stop_cause": cause,
+                "spent_tokens": spent,
+                "log_offset": offset,
+            })),
+        ),
+        Err(why) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        ),
+    }
+}
+
+/// `GET /ledger` — where the tokens went, per thread and per discipline.
+///
+/// Log-backed: the budgets come from the derived payload and the spend from the
+/// dispatch log, so there is no `ledger.json` to emit and adding one would be a
+/// second place for the same numbers to live.
+async fn list_ledger(State(s): State<HttpState>) -> ApiResult {
+    let rm = s.readmodel.clone();
+    let dispatches = s.dispatches.clone();
+    run(move || {
+        let payload = rm.route("workorders");
+        let orders = workorder::orders(&payload);
+        let running = match Running::read(dispatches.path()) {
+            Ok(r) => r,
+            Err(why) => {
+                return json!({
+                    "ledger": [],
+                    "by_discipline": [],
+                    "records": 0,
+                    "write_enabled": dispatches.enabled(),
+                    // Zero rows with no explanation reads as "nothing was
+                    // spent". This is the difference between an empty ledger
+                    // and an unreadable one.
+                    "dispatch_log_unreadable": why,
+                })
+            }
+        };
+        let rows = workorder::ledger(&orders, &running);
+        let by_discipline = workorder::ledger_by_discipline(&rows);
+        json!({
+            "ledger": rows,
+            "by_discipline": by_discipline,
+            "records": running.records,
+            "write_enabled": dispatches.enabled(),
+        })
+    })
+    .await
 }
 
 /// `GET /proposals` — everything written but not yet adopted into the corpus.
@@ -637,6 +1072,32 @@ mod tests {
     /// is to exercise the ROUTE TABLE and the handler signatures, which is exactly
     /// what nothing else in this repo does.
     async fn serve(readmodel_dir: &str, log: Option<&str>) -> String {
+        serve_with(readmodel_dir, log, None).await
+    }
+
+    /// With agents ENABLED — the breaker is default-off, so every dispatch
+    /// test must turn it on explicitly, which is the property being tested as
+    /// much as it is setup.
+    async fn serve_dispatching(readmodel_dir: &str, dispatch_log: Option<&str>) -> String {
+        serve_inner(readmodel_dir, None, dispatch_log, true).await
+    }
+
+    /// The same, plus a dispatch log — its own parameter rather than a third
+    /// positional on every existing call site.
+    async fn serve_with(
+        readmodel_dir: &str,
+        log: Option<&str>,
+        dispatch_log: Option<&str>,
+    ) -> String {
+        serve_inner(readmodel_dir, log, dispatch_log, true).await
+    }
+
+    async fn serve_inner(
+        readmodel_dir: &str,
+        log: Option<&str>,
+        dispatch_log: Option<&str>,
+        agents_enabled: bool,
+    ) -> String {
         let backend = Arc::new(crate::SpecBackend::from_env());
         // Constructed directly, never through the env: these tests run in parallel
         // threads of one process, so `set_var` here would race every other test.
@@ -647,12 +1108,16 @@ mod tests {
         let log = Arc::new(ProposalLog::new(log.map(std::path::PathBuf::from)));
         // Disabled here on purpose: the tests that care construct their own.
         let evaluations = Arc::new(ProposalLog::new(None));
+        let dispatches = Arc::new(ProposalLog::new(dispatch_log.map(std::path::PathBuf::from)));
         let app = router(
             HttpState {
                 backend,
                 readmodel,
                 log,
                 evaluations,
+                dispatches,
+                agents_enabled,
+                dispatch_gate: Arc::new(std::sync::Mutex::new(())),
                 panels: None,
             },
             None,
@@ -900,4 +1365,417 @@ mod tests {
             .collect();
         assert!(names.contains(&AUTHORING_SERVICE), "{body}");
     }
+
+    // ── Fanout: the dispatch door over HTTP (#45) ───────────────────────────
+    //
+    // `workorder.rs` proves the gate's logic against payloads it builds
+    // itself; these prove the ROUTE — that the door is reachable, that it
+    // reads the committed payload, that a refusal appends nothing, and that
+    // the two principal rules hold at the edge where a caller actually is.
+
+    /// A readmodel dir carrying one READY and one HELD order, so the dispatch
+    /// path can be exercised without depending on how ampere happens to be
+    /// adjudicated today.
+    fn workorders_fixture(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("spec-wo-{}-{tag}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("workorders.json"),
+            serde_json::to_vec_pretty(&json!({
+                "orders": [
+                    {
+                        "order_id": "wo-ready",
+                        "scope": "s-ready",
+                        "obligation_count": 3,
+                        "state": "READY",
+                        "state_code": "WORK_ORDER_STATE_READY",
+                        "agents": 0,
+                        "order": {
+                            "order_id": "wo-ready",
+                            "scope": "s-ready",
+                            "as_of": "sha256:0000000000000001",
+                            "conflict_holds": [],
+                            "write_capability": { "artifact_paths": ["src/ready/**"] }
+                        }
+                    },
+                    {
+                        "order_id": "wo-held",
+                        "scope": "s-held",
+                        "obligation_count": 5,
+                        "state": "HELD · INV-03",
+                        "state_code": "WORK_ORDER_STATE_HELD",
+                        "agents": 0,
+                        "order": {
+                            "order_id": "wo-held",
+                            "scope": "s-held",
+                            "as_of": "sha256:0000000000000001",
+                            "conflict_holds": ["INV-03"],
+                            "write_capability": { "artifact_paths": ["src/held/**"] }
+                        }
+                    }
+                ],
+                "unreachable_repos": []
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        dir
+    }
+
+    async fn dispatch(addr: &str, sub: &str, body: Value) -> (u16, Value) {
+        let payload = body.to_string();
+        let hdr = format!(
+            "x-fastverk-user-sub: {sub}\r\nx-fastverk-user-email: d.okafor@example.com\r\n"
+        );
+        let (status, raw) = request(
+            addr,
+            "POST",
+            "/workorder/dispatch",
+            Some((hdr.as_str(), payload.as_str())),
+        )
+        .await;
+        (status, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+
+    async fn get_json(addr: &str, path: &str) -> Value {
+        let (status, raw) = request(addr, "GET", path, None).await;
+        assert_eq!(status, 200, "GET {path} -> {status}: {raw}");
+        serde_json::from_str(&raw).expect(&raw)
+    }
+
+    #[tokio::test]
+    async fn workorders_answers_with_its_rows_field() {
+        let dir = workorders_fixture("list");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let body = get_json(&addr, "/workorders").await;
+        let rows = body["orders"].as_array().expect("rows_field `orders`");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(body["dispatch_enabled"], json!(false));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_dispatch_without_a_principal_is_refused() {
+        let dir = workorders_fixture("noprincipal");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let payload = json!({ "order_id": "wo-ready" }).to_string();
+        let (status, _raw) =
+            request(&addr, "POST", "/workorder/dispatch", Some(("", payload.as_str()))).await;
+        assert_eq!(status, 401);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_agent_may_not_dispatch() {
+        let dir = workorders_fixture("agent");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_with(dir.to_str().unwrap(), None, log.to_str()).await;
+        let (status, body) = dispatch(&addr, "agent:a-7714", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 403, "{body}");
+        assert_eq!(body["error"], "E_AGENT_MAY_NOT_DISPATCH");
+        // And nothing was written.
+        assert!(!log.exists() || std::fs::read_to_string(&log).unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_held_order_is_refused_and_nothing_is_appended() {
+        let dir = workorders_fixture("held");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_with(dir.to_str().unwrap(), None, log.to_str()).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-held"})).await;
+        assert_eq!(status, 409, "{body}");
+        assert_eq!(body["verdict"], "DISPATCH_VERDICT_REFUSED_HELD");
+        assert_eq!(body["because"], json!(["INV-03"]));
+        assert!(!log.exists() || std::fs::read_to_string(&log).unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_ready_order_dispatches_once_and_then_reads_running() {
+        let dir = workorders_fixture("ready");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_with(dir.to_str().unwrap(), None, log.to_str()).await;
+
+        let (status, body) =
+            dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready", "agents": 2})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["verdict"], "DISPATCH_VERDICT_DISPATCHED");
+        assert_eq!(body["as_of"], "sha256:0000000000000001");
+
+        // The record names who authorized it and at which cursor.
+        let written = std::fs::read_to_string(&log).unwrap();
+        let rec: Value = serde_json::from_str(written.lines().next().unwrap()).unwrap();
+        assert_eq!(rec["order_id"], "wo-ready");
+        assert_eq!(rec["author"], "d.okafor@example.com");
+        assert_eq!(rec["agents"], 2);
+
+        // The list route overlays RUNNING from the log — the state the build
+        // could not compute, because the build cannot see dispatches.
+        let listed = get_json(&addr, "/workorders").await;
+        let ready = listed["orders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["order_id"] == "wo-ready")
+            .unwrap()
+            .clone();
+        assert_eq!(ready["state_code"], "WORK_ORDER_STATE_RUNNING");
+        assert_eq!(ready["state"], "RUNNING · 2 agents");
+
+        // And it will not re-arm.
+        let (status, body) =
+            dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 409, "{body}");
+        assert_eq!(body["verdict"], "DISPATCH_VERDICT_REFUSED_ALREADY_RUNNING");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn dispatch_is_disabled_when_the_log_is_unset() {
+        let dir = workorders_fixture("nolog");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 503, "{body}");
+        assert_eq!(body["error"], "E_WRITE_DISABLED");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+
+    // ── The ledger and the breaker (#46) ────────────────────────────────────
+
+    async fn spend(addr: &str, sub: &str, body: Value) -> (u16, Value) {
+        let payload = body.to_string();
+        let hdr = format!("x-fastverk-user-sub: {sub}\r\nx-fastverk-user-email: ci@example.com\r\n");
+        let (status, raw) = request(
+            addr,
+            "POST",
+            "/workorder/spend",
+            Some((hdr.as_str(), payload.as_str())),
+        )
+        .await;
+        (status, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+
+    fn budgeted_fixture(tag: &str) -> std::path::PathBuf {
+        let dir = workorders_fixture(tag);
+        let p = dir.join("workorders.json");
+        let mut v: Value = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+        v["orders"][0]["order"]["budget"] = json!({"max_tokens": 1000, "max_probes": 0});
+        v["orders"][0]["order"]["discipline"] = json!("https://x#d-thermal");
+        std::fs::write(&p, serde_json::to_vec_pretty(&v).unwrap()).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn dispatch_is_off_until_an_operator_turns_it_on() {
+        let dir = budgeted_fixture("breaker");
+        let log = dir.join("dispatch.jsonl");
+        // agents_enabled = false: everything else is configured, including the
+        // log, so this refusal can only be the breaker.
+        let addr = serve_inner(dir.to_str().unwrap(), None, log.to_str(), false).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 503, "{body}");
+        assert_eq!(body["error"], "E_AGENTS_DISABLED");
+        assert!(!log.exists() || std::fs::read_to_string(&log).unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_agent_may_not_report_its_own_spend() {
+        let dir = budgeted_fixture("spendagent");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let (status, body) =
+            spend(&addr, "agent:a-7714", json!({"order_id": "wo-ready", "tokens": 10})).await;
+        assert_eq!(status, 403, "{body}");
+        assert_eq!(body["error"], "E_AGENT_MAY_NOT_REPORT_SPEND");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn spend_against_an_undispatched_thread_is_refused() {
+        let dir = budgeted_fixture("spendundispatched");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let (status, body) =
+            spend(&addr, "machine:fanout", json!({"order_id": "wo-ready", "tokens": 10})).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["message"].as_str().unwrap().contains("never dispatched"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_thread_stops_when_its_budget_exhausts_and_the_stop_is_recorded() {
+        let dir = budgeted_fixture("exhaust");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+
+        let (status, _) =
+            dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready", "agents": 2})).await;
+        assert_eq!(status, 202);
+
+        // Under the ceiling: recorded, still running.
+        let (status, body) =
+            spend(&addr, "machine:fanout", json!({"order_id": "wo-ready", "tokens": 400, "source": "run-7"})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["remaining_tokens"], 600);
+        assert_eq!(body["stopped"], json!(false));
+
+        // Crossing it: ACCEPTED — an understated account at the moment it
+        // matters is worse than a stop — and then stopped, with a cause.
+        let (status, body) =
+            spend(&addr, "machine:fanout", json!({"order_id": "wo-ready", "tokens": 1200, "source": "run-7"})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["stopped"], json!(true));
+        assert_eq!(body["stop_cause"], "STOP_CAUSE_BUDGET_EXHAUSTED");
+        assert_eq!(body["remaining_tokens"], 0);
+
+        // The stop is an EVENT in the log, after the number that caused it.
+        let lines: Vec<Value> = std::fs::read_to_string(&log)
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        let events: Vec<&str> = lines.iter().map(|l| l["event"].as_str().unwrap_or("dispatched")).collect();
+        assert_eq!(events, vec!["dispatched", "spend", "spend", "stopped"]);
+        assert_eq!(lines[3]["cause"], "STOP_CAUSE_BUDGET_EXHAUSTED");
+        assert_eq!(lines[3]["tokens"], 1200);
+
+        // And the ledger reads the whole story.
+        let ledger = get_json(&addr, "/ledger").await;
+        let row = ledger["ledger"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["order_id"] == "wo-ready")
+            .unwrap()
+            .clone();
+        assert_eq!(row["budget_tokens"], 1000);
+        assert_eq!(row["spent_tokens"], 1200);
+        assert_eq!(row["remaining_tokens"], 0);
+        assert_eq!(row["stop_cause"], "STOP_CAUSE_BUDGET_EXHAUSTED");
+        assert_eq!(row["spend_source"], "run-7");
+        assert_eq!(row["state"], "WORK_ORDER_STATE_READY", "a stop frees the thread");
+
+        // Per-discipline roll-up: the table the issue asks for instead of a guess.
+        let rolled = ledger["by_discipline"].as_array().unwrap();
+        let thermal = rolled.iter().find(|r| r["discipline"] == "d-thermal").unwrap();
+        assert_eq!(thermal["spent_tokens"], 1200);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn the_ledger_answers_before_anything_is_dispatched() {
+        let dir = budgeted_fixture("ledgerempty");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let ledger = get_json(&addr, "/ledger").await;
+        let rows = ledger["ledger"].as_array().unwrap();
+        assert_eq!(rows.len(), 2, "a row per derived order, spend zero");
+        assert!(rows.iter().all(|r| r["spent_tokens"] == 0));
+        assert_eq!(ledger["write_enabled"], json!(false));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+
+    async fn close(addr: &str, sub: &str, body: Value) -> (u16, Value) {
+        let payload = body.to_string();
+        let hdr = format!("x-fastverk-user-sub: {sub}\r\nx-fastverk-user-email: d.okafor@example.com\r\n");
+        let (status, raw) = request(
+            addr,
+            "POST",
+            "/workorder/close",
+            Some((hdr.as_str(), payload.as_str())),
+        )
+        .await;
+        (status, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+
+    #[tokio::test]
+    async fn an_unbudgeted_thread_can_be_ended_and_frees_its_scope() {
+        // Before the close route existed, only a budget crossing wrote a
+        // terminal event — so this order, which has no ceiling, would have
+        // stayed RUNNING forever with its paths claimed against every sibling.
+        let dir = workorders_fixture("close");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+
+        let (status, _) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 202);
+
+        let (status, body) =
+            close(&addr, "google:d.okafor", json!({"order_id": "wo-ready", "cause": "completed"})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["stop_cause"], "STOP_CAUSE_COMPLETED");
+
+        // Ended, and re-dispatchable — the scope is free again.
+        let listed = get_json(&addr, "/workorders").await;
+        let row = listed["orders"].as_array().unwrap().iter()
+            .find(|r| r["order_id"] == "wo-ready").unwrap().clone();
+        assert_ne!(row["state_code"], "WORK_ORDER_STATE_RUNNING");
+        let (status, _) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 202, "a closed order dispatches again");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_person_may_not_label_a_close_as_budget_exhaustion() {
+        let dir = workorders_fixture("closecause");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        let (status, body) = close(
+            &addr, "google:d.okafor",
+            json!({"order_id": "wo-ready", "cause": "STOP_CAUSE_BUDGET_EXHAUSTED"}),
+        ).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["message"].as_str().unwrap().contains("spend door"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn closing_something_that_is_not_running_is_refused() {
+        let dir = workorders_fixture("closenotrunning");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let (status, body) =
+            close(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["message"].as_str().unwrap().contains("not running"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_agent_may_not_close() {
+        let dir = workorders_fixture("closeagent");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        let (status, body) = close(&addr, "agent:a-7714", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 403, "{body}");
+        assert_eq!(body["error"], "E_AGENT_MAY_NOT_CLOSE");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_dispatch_log_refuses_rather_than_freeing_every_scope() {
+        // The fail-closed rule at the route: an unreadable log must not read as
+        // "nothing is running", which would hand a live order's paths to a
+        // second set of agents.
+        let dir = workorders_fixture("unreadable");
+        let as_dir = dir.join("dispatch.jsonl");
+        std::fs::create_dir_all(&as_dir).unwrap();
+        let addr = serve_dispatching(dir.to_str().unwrap(), as_dir.to_str()).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 503, "{body}");
+        assert_eq!(body["error"], "E_LOG_UNREADABLE");
+        // And the read routes say so rather than showing everything READY.
+        let listed = get_json(&addr, "/workorders").await;
+        assert!(listed["dispatch_log_unreadable"].is_string());
+        let ledger = get_json(&addr, "/ledger").await;
+        assert!(ledger["dispatch_log_unreadable"].is_string());
+        assert_eq!(ledger["ledger"].as_array().unwrap().len(), 0);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
 }

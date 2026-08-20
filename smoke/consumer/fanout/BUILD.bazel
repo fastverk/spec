@@ -1,0 +1,54 @@
+# The fanout surface, from consumer position (spec#45).
+#
+# ⛔ ITS OWN PACKAGE, and that is the point. The root package pins the
+# PUBLISHED spec and must load nothing that release does not have — it is the
+# release-position check, and diluting it would lose the property #58 and #59
+# cost. This package loads @spec//rdf/fanout, which exists only in the working
+# tree until the next release, so it is built ONLY under
+# --override_module=spec=<the tree>. CI runs both, in that order.
+#
+# spec_workorders is the whole consumer API for work-order derivation, and it
+# reaches further across the boundary than anything else here: five queries
+# from @spec, a py_binary from @spec (so @spec's python toolchain must resolve
+# for a consumer, not just for spec's own build), and a genrule over the
+# consumer's own inputs. The first run of this package earned its keep — it
+# proved the macro was reaching for //tools/fanout in the CONSUMER's
+# repository, the bug a bare label inside a macro always is and the one
+# nothing inside spec can see.
+#
+# ⚠ rules_python is declared in this module for THIS FILE's py_test only.
+# spec_workorders needs nothing from a consumer: `bazel build
+# //fanout:workorders` succeeds with no rules_python declared here at all,
+# because the assembler and its toolchain live in @spec.
+load("@rules_python//python:defs.bzl", "py_test")
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@spec//rdf/fanout:fanout.bzl", "spec_workorders")
+
+# The same corpus as the root package's, declared again here so this package
+# stands alone under the override.
+rdf_dataset(
+    name = "corpus",
+    srcs = ["@spec//rdf/lint/authoring/fixtures:envelope-clean.ttl"],
+    in_format = "turtle",
+    deps = ["@spec//rdf:authoring_vocab"],
+)
+
+# The fixture's OEM scope closes upward over the RTO scope, so the derived
+# order carries obligations from more than one discipline; the fixture is
+# coherent by construction, so the order derives READY.
+spec_workorders(
+    name = "workorders",
+    config = "fanout.json",
+    dataset = ":corpus",
+    srcs = ["@spec//rdf/lint/authoring/fixtures:envelope-clean.ttl"],
+)
+
+# A build-only target would prove the macro RUNS; this proves what it
+# produced, which is the difference between "the consumer surface exists" and
+# "the consumer surface works".
+py_test(
+    name = "workorders_test",
+    size = "small",
+    srcs = ["workorders_test.py"],
+    data = [":workorders"],
+)

@@ -1,0 +1,31 @@
+# The world where a claim carries no au:rung — an overlay for the derivation
+# test, NOT part of the committed corpus.
+#
+# ⛔ THIS IS A FAIL-OPEN CONTROL, and it is the reason bindings.rq's rung is
+# OPTIONAL. When the rung was mandatory, a claim without one emitted no row,
+# so it was in no closure, so a LIVE conflict it is party to held nothing —
+# and an order whose closure touches an open conflict dispatched. That is the
+# exact negation of RFC-002 §10 mechanism 3, arrived at by deleting a triple
+# that no SHACL shape requires and that every branch of ladder-integrity.rq
+# is itself keyed on, so no gate could see it either.
+#
+# Not hypothetical: spec's own Studio corpus keeps 46 of its 69 rungs in a
+# separately generated terms.ttl, so a dataset listing corpus.ttl alone drops
+# two thirds of its claims out of every closure, silently and green.
+#
+# The claim below is scoped s-market-b (wo-042's own scope) and made a party
+# to INV-05, which is OPEN and which wo-042 does not otherwise touch. With the
+# fix, wo-042 gains the obligation AND the hold. Without it, both vanish.
+@prefix rfc: <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:  <https://aion.savvi.io/ontology/authoring#> .
+@prefix amp: <https://ampere.example/corpus#> .
+
+amp:mkt-quiet-hours a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST_NOT ;
+    rfc:predicate "The resource MUST NOT bid into the evening ramp during declared quiet hours." ;
+    au:discipline amp:d-market ;
+    au:scopedBy amp:s-market-b .
+    # NO au:rung, NO au:stalledOn — deliberately. Both are what the ladder gate
+    # keys on, and their absence is what made this claim invisible.
+
+amp:INV-05 au:party amp:mkt-quiet-hours .

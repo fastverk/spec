@@ -1,0 +1,52 @@
+# ---
+# title: "Dispatch holds (live)"
+# description: "One row per (work order, conflict) pair where the hold is LIVE — the set that makes an order HELD. au:blocksWorkOrder is a record, never retracted on resolution, so liveness is derived here, not read off the property."
+# severity: info
+# tier: 3
+# caveat: "NOW() IS EVALUATED WHEN THE QUERY RUNS, AND THE QUERY IS A CACHED BUILD ACTION. A waiver whose au:expires passes does not re-hold its work order until something invalidates the action — a corpus edit, a clean, a new build. Bazel is correct to cache it: the inputs did not change. What changed is the wall clock, which is not an input. The consequence is bounded and worth stating plainly rather than pretending: a lapsed waiver releases a hold it should keep, for as long as the derivation stays cached. The honest fix is a stamp (--stamp with a volatile date the action reads) or a scheduled re-derivation; the nightly crank issue (#47) is where that belongs, since it is the same requirement — measurement on a clock rather than on a change."
+# rationale: "RFC-002 §10 mechanism 3: conflict_holds non-empty ⇒ no dispatch, and P7's acceptance is 'an order whose closure touches an open conflict refuses to dispatch'. A MEASURE, not a gate: an open conflict holding an order is a legal state the board works through (the same reason UNRESOLVED is a measure) — gating on it would push authors toward fake resolutions, the exact rot au:Escalate exists to prevent. Four branches make a hold live, each fail-closed: UNRESOLVED (nobody has adjudicated); ESCALATED (au:Escalate 'holds affected work orders' by definition — a legitimate terminal state that is still a hold, the branch no other query had); LAPSED-WAIVER (an au:Exempt past its au:expires is unresolved again, same date-cast as conflict-hygiene.rq); UNBOUNDED-WAIVER (an Exempt with no expiry was authored outside the write path — releasing a hold on the strength of a malformed waiver would honor the malformation). au:Narrow, au:Prioritize and au:Refute release the hold; the au:blocksWorkOrder assertion stays as history and this query is what tells the two apart. Executable form of the liveness rule stated on au:blocksWorkOrder in rdf/ontology/authoring.ttl; //rdf/fanout's derivation and the readmodel's HELD state both key on it."
+# ---
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
+
+# ⚠ Every UNION branch repeats the conflict/order triples rather than
+# hoisting them above the union: a branch containing only a FILTER evaluates
+# that filter in its own group, where ?conflict is UNBOUND, and FILTER NOT
+# EXISTS then asks a question about the whole graph instead of this conflict —
+# under ARQ the UNRESOLVED branch silently matches nothing. The positive
+# control (fixtures/expect-dispatch-holds.rq, "live: total pairs") is what
+# caught the hoisted form; envelope-unrecorded.rq's header records the same
+# lesson for a different operator.
+SELECT DISTINCT ?order ?conflict ?branch
+WHERE {
+  {
+    ?conflict a au:Conflict ; au:blocksWorkOrder ?order .
+    FILTER NOT EXISTS { ?conflict au:resolvedBy ?r }
+    BIND("UNRESOLVED" AS ?branch)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:blocksWorkOrder ?order ; au:resolvedBy ?res .
+    ?res au:outcome au:Escalate .
+    BIND("ESCALATED" AS ?branch)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:blocksWorkOrder ?order ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt ; au:expires ?exp .
+    # Cast NOW() down to a date so both operands share a datatype — the naive
+    # comparison is a type error ARQ swallows, and the lapsed waiver is never
+    # reported. Same branch, same reason, as conflict-hygiene.rq.
+    FILTER(?exp < xsd:date(NOW()))
+    BIND("LAPSED-WAIVER" AS ?branch)
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:blocksWorkOrder ?order ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt .
+    FILTER NOT EXISTS { ?res au:expires ?e }
+    BIND("UNBOUNDED-WAIVER" AS ?branch)
+  }
+}
+ORDER BY ?order ?conflict ?branch

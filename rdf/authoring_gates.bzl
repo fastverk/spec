@@ -68,6 +68,12 @@ _MEASURES = {
     "conflict_hygiene": Label("//rdf/lint/authoring:conflict-hygiene.rq"),
     "cross_discipline_coconstraint": Label("//rdf/lint/authoring:cross-discipline-coconstraint.rq"),
     "homonym_unregistered": Label("//rdf/lint/authoring:homonym-unregistered.rq"),
+    # One row per LIVE (work order, conflict) hold — the set that computes
+    # HELD. A measure for the same reason UNRESOLVED is: an open conflict
+    # holding an order is a legal state the board works through, and gating on
+    # it would push authors toward fake resolutions. //rdf/fanout's derivation
+    # and the dispatch door both key on this query's liveness rule.
+    "dispatch_hold": Label("//rdf/lint/authoring:dispatch-hold.rq"),
 }
 
 def spec_authoring_gates(name, dataset, measures = True, **kwargs):

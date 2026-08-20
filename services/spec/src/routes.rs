@@ -48,6 +48,13 @@ pub const AUTHORING_READS: &[(&str, &str, &str)] = &[
     ("ListTerms", "GET", "terms"),
     ("ListProposals", "GET", "proposals"),
     ("ListEvaluations", "GET", "evaluations"),
+    // The fanout surface. `mocks/ux/panels.authoring.textproto` has bound this
+    // (service, method) pair since the mock was written; #45 is where it stops
+    // resolving to nothing.
+    ("ListWorkOrders", "GET", "workorders"),
+    // The account, not the meter: spec records reported spend against the
+    // budgets it allocated, and the platform enforces (#46).
+    ("ListLedger", "GET", "ledger"),
 ];
 
 /// The authoring write path. Declared unconditionally, even though two of the
@@ -77,6 +84,17 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // impossible. A measurement is not a judgement (see `evaluation.rs`), so it
     // gets its own method rather than riding the op vocabulary.
     ("SubmitEvaluation", "POST", "evaluation"),
+    // Dispatch is neither a judgement nor a measurement: it authorizes writes.
+    // Its own method, its own log — `crate::workorder`.
+    ("DispatchWorkOrder", "POST", "workorder/dispatch"),
+    // A measurement, like SubmitEvaluation — a machine reports what the
+    // platform metered. It rides the dispatch log because spend is only
+    // meaningful against the thread that was authorized.
+    ("ReportSpend", "POST", "workorder/spend"),
+    // Ending a thread. Without it a dispatched order with no budget could
+    // never be released — nothing else writes a terminal event — so its scope
+    // and paths stayed claimed forever and no sibling could ever dispatch.
+    ("CloseWorkOrder", "POST", "workorder/close"),
 ];
 
 /// The full `web_routes` array for `/describe`.

@@ -34,7 +34,7 @@ use serde_json::{json, Value};
 /// of headroom and still a bound.
 const MAX_PAYLOAD_BYTES: u64 = 32 * 1024 * 1024;
 
-/// The six read-model routes: `(route, rows_field)`.
+/// The read-model routes: `(route, rows_field)`.
 ///
 /// Kept in lockstep with three other places, all of which are generated from or
 /// checked against this list:
@@ -55,6 +55,11 @@ pub const ROUTES: &[(&str, &str)] = &[
     ("witness", "parties"),
     ("requirements", "requirements"),
     ("terms", "terms"),
+    // Derived by //rdf/fanout + //tools/fanout:derive rather than by
+    // emit_readmodel.py — the same "the build computes" rule, one engine
+    // further along: this payload's queries run under ARQ, the engine of
+    // record, instead of rdflib.
+    ("workorders", "orders"),
 ];
 
 /// The `rows_field` for a route name, or `None` if the route isn't one of ours.
@@ -226,7 +231,21 @@ fn degraded(field: &str, why: &str) -> Value {
 /// to `ROUTES` — doing so would make it try to load a file that will never exist
 /// and degrade every request. It is still asserted to be DECLARED below, so a
 /// log-backed route cannot quietly go missing from /describe either.
-pub const LOG_BACKED_ROUTES: &[&str] = &["proposals", "evaluations"];
+pub const LOG_BACKED_ROUTES: &[&str] = &["proposals", "evaluations", "ledger"];
+
+/// Routes whose payload is derived by the BUILD rather than emitted by
+/// `tools/readmodel/emit_readmodel.py` — the fanout derivation runs under ARQ
+/// (`//rdf/fanout` + `//tools/fanout:derive`), the engine of record, and the
+/// emitter is rdflib, the one RFC-005 says to retire rather than reconcile.
+///
+/// Declared here rather than repeated in `check_wiring.py` for the same reason
+/// `LOG_BACKED_ROUTES` is: an exception with two definitions drifts, and the
+/// whole point of this module's tables is that they cannot.
+///
+/// ⚠ These routes ARE served from `$SPEC_READMODEL_DIR` like any other payload.
+/// What differs is who wrote the file, so the wiring check must not expect the
+/// emitter to know about them — it must still expect the router to serve them.
+pub const DERIVED_ROUTES: &[&str] = &["workorders"];
 
 pub fn routes_match_describe(web_routes: &[Value]) -> Result<(), String> {
     let all: Vec<&str> = web_routes

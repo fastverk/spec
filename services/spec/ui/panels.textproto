@@ -654,3 +654,64 @@ panels {
     }
   }
 }
+
+# ── Fanout ────────────────────────────────────────────────────────────────
+#
+# Promoted verbatim from mocks/ux/panels.authoring.textproto, where it has
+# bound spec.v1.Authoring/ListWorkOrders since the mock was written. #45 is
+# where that pair stops resolving to nothing: the payload is derived by
+# //rdf/fanout over the corpus and served from $SPEC_READMODEL_DIR like any
+# other read.
+#
+# ⚠ `state` is COMPUTED, never authored — HELD from a non-empty
+# conflict_holds at derivation, RUNNING overlaid from the dispatch log at
+# serve time (services/spec/src/http.rs::list_work_orders). A column showing
+# a stored status would let someone set it.
+#
+# ⚠ panel_id is `workorders`, not the mock's `fanout`: every authoring panel's
+# id equals its route path, and check_wiring.py enforces it because the
+# LayoutService nav leaf resolves by that id. The mock had no route to agree
+# with. The TITLE stays "Fanout" — that is what the surface is called.
+panels {
+  panel_id: "workorders"
+  title: "Fanout"
+  table {
+    populate {
+      service: "spec.v1.Authoring"
+      method: "ListWorkOrders"
+    }
+    rows_field: "orders"
+    item_noun: "work orders"
+    placeholder: "No work orders derived."
+    columns {
+      header: "Order"
+      field_path: "order_id"
+      pref_width: 10
+    }
+    columns {
+      header: "Scope"
+      field_path: "scope"
+      pref_width: 32
+    }
+    columns {
+      header: "Obl."
+      field_path: "obligation_count"
+      pref_width: 6
+    }
+    columns {
+      header: "Disciplines bound"
+      field_path: "disciplines"
+      pref_width: 40
+    }
+    columns {
+      header: "Writes"
+      field_path: "write_capability"
+      pref_width: 20
+    }
+    columns {
+      header: "State"
+      field_path: "state"
+      pref_width: 22
+    }
+  }
+}

@@ -276,9 +276,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ⚠ `//:all`, not `//...` — the ROOT package is the release-position
+      # check and must load nothing the published release lacks. //fanout is
+      # deliberately excluded here; it is the next step's job.
       - name: resolve the published spec from registry.tbzl.dev and run its gates
         working-directory: smoke/consumer
-        run: bazel $BAZEL_FLAGS test //...
+        run: bazel $BAZEL_FLAGS test //:all
+
+      # The same consumer, pointed at THIS COMMIT. Catches a consumer-visible
+      # break in unreleased API before it is published rather than after —
+      # which is the half the published-pin step structurally cannot do, and
+      # the step that caught spec_workorders reaching for //tools/fanout in
+      # the consumer's own repository (#45).
+      - name: run the same consumer against this commit, including unreleased API
+        working-directory: smoke/consumer
+        run: bazel $BAZEL_FLAGS test //... --override_module=spec=$GITHUB_WORKSPACE
 
 
   # ⛔ The console is where the safety rules run for real, and it is the ONLY half

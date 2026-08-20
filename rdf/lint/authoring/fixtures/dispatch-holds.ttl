@@ -1,0 +1,57 @@
+# dispatch-holds.ttl — POSITIVE AND NEGATIVE CONTROL for dispatch-hold.rq.
+#
+# Six conflicts, one hold each, covering every branch of the liveness rule in
+# both directions: four holds that MUST be reported live (one per branch) and
+# two that MUST NOT be (the released outcomes). expect-dispatch-holds.rq pins
+# the exact counts; a liveness branch that goes quiet — the ESCALATED branch
+# existed in prose only until this file — or a released outcome that starts
+# holding again fails there.
+#
+# ⚠ MINIMAL ON PURPOSE. These conflicts carry only what dispatch-hold.rq
+# reads (au:blocksWorkOrder, au:resolvedBy, au:outcome, au:expires): no
+# parties, witnesses or owners, because this fixture feeds ONLY the dispatch
+# assertions, never the hygiene suite — running conflict-hygiene over it
+# would report six UNWITNESSED rows, correctly. envelope-conflict.ttl is the
+# fixture that exercises the gates.
+
+@prefix au:  <https://aion.savvi.io/ontology/authoring#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix fx:  <https://aion.savvi.io/fixture/dispatch-holds#> .
+
+# -- live: the four branches --------------------------------------------------
+
+fx:c-open a au:Conflict ;
+    au:blocksWorkOrder "wo-open" .
+
+fx:c-escalated a au:Conflict ;
+    au:blocksWorkOrder "wo-escalated" ;
+    au:resolvedBy fx:r-escalated .
+fx:r-escalated a au:Resolution ; au:outcome au:Escalate ;
+    au:rationale "Standing: both stewards notified, affected orders held." .
+
+fx:c-lapsed a au:Conflict ;
+    au:blocksWorkOrder "wo-lapsed" ;
+    au:resolvedBy fx:r-lapsed .
+fx:r-lapsed a au:Resolution ; au:outcome au:Exempt ;
+    au:expires "2026-01-31"^^xsd:date ;
+    au:rationale "Waived for one quarter; the quarter ended." .
+
+fx:c-unbounded a au:Conflict ;
+    au:blocksWorkOrder "wo-unbounded" ;
+    au:resolvedBy fx:r-unbounded .
+fx:r-unbounded a au:Resolution ; au:outcome au:Exempt ;
+    au:rationale "No expiry — authored outside the write path; fail closed." .
+
+# -- released: history, not holds --------------------------------------------
+
+fx:c-narrowed a au:Conflict ;
+    au:blocksWorkOrder "wo-released" ;
+    au:resolvedBy fx:r-narrowed .
+fx:r-narrowed a au:Resolution ; au:outcome au:Narrow ;
+    au:rationale "Guard narrowed; scopes no longer overlap." .
+
+fx:c-refuted a au:Conflict ;
+    au:blocksWorkOrder "wo-refuted" ;
+    au:resolvedBy fx:r-refuted .
+fx:r-refuted a au:Resolution ; au:outcome au:Refute ;
+    au:rationale "Not a real conflict; detector corrected." .

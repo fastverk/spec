@@ -1,0 +1,30 @@
+# ---
+# title: "Scoped claims (fanout bindings)"
+# description: "Every claim attached to a scope, with rung, discipline, stall and evidence — the raw table the obligation closure joins over."
+# severity: info
+# tier: 3
+# rationale: "RFC-002 §10 mechanism 1: an order's obligations are the lattice closure over its scope, ALL disciplines. This query deliberately does NOT filter to R4+ — mechanism 2 says R0–R3 claims ARRIVE explicitly marked non-binding, which requires them in the packet; the assembler sets Obligation.binding from ?rung rather than dropping the dark fraction on the floor. ?stalledOn rides along so a non-binding obligation carries the name an agent's HumanPrompt would cite; ?evidence rides along because the first external consumer routes acceptance through the decidable checks its claims name there."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?scope ?claim ?rung ?discipline ?stalledOn ?evidence
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:scopedBy ?scope .
+  # ⛔ OPTIONAL, and this is load-bearing. au:rung is what decides BINDING; it is
+  # irrelevant to whether a claim is in the closure — and nothing requires it:
+  # shapes.ttl mandates only rfc:modality and rfc:predicate, and every branch of
+  # ladder-integrity.rq opens with `?claim au:rung ?rung`, so a claim with no
+  # rung is invisible to that gate too. Making it mandatory here dropped such a
+  # claim out of the closure, and with it out of the LIVE-CONFLICT INTERSECTION,
+  # so an open conflict stopped holding the order — a dispatch gate failing
+  # OPEN, which is the one direction it must never fail. Studio's corpus makes
+  # this concrete rather than theoretical: 46 of its 69 rungs live in a
+  # separately generated terms.ttl, so a dataset listing corpus.ttl alone drops
+  # two thirds of its claims, silently and green.
+  OPTIONAL { ?claim au:rung ?rung }
+  OPTIONAL { ?claim au:discipline ?discipline }
+  OPTIONAL { ?claim au:stalledOn ?stalledOn }
+  OPTIONAL { ?claim rfc:evidence ?evidence }
+}
+ORDER BY ?scope ?claim

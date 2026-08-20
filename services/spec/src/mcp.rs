@@ -5,8 +5,9 @@
 //! sorries?". The chat host discovers any plugin that serves `/mcp` and unions its
 //! `tools/list`, so this needs no chat-host changes.
 //!
-//! Six tools: three over the spec index, three over the RFC-002 authoring read
-//! model (`list_conflicts` / `list_empty_envelopes` / `frontier`). The second three
+//! Seven tools: three over the spec index, four over the RFC-002 authoring read
+//! model (`list_conflicts` / `list_empty_envelopes` / `frontier` /
+//! `list_work_orders`). The authoring four
 //! are the grounding half of RFC-002 §9's chat loop — a model cannot ask "does this
 //! contradict anything" without them, and the write half (`preview_proposal` /
 //! `submit_proposal`) is deliberately NOT here: `POST /proposal` is a mutation
@@ -178,6 +179,22 @@ pub fn router(backend: Arc<SpecBackend>, readmodel: Arc<ReadModel>) -> Router {
         json!({ "type": "object", "properties": {} }),
         |_args, ctx: Arc<Ctx>| -> ToolFuture {
             Box::pin(async move { Ok(read_route(ctx, "frontier").await?) })
+        },
+    )
+    // The fanout read. `mocks/ux/chat/03-agent-fanout.md` opens by calling this
+    // tool by this name; #45 is where the name resolves to a payload.
+    //
+    // Read-only, like every tool here — `dispatch` is a MUTATION that
+    // authorizes writes to a path set, and it is deliberately NOT an MCP tool:
+    // the confirm-gated write pattern is P5 work, and a door that refuses an
+    // agent principal (services/spec/src/workorder.rs) should not be reachable
+    // from the surface an agent speaks through.
+    .tool(
+        "list_work_orders",
+        "List the work orders derived from the corpus — each with its scope, how many          obligations its closure carries, which disciplines those bind, the artifact          paths it may write, and its state. HELD means a live conflict touches its          closure and it CANNOT dispatch until that conflict is adjudicated; the state          is computed from the corpus, never set by a person. READY means dispatchable          now. Obligations below R4 travel with the order marked non-binding, so a          mostly-dark closure is a legal and informative answer rather than an empty          one. Read-only.",
+        json!({ "type": "object", "properties": {} }),
+        |_args, ctx: Arc<Ctx>| -> ToolFuture {
+            Box::pin(async move { Ok(read_route(ctx, "workorders").await?) })
         },
     )
     .router()

@@ -15,6 +15,14 @@ module exists to remove. Bumping this pin is the last step of the release
 checklist: publish to tomato-bazel/bazel-registry, then bump, and the smoke
 proves the release actually resolves.
 
+⚠ TWO POSITIONS, one module. The ROOT package loads only what the pinned
+release has, and CI runs it as `//:all`. `//fanout` loads API that exists in
+the working tree and not yet in any release, and CI runs it separately under
+`--override_module=spec=<the tree>`. Keeping them in one module means the
+unreleased-API check is a REAL consumer's check — same registries, same
+resolution, same repo boundary — rather than a build inside spec wearing a
+consumer's name.
+
 The dep block mirrors the first real consumer verbatim. rules_rdf is loaded
 directly (rdf_dataset), so it needs a direct dep; rules_jena registers all four
 toolchains itself, non-dev — it is pinned here only so the Jena toolchain
@@ -27,7 +35,26 @@ module(
     version = "0.0.0",
 )
 
-bazel_dep(name = "spec", version = "0.7.0")
+bazel_dep(name = "spec", version = "0.8.1")
 
 bazel_dep(name = "rules_rdf", version = "0.3.0")
+
+# For this module's own py_test, NOT for spec_workorders — that macro carries
+# its assembler and toolchain inside @spec, which //:workorders proves by
+# building without this line. A consumer writing its own python tests declares
+# rules_python the way any module declares what it loads by name.
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+# ⚠ AND its own interpreter, at the SAME version spec requests. This is the
+# collision case a consumer actually hits: spec's non-dev `python.toolchain`
+# (for the fanout assembler) and the consumer's own both ask the shared
+# rules_python extension for 3.12. `is_default` from a non-root module is
+# ignored — the root module's choice wins — but "ignored" is a claim about
+# rules_python's behaviour, and this is where it gets tested rather than
+# believed. The first external corpus does exactly this.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
 bazel_dep(name = "rules_jena", version = "0.3.2")

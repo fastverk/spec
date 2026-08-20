@@ -39,7 +39,7 @@ document — applied to the `bazel_dep`s, where it was missing.
 
 module(
     name = "spec",
-    version = "0.8.1",
+    version = "0.8.2",
 )
 
 # ── FRAMEWORK deps: the surface consumers actually resolve ────────────────────
@@ -156,6 +156,24 @@ register_toolchains(
 # over the ontology files it hosts under rdf/.
 bazel_dep(name = "rules_rdf", version = "0.3.0")
 bazel_dep(name = "rules_jena", version = "0.3.2")
+
+# The fanout assembler (//tools/fanout:derive, spec#45) — the one Python that
+# runs INSIDE the build, because it assembles work orders from the engine of
+# record's TSVs and its output is a committed, drift-tested artifact. Every
+# other Python tool in this repo (readmodel emit, importers) runs outside
+# Bazel and needs nothing here. NON-dev deliberately: spec_workorders
+# (rdf/fanout/fanout.bzl) is consumer surface, and a consumer's build resolves
+# @spec//tools/fanout:derive — the exact visibility class #58 was. Hermetic
+# toolchain, no register_toolchains call (rules_python's extension registers
+# through its own module), so the registry ratchet's D2 invariant is
+# untouched.
+bazel_dep(name = "rules_python", version = "1.7.0")
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
 
 # sh_test (native sh_test was removed in Bazel 9) for //lean:audit_proofs_test
 # and rdf/lint/authoring's population_coverage_test. ⛔ This CANNOT be

@@ -28,6 +28,7 @@ pub mod overlay;
 pub mod proposal;
 pub mod readmodel;
 pub mod routes;
+pub mod workorder;
 
 /// The canonical gRPC service name for the RFC-002 authoring plane. The read model
 /// and the proposal routes are its HTTP projection, exactly as `spec.v1.SpecIndex`

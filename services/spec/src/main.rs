@@ -89,6 +89,17 @@ async fn main() -> Result<()> {
             .filter(|s| !s.is_empty())
             .map(std::path::PathBuf::from),
     ));
+    // And a THIRD, for the same reason again: a dispatch is neither a
+    // judgement nor a measurement — it authorizes writes to a path set. Unset
+    // disables the dispatch route (503 naming the variable), which is the right
+    // default for an instance nobody has decided may fan agents out.
+    let dispatches = Arc::new(spec::proposal::AppendLog::new(
+        std::env::var("SPEC_DISPATCH_LOG")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(std::path::PathBuf::from),
+    ));
 
     // The gate plane's client. Constructed unconditionally: whether the sidecar is
     // deployed is a fact about the pod, and the service reports it per-call
@@ -117,6 +128,16 @@ async fn main() -> Result<()> {
             readmodel,
             log,
             evaluations,
+            dispatches,
+            // RFC-004 §8 Q7: default OFF. Read once here rather than at the
+            // door — an instance fans agents out because someone decided it
+            // should, and that decision belongs in the deployment, not in a
+            // request.
+            agents_enabled: matches!(
+                std::env::var("SPEC_AGENT_ENABLED").unwrap_or_default().trim(),
+                "1" | "true" | "TRUE" | "yes"
+            ),
+            dispatch_gate: Arc::new(std::sync::Mutex::new(())),
             panels: panels.clone(),
         },
         gateway_token,
@@ -153,6 +174,7 @@ async fn main() -> Result<()> {
                     fastverk_layout::leaf("witness", "Witnesses"),
                     fastverk_layout::leaf("claims", "Claims"),
                     fastverk_layout::leaf("requirements", "Requirements"),
+                    fastverk_layout::leaf("workorders", "Fanout"),
                 ])
                 .with_panels(panels)
                 .into_server(),
