@@ -541,12 +541,14 @@ byte-identical.
 
 Two independent tracks, both prerequisites for volume.
 
-**Promotion.** `promote.yml`, modeled on `migrate.yml` — `workflow_dispatch` and
-push-to-main only, `corpus-production` Environment with a required reviewer,
-SELECT-only credential, runs `materialize.py` and `emit_readmodel.py`, commits
-`logs/*.jsonl` **and** `corpus/*/proposals.ttl` in one commit (or
-`corpus/studio/BUILD.bazel:99-126`'s re-materialize-and-diff test goes red), opens
-a PR. A human merges. Alongside it, `materialize.py` becomes total over the
+**Promotion.** `promote.yml` — landed (#49): modeled on `migrate.yml`,
+`workflow_dispatch` and a daily schedule, `corpus-production` Environment with a
+required reviewer, SELECT-only credential, a pinned export (`WHERE seq <=
+$THROUGH`, both pins taken once), `materialize.py` and `emit_readmodel.py` via
+`tools/proposals/promote.sh`, the gates over the result, then `logs/*.jsonl`
+**and** `corpus/*/proposals.ttl` **and** the read model in one commit (or
+`//corpus/studio:proposals_ttl_matches_the_log` goes red), opened as a PR. A
+human merges. Alongside it, `materialize.py` becomes total over the
 vocabulary — the `else: continue` at `:139-156` becomes a hard failure naming the
 unhandled kind — and stops erasing attribution: it must emit one `au:Proposal`
 node **per log record** rather than the single shared `st:authoring` node at

@@ -319,18 +319,14 @@ Change `Passes` to `Vacuous` and it is accepted. Reload AUTH-24 and it reads
 ## 5. Promotion
 
 The console never edits the corpus. To adopt what is waiting, export with the
-SELECT-only credential and run the existing tools:
+SELECT-only credential and run the existing tools — one script does the three
+generating steps, and it is the same script `promote.yml` runs:
 
 ```sh
-psql "$NEON_EXPORT_URL" -X -A -t -q --no-psqlrc -v ON_ERROR_STOP=1 \
-  -c "SELECT line FROM spec.proposal_log ORDER BY seq"   > logs/proposals.jsonl
-psql "$NEON_EXPORT_URL" -X -A -t -q --no-psqlrc -v ON_ERROR_STOP=1 \
-  -c "SELECT line FROM spec.evaluation_log ORDER BY seq" > logs/evaluations.jsonl
-
-python3 tools/proposals/materialize.py \
-    --log logs/proposals.jsonl --evaluations logs/evaluations.jsonl \
-    --corpus corpus/studio --project studio
-python3 tools/readmodel/emit_readmodel.py
+NEON_EXPORT_URL='postgres://spec_export:…' tools/proposals/promote.sh
+#   → logs/proposals.jsonl, logs/evaluations.jsonl   (pinned: WHERE seq <= the max seen at start)
+#   → corpus/studio/proposals.ttl                      (materialize.py)
+#   → services/spec/readmodel/*.json                   (emit_readmodel.py)
 bazel test //corpus/... //rdf/... //conformance/...
 ```
 
@@ -344,8 +340,13 @@ Commit `logs/*.jsonl` alongside the regenerated TTL and payloads.
 committed log and fails if the TTL does not match, so the two cannot drift apart
 — and a promotion that forgets the log is caught rather than merged.
 
-⚠ The export itself is not automated yet: the psql above is run by hand. See
-RFC-003 §8 for the workflow that should run it.
+**Automated:** `.github/workflows/promote.yml` runs exactly that — on
+`workflow_dispatch` and daily on a schedule — behind the `corpus-production`
+Environment (the `NEON_EXPORT_URL` secret and a required reviewer, the posture of
+`migrate.yml`), runs the gates over the result, and opens the PR. A human merges.
+`THROUGH_PROPOSAL` / `THROUGH_EVALUATION` pin the export to a seq when a
+promotion should cover exactly a known set of records; by default both pins are
+the current max, taken once, before either export.
 
 ---
 
