@@ -100,3 +100,50 @@ sparql_query(
 )
 
 exports_files(glob(["*.ttl"]))
+
+# ── Fanout: the work orders the conflicts have been naming all along ─────────
+#
+# Four orders, ids from the strings ampere's conflicts already carry in
+# au:blocksWorkOrder — mock-only until spec#45. Derivation is honest about
+# closure touch: with seven conflicts open, EVERY order starts held somewhere
+# (the transcript's READY column described a cleaner world than this corpus).
+# The releases are earned by adjudication, which is what the second target
+# demonstrates: the same config over the corpus plus INV-03's resolution
+# derives wo-042 READY. //tools/fanout:ampere_fanout_test pins both
+# directions.
+load("//rdf/fanout:fanout.bzl", "spec_workorders")
+
+spec_workorders(
+    name = "workorders",
+    config = "fanout.json",
+    dataset = ":ampere",
+    srcs = [
+        "conflicts.ttl",
+        "corpus.ttl",
+        "disciplines.ttl",
+    ],
+)
+
+rdf_dataset(
+    name = "ampere_inv03_resolved",
+    srcs = [
+        "conflicts.ttl",
+        "corpus.ttl",
+        "disciplines.ttl",
+        "fixtures-inv03-resolution.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+spec_workorders(
+    name = "workorders_inv03_resolved",
+    config = "fanout.json",
+    dataset = ":ampere_inv03_resolved",
+    srcs = [
+        "conflicts.ttl",
+        "corpus.ttl",
+        "disciplines.ttl",
+        "fixtures-inv03-resolution.ttl",
+    ],
+)

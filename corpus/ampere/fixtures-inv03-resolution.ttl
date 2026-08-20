@@ -1,0 +1,17 @@
+# The world where INV-03 has been adjudicated — an overlay for the derivation
+# test, NOT part of the committed corpus. INV-03 (the cyber inspection floor
+# against the control budget) resolves by au:Narrow; wo-042, whose ONE live
+# hold reached it through the federal-reliability leg of its closure,
+# releases to READY, and wo-046 — held three more ways — does not. That
+# asymmetry is the test: resolving a conflict releases exactly the orders it
+# alone was holding, which is spec#45's done-bar at the derivation layer.
+@prefix au:  <https://aion.savvi.io/ontology/authoring#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix amp: <https://ampere.example/corpus#> .
+
+amp:INV-03 au:resolvedBy amp:r-inv03-test .
+amp:r-inv03-test a au:Resolution ;
+    au:outcome au:Narrow ;
+    au:decidedBy amp:p-import ;
+    au:decidedAt "2026-08-20T00:00:00Z"^^xsd:dateTime ;
+    au:rationale "Test overlay: inspection window narrowed to the maintenance interval, so the 180 ms floor and the 150 ms budget stop overlapping." .

@@ -1,0 +1,16 @@
+# ---
+# title: "Quantity glossary (constraints and registered disjointness)"
+# description: "Which quantities each claim constrains, and which quantities are registered disjoint — the aligned term slice, before slicing."
+# severity: info
+# tier: 3
+# rationale: "RFC-002 §10's worked example hands the agent q-soc-bms pre-split from q-soc-telemetered: the homonym an agent would otherwise merge arrives as data. au:disjointQuantity is symmetric; the assembler canonicalizes the pair, so one registration yields one glossary edge."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT DISTINCT ?claim ?quantity ?disjoint
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:constrains ?quantity .
+  OPTIONAL { ?quantity au:disjointQuantity ?disjoint }
+}
+ORDER BY ?claim ?quantity
