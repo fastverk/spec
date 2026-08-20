@@ -45,9 +45,9 @@ spec_corpus_gates(
     dataset = ":ampere",
 )
 
-# The RFC-002 authoring suite: 3 zero-row gates + 4 reported measures.
+# The RFC-002 authoring suite: 5 zero-row gates + 4 reported measures.
 #
-# All three gates pass over the full corpus. That is not because the corpus is
+# All five gates pass over the full corpus. That is not because the corpus is
 # free of conflict — it has 12, seven of them open — but because every conflict
 # is recorded, witnessed and owned. Which is exactly the property being gated.
 spec_authoring_gates(

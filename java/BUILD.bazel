@@ -263,6 +263,7 @@ pkg_tar(
         "//rdf/lint/authoring:queries",
         "//rdf/ontology:aion-rfc.ttl",
         "//rdf/ontology:authoring.ttl",
+        "//rdf/ontology:tier.ttl",
     ],
     package_dir = "/corpus",
 )
@@ -277,8 +278,16 @@ oci_image(
         "--gate=conflict_hygiene_strict=/corpus/conflict-hygiene-strict.rq",
         "--gate=ladder_integrity=/corpus/ladder-integrity.rq",
         "--gate=vacuous_invariant=/corpus/vacuous-invariant.rq",
+        # Over studio this reads EXAMINED_NOTHING — no studio claim is at R4, so
+        # none carries a tier — and the suite's `clean` goes false until one
+        # does. That is the truthful state the three-valued status exists to
+        # expose, and the list here matches _GATES in //rdf:authoring_gates.bzl
+        # rather than forking it; derivation.rs admissibility counts only
+        # FAILED deltas.
+        "--gate=tier_rung_coherence=/corpus/tier-rung-coherence.rq",
         "/corpus/aion-rfc.ttl",
         "/corpus/authoring.ttl",
+        "/corpus/tier.ttl",
         "/corpus/corpus.ttl",
         "/corpus/disciplines.ttl",
         "/corpus/terms.ttl",

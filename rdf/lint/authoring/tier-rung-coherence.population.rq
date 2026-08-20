@@ -1,0 +1,22 @@
+# ---
+# title: tier / rung coherence — population
+# description: >
+#   Every claim the tier-rung-coherence gate could judge: a normative statement
+#   carrying BOTH an rfc:tier and an au:rung. A claim with no TTL tier is
+#   untiered, not Structural (rdf/ontology/tier.ttl), and is outside the gate's
+#   reach by design — so over a corpus where nothing carries a tier this reads
+#   EXAMINED_NOTHING, which is the truthful answer, not a pass.
+# severity: error
+# ---
+# ⛔ AUTHORED, AND THAT IS THE RISK. Nothing mechanically proves this pattern is
+# the gate's candidate set. If it drifts wider than the gate, a gate that
+# examined nothing wears a large number and reads as thorough — strictly worse
+# than silence. gate_cli refuses a population smaller than the violation count;
+# that is a guard, not a proof. Review this file and its gate together or not at
+# all.
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+SELECT ?claim
+WHERE {
+  ?claim a rfc:NormativeStatement ; rfc:tier ?tier ; au:rung ?rung .
+}

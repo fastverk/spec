@@ -416,7 +416,8 @@ def main():
                          "carrying its project. Defaults to the two that exist:\n"
                          "ampere=corpus/ampere studio=corpus/studio")
     ap.add_argument("--ontology", nargs="*",
-                    default=["rdf/ontology/aion-rfc.ttl", "rdf/ontology/authoring.ttl"],
+                    default=["rdf/ontology/aion-rfc.ttl", "rdf/ontology/authoring.ttl",
+                             "rdf/ontology/tier.ttl"],
                     help="ontology TTLs to fold in")
     args = ap.parse_args()
 

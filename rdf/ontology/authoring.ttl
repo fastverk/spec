@@ -26,11 +26,13 @@
 #     existing rfc: term, so the 55 per-RFC TTL diff gates and the existing
 #     corpus are unaffected.
 #   * au:rung is ORTHOGONAL to rfc:tier, not a replacement. rfc:tier
-#     (Structural / Derivational / Implemented, see Spec.Corpus.Schema.Tier)
-#     grades how a claim's PROOF is discharged. au:rung grades how far the claim
-#     has been FORMALIZED at all. A claim can be fully formalized (R4) and still
-#     Structural; it cannot be Derivational below R4. Conflating them is what
-#     makes "partially authored" unrepresentable today.
+#     (Structural / Derivational / Implemented — rdf/ontology/tier.ttl, emitted
+#     from Spec.Corpus.Schema.Tier) grades how a claim's PROOF is discharged.
+#     au:rung grades how far the claim has been FORMALIZED at all. A claim can
+#     be fully formalized (R4) and still Structural; it cannot be Derivational
+#     below R4 — rdf/lint/authoring/tier-rung-coherence.rq enforces exactly
+#     that, and nothing more. Conflating them is what makes "partially
+#     authored" unrepresentable.
 #   * Every class here is instantiable by an op in the authoring op vocabulary,
 #     so nothing in this ontology can only be produced by hand-editing Turtle.
 # =============================================================================
@@ -183,8 +185,8 @@ au:precedes a owl:ObjectProperty, owl:TransitiveProperty ;
 # -----------------------------------------------------------------------------
 # 5. The formalization ladder
 #
-# Orthogonal to rfc:tier. Nothing is ever deleted; a claim demotes rather than
-# disappearing, and a stall NAMES the missing thing.
+# Orthogonal to rfc:tier (rdf/ontology/tier.ttl). Nothing is ever deleted; a
+# claim demotes rather than disappearing, and a stall NAMES the missing thing.
 # -----------------------------------------------------------------------------
 
 au:Rung a owl:Class ;
@@ -206,12 +208,13 @@ au:R5 a au:Rung ; rdfs:label "R5 theorem-backed" ;
 
 au:rung a owl:ObjectProperty ;
     rdfs:domain rfc:NormativeStatement ; rdfs:range au:Rung ;
-    rdfs:label "rung" .
+    rdfs:label "rung" ;
+    rdfs:comment "How far this claim has been formalized, R0–R5. Provenanced by au:promotedBy (the ladder gate refuses a rung above R0 without one) and orthogonal to rfc:tier, which grades the proof rather than the formalization: a claim can be R4 and still Structural; it cannot be Derivational below R4." .
 
 au:promotedBy a owl:ObjectProperty ;
     rdfs:domain rfc:NormativeStatement ;
     rdfs:label "promoted by" ;
-    rdfs:comment "The proposal that moved this claim to its current rung. A rung with no promoting proposal is unprovenanced and fails the ladder gate — this is what stops au:rung becoming another self-declared field like rfc:tier is today." .
+    rdfs:comment "The proposal that moved this claim to its current rung. A rung with no promoting proposal is unprovenanced and fails the ladder gate — this is what stops au:rung becoming another self-declared field — the mistake rfc:tier made before it had a TTL form (rdf/ontology/tier.ttl) and a gate (tier-rung-coherence.rq)." .
 
 au:demotedBy a owl:ObjectProperty ;
     rdfs:domain rfc:NormativeStatement ;

@@ -372,19 +372,29 @@ corpus are unaffected. 15 classes, 51 properties, 31 vocabulary individuals.
 | Defeasibility | `au:defeasible`, `au:Defeater`, 6 `ComplianceStatus` values | Collapsing `Excused` / `BreachedButLiquidated` / `Breached` / `Unresolved` into "allowed" is precisely the prose failure this profile exists to prevent. |
 | Proposal | `au:Proposal` + `parent`, `surface`, `intent`, `transcript`, `verdict` | `surface` is recorded and never read by admission. |
 
-### 6.1 `au:rung` is orthogonal to the Lean `Tier` — and `Tier` has no TTL form
+### 6.1 `au:rung` is orthogonal to the Lean `Tier` — which now has a TTL form
 
 `Spec.Corpus.Schema.Tier` (Structural / Derivational / Implemented) grades how a
 claim's **proof** is discharged. `au:rung` grades how far the claim has been
 **formalized at all**. A claim can be fully formalized at R4 and still
 Structural; it cannot be Derivational below R4. Conflating the two is what makes
-"partially authored" unrepresentable today.
+"partially authored" unrepresentable.
 
-Discovered while writing the gates and worth fixing independently: **`rfc:tier`
-does not exist in the TTL ontology at all.** `Tier` is Lean-only, so it is
-neither queryable nor drift-checkable, and per `aion-rfc.ttl` the authoritative
-TTL signal for kernel-verified is `rfc:provenBy`. `ladder-integrity.rq` therefore
-checks `provenBy`, and adding a TTL projection of `Tier` is filed in §13.
+When this section was first written, **`rfc:tier` did not exist in the TTL
+ontology at all** — `Tier` was Lean-only, neither queryable nor drift-checkable,
+and a shipped panel that counted `rfc:tier rfc:Structural` read 0/0/0 forever.
+Closed in #50: `rdf/ontology/tier.ttl` is **emitted from the Lean inductive**
+(`lean/Spec/Emit/TierVocab.lean`, whose list of constructors is proven
+exhaustive) and pinned by `//lean:tier_ttl_diff_test`, so the vocabulary cannot
+drift from the type; `rfc:tier` is optional on a claim, at most one, and
+**absent means untiered, not Structural**; and `tier-rung-coherence.rq` enforces
+exactly the sentence above — Derivational below R4 — with its own population
+query, so over a corpus where nothing carries a tier it reads `EXAMINED_NOTHING`
+rather than passing. `rfc:provenBy` remains the authoritative TTL signal for
+kernel-verified: a tier is a grade, a `provenBy` is a theorem, and
+`ladder-integrity.rq` still checks the latter. What the note does *not* say —
+Implemented below R4, R5, whether Derivational should require a `provenBy` — is
+deliberately not gated and is filed in §13.
 
 ## 7. Gate set
 
@@ -393,7 +403,7 @@ Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, wired by
 (`rdf/lint/authoring/fixtures/`, following the
 `grounding/AdversarialGateCheck.java` discipline).
 
-**Only three of the seven are gates.** The split is the important part.
+**Only five of the nine are gates.** The split is the important part.
 
 **Gates** — zero-row, fail the build:
 
@@ -402,6 +412,8 @@ Landed in `rdf/lint/authoring/`, in the style of `rdf/lint/semantic/`, wired by
 | `envelope-unrecorded.rq` | an empty envelope with **no `au:Conflict` recording it** | 0 / 0 † |
 | `conflict-hygiene-strict.rq` | unwitnessed · unowned · unbounded or expired waiver | 4 / 0 |
 | `ladder-integrity.rq` | hand-set rungs · unnamed stalls · `provenBy` below R4 | 4 / 0 |
+| `vacuous-invariant.rq` | `Passes` / `Fails` / `Examined` over an empty population, or with none | 3 / 0 |
+| `tier-rung-coherence.rq` | `rfc:tier rfc:Derivational` below R4 | 1 / 0 |
 
 † Correctly silent on *both* fixtures: the conflict fixture's empty envelope **is**
 recorded. Strip `conflicts.ttl` from the AMPERE corpus and it fires with 2 rows —
@@ -828,8 +840,11 @@ runs where a bazel is not provisioned, which is most agent sessions.
 2. **Claim ⇄ theorem correspondence.** Is generating theorem signatures from claim
    content (§7.1) sufficient, or does the claim's formal content need to be
    expressive enough that the signature is the whole statement?
-3. **A TTL projection of the Lean `Tier` (§6.1)**, so it becomes queryable and
-   drift-checkable like every other field.
+3. **The rest of the tier/rung rule (§6.1).** The TTL projection of `Tier`
+   landed in #50 with exactly the promised check (Derivational below R4). Open:
+   should `Implemented` also require R4 — or R5? Does R5 imply anything about
+   tier? Should `Derivational` require an `rfc:provenBy`, making the tier a
+   consequence of the theorem rather than a declared grade?
 4. **The decidable fragment's boundary.** Linear bounds over typed quantities with
    comparable time bases is the proposed starting fragment. What is the next
    increment that pays for itself — intervals? piecewise-linear derate curves?

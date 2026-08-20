@@ -11,10 +11,14 @@ exports_files(["authoring_gates.bzl"])
 
 # The RFC vocabulary as a dataset. Consumers fold this into their corpus
 # via `deps = ["@spec//rdf:vocab"]` so the gate queries resolve the
-# rfc: terms.
+# rfc: terms. tier.ttl rides along because shapes.ttl says `sh:class :Tier`,
+# and sh:class is answered from the data graph.
 rdf_dataset(
     name = "vocab",
-    srcs = ["//rdf/ontology:aion-rfc.ttl"],
+    srcs = [
+        "//rdf/ontology:aion-rfc.ttl",
+        "//rdf/ontology:tier.ttl",
+    ],
     in_format = "turtle",
 )
 
@@ -48,6 +52,7 @@ rdf_dataset(
     srcs = [
         "//rdf/ontology:aion-rfc.ttl",
         "//rdf/ontology:authoring.ttl",
+        "//rdf/ontology:tier.ttl",
     ],
     in_format = "turtle",
 )

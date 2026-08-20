@@ -7,12 +7,11 @@ package(default_visibility = ["//visibility:public"])
 # //rdf:authoring_gates.bzl can Label()-reference them and consumers can
 # instantiate the suite over their own corpus.
 #
-# FOUR are zero-row GATES (envelope-unrecorded, conflict-hygiene-strict,
-# ladder-integrity, vacuous-invariant); four are reported MEASURES. This comment
-# said "Three" until vacuous-invariant was added to _GATES and the prose was not
-# — the same stale count is still in //rdf:authoring_gates.bzl's docstring, which
-# is why :population_coverage_test reads the dict rather than any sentence about
-# it. See the gate/measure rationale
+# FIVE are zero-row GATES (envelope-unrecorded, conflict-hygiene-strict,
+# ladder-integrity, vacuous-invariant, tier-rung-coherence); four are reported
+# MEASURES. This comment said "Three" until vacuous-invariant was added to
+# _GATES and the prose was not, which is why :population_coverage_test reads
+# the dict rather than any sentence about it. See the gate/measure rationale
 # in //rdf:authoring_gates.bzl — the short version is that an empty feasible
 # envelope and an unresolved conflict are both TRUE FINDINGS, and gating on them
 # would push authors toward hiding rather than recording them. What is gated is

@@ -5,8 +5,13 @@ package(default_visibility = ["//visibility:public"])
 # and the SHACL shapes that constrain a conforming corpus. Generic — defines
 # what an RFC corpus *is*, independent of any domain. Exposed as source
 # labels for rdf_dataset srcs + the spec_corpus_gates macro.
+#
+# tier.ttl is GENERATED — emitted from Spec.Corpus.Schema.Tier by
+# //lean:tier_ttl_generated and pinned by //lean:tier_ttl_diff_test. Edit the
+# Lean and `bazel run //lean:update_tier_ttl`; never this file by hand.
 exports_files([
     "aion-rfc.ttl",
     "shapes.ttl",
     "authoring.ttl",
+    "tier.ttl",
 ])

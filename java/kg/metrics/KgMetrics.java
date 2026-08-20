@@ -335,9 +335,12 @@ public final class KgMetrics {
     private static void renderNsTierBreakdown(Dataset ds, StringBuilder out) {
         out.append("## NS tier breakdown\n\n");
         out.append("> Partitions every `:NormativeStatement` by discharge\n");
-        out.append("> tier (`Structural` / `Derivational` / `Implemented`). Default\n");
-        out.append("> is `Structural` until a Lean proof or runtime verification\n");
-        out.append("> upgrades it. See [aion-roadmap.md](../aion-roadmap.md) §self-application.\n\n");
+        out.append("> tier (`Structural` / `Derivational` / `Implemented`, from\n");
+        out.append("> `rdf/ontology/tier.ttl`, emitted from the Lean `Tier`). Absent in\n");
+        out.append("> TTL means UNTIERED, not Structural: the Lean default is a\n");
+        out.append("> compile-time convenience for records that exist in the schema, and\n");
+        out.append("> an unasserted tier is not a claim about the proof. See\n");
+        out.append("> [aion-roadmap.md](../aion-roadmap.md) §self-application.\n\n");
         out.append("| Tier | Count | Share |\n|---|---:|---:|\n");
 
         int total = count(ds,
@@ -348,10 +351,15 @@ public final class KgMetrics {
             "PREFIX rfc: <" + RFC_PREFIX + "> SELECT (COUNT(DISTINCT ?ns) AS ?n) WHERE { ?ns a rfc:NormativeStatement ; rfc:tier rfc:Derivational }");
         int implemented = count(ds,
             "PREFIX rfc: <" + RFC_PREFIX + "> SELECT (COUNT(DISTINCT ?ns) AS ?n) WHERE { ?ns a rfc:NormativeStatement ; rfc:tier rfc:Implemented }");
+        // Without this row the panel read 0 / 0 / 0 over every corpus for as
+        // long as rfc:tier had no TTL form, and nothing said so.
+        int untiered = count(ds,
+            "PREFIX rfc: <" + RFC_PREFIX + "> SELECT (COUNT(DISTINCT ?ns) AS ?n) WHERE { ?ns a rfc:NormativeStatement FILTER NOT EXISTS { ?ns rfc:tier ?t } }");
 
         out.append("| Structural | ").append(structural).append(" | ").append(pct(structural, total)).append(" |\n");
         out.append("| Derivational | ").append(derivational).append(" | ").append(pct(derivational, total)).append(" |\n");
         out.append("| Implemented | ").append(implemented).append(" | ").append(pct(implemented, total)).append(" |\n");
+        out.append("| _untiered_ | ").append(untiered).append(" | ").append(pct(untiered, total)).append(" |\n");
         out.append('\n');
         out.append("**Total NSes:** ").append(total).append('\n');
         out.append('\n');

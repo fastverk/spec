@@ -14,7 +14,7 @@ adds: witnessed conflict, ladder integrity, and unrecorded infeasibility.
 
 ## The gate / measure split — the design decision this file encodes
 
-Only three of the six authoring queries are *gates*. The split is not cosmetic:
+Only five of the nine authoring queries are *gates*. The split is not cosmetic:
 
 **Gates** (zero-row, fail the build):
 
@@ -28,6 +28,12 @@ Only three of the six authoring queries are *gates*. The split is not cosmetic:
     acted on.
   * `ladder_integrity` — hand-set rungs, unnamed stalls, `provenBy` asserted
     below R4.
+  * `vacuous_invariant` — a `Passes`, `Fails` or `Examined` recorded over an
+    empty population, or with no population at all. Zero is an exception,
+    never a result.
+  * `tier_rung_coherence` — `rfc:tier rfc:Derivational` on a claim below R4.
+    authoring.ttl's orthogonality note promised this check the day `rfc:tier`
+    had a TTL form; it has one now (rdf/ontology/tier.ttl, emitted from Lean).
 
 **Measures** (reported, never fail):
 
@@ -53,6 +59,7 @@ _GATES = {
     "conflict_hygiene_strict": Label("//rdf/lint/authoring:conflict-hygiene-strict.rq"),
     "ladder_integrity": Label("//rdf/lint/authoring:ladder-integrity.rq"),
     "vacuous_invariant": Label("//rdf/lint/authoring:vacuous-invariant.rq"),
+    "tier_rung_coherence": Label("//rdf/lint/authoring:tier-rung-coherence.rq"),
 }
 
 # Reported measures. Non-empty output is normal and often the point.

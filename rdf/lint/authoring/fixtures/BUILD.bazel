@@ -60,8 +60,9 @@ spec_corpus_gates(
 # idiom as everything else, rather than an emit_diff_test against a golden TSV,
 # so it carries no dependency on the SPARQL engine's TSV serialization.
 #
-# Verified behaviour: 0 rows over :conflict_fixture, 5 rows over :clean_fixture
-# (the assertions are live — absent detections fire them).
+# Verified behaviour: 0 rows over :conflict_fixture, 7 rows over :clean_fixture
+# (the assertions are live — absent detections fire them; the one branch that
+# expects 0, envelope-unrecorded-silent-when-documented, is silent on both).
 sparql_query_test(
     name = "expect_detections",
     dataset = ":conflict_fixture",
