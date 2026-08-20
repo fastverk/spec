@@ -39,7 +39,7 @@ document — applied to the `bazel_dep`s, where it was missing.
 
 module(
     name = "spec",
-    version = "0.8.0",
+    version = "0.8.1",
 )
 
 # ── FRAMEWORK deps: the surface consumers actually resolve ────────────────────
@@ -68,7 +68,7 @@ maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 # declaring module), so the version has to be restated here instead. Restating it
 # is a drift risk with no gate on it; see docs/rfc-005-one-engine-of-record.md §3.
 maven.install(
-    name = "gate_maven",
+    name = "spec_gate_maven",
     artifacts = [
         "org.apache.jena:jena-arq:5.2.0",
         "org.apache.jena:jena-core:5.2.0",
@@ -77,10 +77,10 @@ maven.install(
         "org.slf4j:slf4j-simple:2.0.13",
     ],
     fetch_sources = False,
-    lock_file = "//:gate_maven_install.json",
+    lock_file = "//:spec_gate_maven_install.json",
     repositories = ["https://repo1.maven.org/maven2"],
 )
-use_repo(maven, "gate_maven", "unpinned_gate_maven")
+use_repo(maven, "spec_gate_maven", "unpinned_spec_gate_maven")
 
 maven.install(
     name = "spec_maven",

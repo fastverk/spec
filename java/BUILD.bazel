@@ -7,15 +7,15 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 # ⛔ NOT `load("@rules_jena//jena:defs.bzl", "JENA_DEPS")`. Those labels live in
 # rules_jena's own `@jena_maven`, which Bzlmod does not make visible outside the
 # module that declared it — the build fails with "No repository visible as
-# '@jena_maven'". The version is restated in `@gate_maven` instead; MODULE.bazel
+# '@jena_maven'". The version is restated in `@spec_gate_maven` instead; MODULE.bazel
 # says so at the install, and RFC-005 §3 records that the restatement is an
 # ungated drift risk.
 GATE_JENA_DEPS = [
-    "@gate_maven//:org_apache_jena_jena_arq",
-    "@gate_maven//:org_apache_jena_jena_core",
-    "@gate_maven//:org_apache_jena_jena_base",
-    "@gate_maven//:org_apache_jena_jena_iri",
-    "@gate_maven//:org_slf4j_slf4j_simple",
+    "@spec_gate_maven//:org_apache_jena_jena_arq",
+    "@spec_gate_maven//:org_apache_jena_jena_core",
+    "@spec_gate_maven//:org_apache_jena_jena_base",
+    "@spec_gate_maven//:org_apache_jena_jena_iri",
+    "@spec_gate_maven//:org_slf4j_slf4j_simple",
 ]
 
 package(default_visibility = ["//visibility:public"])

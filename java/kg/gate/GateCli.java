@@ -48,7 +48,7 @@ import fastverk.rules_jena.sparql.ResultEmit;
  * at {@code fastverk/repos/rules_jena} was ahead of the release the build
  * resolved, and reading it as though it were the release cost a build.
  *
- * <p>⚠ This links {@code @gate_maven}'s Jena (5.2.0, matching the engine) and NOT
+ * <p>⚠ This links {@code @spec_gate_maven}'s Jena (5.2.0, matching the engine) and NOT
  * {@code @spec_maven}'s (5.0.0), so it cannot reuse {@code kg.Loader}. Two Jena
  * versions on one classpath means the answer depends on classpath order.
  *

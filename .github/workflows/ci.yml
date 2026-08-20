@@ -177,8 +177,23 @@ jobs:
           restore-keys: |
             tectonic-bundle-${{ runner.os }}-
 
+      # Retried with backoff, because the CDN's 429 is transient and every
+      # attempt keeps what the last one fetched into the cache above. And
+      # continue-on-error: when the CDN is down for the whole window the BUILD
+      # and TEST lists below still run and report. The job is still red (the
+      # three documents fail in `build`) but the red then names
+      # //paper:crystallization, not — by implication — whatever the PR
+      # changed. Measured 2026-08-20: five of seven runs across three PRs that
+      # touched no LaTeX died at this step, in ~90 s, before a single test ran.
       - name: warm the tectonic cache
-        run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/... && exit 0
+            echo "::warning::tectonic warm attempt $attempt failed (the bundle CDN rate-limits hosted runners); backing off"
+            sleep $((attempt * 60))
+          done
+          exit 1
 
       - name: save the tectonic bundle cache
         if: always()
