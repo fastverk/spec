@@ -89,15 +89,15 @@ order. `gate_cli` uses in-process Jena only to merge the corpus and derive the
 not work: those labels live in rules_jena's own `@jena_maven`, which **Bzlmod
 does not make visible outside the module that declared it** (`use_repo` is
 module-scoped). The build fails with *"No repository visible as `@jena_maven`"*.
-So the version is restated in a second install, `@gate_maven`, pinned to 5.2.0 in
-`gate_maven_install.json`. **That restatement is a drift risk with no gate on
+So the version is restated in a second install, `@spec_gate_maven`, pinned to 5.2.0 in
+`spec_gate_maven_install.json`. **That restatement is a drift risk with no gate on
 it** — if rules_jena bumps Jena, nothing here notices. Naming it is the only
 mitigation this RFC offers.
 
 ⚠ Pinning that install needs an ambient JDK, because Coursier runs as a
 repository rule outside Bazel's Java toolchain. That is issue #19 exactly, and
 why every install here is pinned. `bazel run --repo_env=JAVA_HOME=<jdk>
-@unpinned_gate_maven//:pin`.
+@unpinned_spec_gate_maven//:pin`.
 
 The real cost: `gate_cli` cannot reuse `Loader.loadDataset` and loads its own.
 The alternative — moving all 14 `java_library` targets to 5.2.0 — is the better
