@@ -992,14 +992,24 @@ runs where a bazel is not provisioned, which is most agent sessions.
    addressee, but a four-party empty envelope has four stewards and no obvious
    chair. Does the corpus need an explicit escalation order, and is that itself a
    scope-precedence claim?
-8. **Should the door coerce a form's strings?** #44 removed the coercion along
-   with the second door, so `bound_value` from a `FormPanel` is recorded as the
-   string `"70"` and the same op sent as JSON with `70` is a DIFFERENT proposal
-   with a different address. That is honest — the values genuinely differ — and it
-   is also a trap for anyone who submits the same change twice by two routes. If
-   coercion returns it belongs in the one door with the fixture pinning it; the
-   open question is whether a typed op vocabulary (each field carrying its own
-   type, checked at the door) is the better answer than a coercion table.
+8. ~~**Should the door coerce a form's strings?**~~ **Decided: it should not.**
+   `bound_value` from a `FormPanel` is recorded as the string `"70"`, and the same
+   op sent as JSON with `70` is a different proposal with a different address —
+   because they are different values, and a door that quietly made them one would
+   be deciding what an author meant. The cost is real and lands on the surfaces
+   rather than on the rule: **a console must show an author what they actually
+   composed**, or the same change submitted twice by two routes becomes two
+   proposals and only the log says so.
+
+   What this closes: the coercion table is not coming back, so there is no second
+   place for it to rot (it rotted once — the plugin's diverged from the console's
+   and nothing compared them). What it leaves open is the better version of the
+   question: whether the op vocabulary should carry a **type per field**, so that
+   `bound_value` is declared a number once and a form's `"70"` is parsed at the
+   door rather than coerced by a table. That would make "a wrong-typed field is a
+   rejection" the same rule as "an unknown field is a rejection" — which is
+   already how a typo'd `bound_vlaue` is caught — and it is a change to the
+   vocabulary, not to the door.
 9. **Does the address need a `drafted_by` or an idempotency key?** Two identical
    proposals from one author against one read point have the same address by
    construction, which is correct — content addressing means what it says, and

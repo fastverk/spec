@@ -35,6 +35,11 @@ sh_test(
     data = [
         "check_wiring.py",
         "emit_readmodel.py",
+        # ⛔ The console's PAYLOAD_FIELDS table — the mapping a CONSUMER's payloads
+        # are validated against (#52). Unstaged, the checker crashes rather than
+        # skipping, which is the loud half of the two failure modes this list's
+        # comment in //conformance describes. Keep it that way.
+        "//console:readmodel.ts",
         "//mocks/ux:panels.authoring-form.textproto",
         "//services/spec:src",
         "//services/spec/readmodel:payloads",

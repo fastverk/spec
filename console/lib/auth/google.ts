@@ -70,7 +70,7 @@ export function authorizeUrl(cfg: GoogleConfig, state: string, nonce: string): s
   return u.toString();
 }
 
-type IdClaims = {
+export type IdClaims = {
   sub?: unknown;
   email?: unknown;
   email_verified?: unknown;
@@ -125,6 +125,30 @@ export async function exchangeCode(
     return { ok: false, message: `The Google token did not verify: ${e instanceof Error ? e.message : e}` };
   }
 
+  return checkClaims(claims, cfg, nonce);
+}
+
+/**
+ * The tenant gate: everything the console decides about a verified Google token.
+ *
+ * ⛔ SEPARATE FROM `exchangeCode` SO IT CAN BE SHOWN TO REJECT. RFC-003 §10 has
+ * said, correctly, that `GOOGLE_ALLOWED_DOMAIN` is "proved to admit and not yet
+ * proved to reject" — the flow had been run end to end by an in-domain account
+ * and never once from outside. That gap survived because the rule sat inside a
+ * function that first talks to Google's token endpoint and its JWKS, so no test
+ * could reach it without the network and a real account at another domain.
+ *
+ * The signature check stays where it was; it is jose's job and not the rule
+ * under test. This is the rule, and `test/google.test.ts` runs every branch of
+ * it — including the one the module header names as the reason `hd` is checked
+ * at all.
+ *
+ * ⚠ Per-tenant by construction. `cfg.allowedDomain` comes from this deployment's
+ * environment, which is what makes "one console per consumer" (#52) an
+ * arrangement rather than a hope: a second tenant is a second deployment with a
+ * second value, and neither can see the other's log.
+ */
+export function checkClaims(claims: IdClaims, cfg: GoogleConfig, nonce: string): SignInResult {
   // Replay protection: the nonce we generated must come back inside the signed
   // token. Without it a token minted for one sign-in attempt can be presented at
   // another.

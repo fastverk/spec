@@ -15,6 +15,11 @@ is a place a rename can be forgotten:
      …and services/spec/ui/panels.binpb    the compiled bundle
   7. mocks/ux/panels.authoring-form.textproto  the declarative WRITE descriptors,
      whose submit bindings must name real fields and a real POST route
+  8. console/lib/readmodel.ts              the console's PAYLOAD_FIELDS table —
+     the one a CONSUMER's payloads are validated against (#52). It was the fourth
+     copy of the route -> field mapping and the only one nothing compared, which
+     mattered the moment a payload set could arrive from another repository:
+     drift here rejects a consumer's valid payloads, or accepts wrong ones.
 
 A mismatch between any two of them is invisible until a browser renders "no gateway
 route for spec.v1.Authoring/ListEnvelopes" or a table full of blank cells. None of
@@ -38,6 +43,7 @@ EMITTER = "tools/readmodel/emit_readmodel.py"
 READMODEL_DIR = "services/spec/readmodel"
 DESCRIBE_FRAGMENT = f"{READMODEL_DIR}/describe.web_routes.json"
 RS_READMODEL = "services/spec/src/readmodel.rs"
+TS_READMODEL = "console/lib/readmodel.ts"
 RS_HTTP = "services/spec/src/http.rs"
 RS_ROUTES = "services/spec/src/routes.rs"
 RS_MAIN = "services/spec/src/main.rs"
@@ -141,6 +147,28 @@ check(
     {p: rows for p, rows in rs_routes if p not in derived}
     == {p: rows for p, (rows, _) in emit_by_path.items()},
     f"{RS_READMODEL}: ROUTES {dict(rs_routes)} != emitter {{path: rows_field}} "
+    f"{ {p: rows for p, (rows, _) in emit_by_path.items()} }",
+)
+
+# ── 4a. the console's PAYLOAD_FIELDS table ────────────────────────────────────
+#
+# ⛔ The table a CONSUMER's payloads are validated against. Before #52 the console
+# read its own committed payloads and a mismatch here would have been caught by
+# the first blank table somebody looked at; now a per-tenant deployment ingests
+# payloads emitted somewhere else, and `ingest` REFUSES on the strength of this
+# mapping. A `frontier: "frontier"` here would reject every correct consumer
+# payload set with a message naming a field the emitter never writes.
+#
+# ⚠ Compared against the EMITTER, never against readmodel.rs. Two tables agreeing
+# with a third is checkable from either side; two agreeing with each other is a
+# coincidence nobody re-checks.
+ts_rm = read(TS_READMODEL)
+ts_block = re.search(r"export const PAYLOAD_FIELDS = \{(.*?)\} as const", ts_rm, re.S)
+check(ts_block is not None, f"{TS_READMODEL}: no PAYLOAD_FIELDS table found")
+ts_fields = dict(re.findall(r'(\w+):\s*"([a-z_]+)"', ts_block.group(1))) if ts_block else {}
+check(
+    ts_fields == {p: rows for p, (rows, _) in emit_by_path.items()},
+    f"{TS_READMODEL}: PAYLOAD_FIELDS {ts_fields} != emitter {{path: rows_field}} "
     f"{ {p: rows for p, (rows, _) in emit_by_path.items()} }",
 )
 
@@ -497,6 +525,6 @@ if failures:
     for f in failures:
         print(f"  * {f}", file=sys.stderr)
     sys.exit(1)
-print(f"OK — {checks} checks passed across 6 descriptions of the authoring plane")
+print(f"OK — {checks} checks passed across 7 descriptions of the authoring plane")
 print(f"     routes: {', '.join(sorted(emit_by_path))}")
 print(f"     panels: {', '.join(p[0] for p in panels)}")

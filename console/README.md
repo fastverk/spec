@@ -40,6 +40,8 @@ every pane rather than letting the buttons appear to work.
 | `SPEC_AGENT_SUBS` | CSV of subs treated as agents (`assertNS` at R0 only). A sub prefixed `agent:` is one regardless |
 | `SPEC_MACHINE_TOKEN_SECRET` | signs machine credentials for `POST /api/evaluation` — a consumer CI's way in, and its only one. `openssl rand -hex 32`, **never `SESSION_SECRET`**. Unset ⇒ every bearer token is refused |
 | `SPEC_MACHINE_TOKEN_REVOKED` | CSV of `jti`s to refuse — revokes one machine token by name |
+| `SPEC_READMODEL_DIR` | where THIS deployment's read model comes from. Unset ⇒ this repository's own corpus. A per-tenant console (see `docs/consumer-onboarding.md`) points it at payloads emitted from the consumer's corpus, which is never committed here |
+| `GOOGLE_ALLOWED_DOMAIN` | the one Workspace domain that may sign in. **Fails closed** — unset throws rather than admitting everybody |
 
 ## What you can do in it
 
@@ -122,6 +124,8 @@ lib/proposal.ts     the closed op vocabulary, 17 constructors
 lib/canonical.ts    canonical JSON — the pre-image of a content address
 lib/address.ts      the content address itself   ← conformance/address_cases.json
 lib/door.ts         THE ONE CALLSITE that appends a proposal (RFC-002 §4.1)
+lib/readmodel.ts    the ingest contract — what a payload set must satisfy
+lib/auth/google.ts  the tenant gate: `hd` AND the address, proved to REFUSE
 lib/corpus.ts       the imported read model, and CORPUS_VERSION
 lib/store.ts        Neon | local JSONL | read-only
 db/migrations/      the two append-only tables, and the door's two columns
