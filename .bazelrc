@@ -47,6 +47,12 @@ build:linux --linkopt=-Wl,--no-gc-sections
 # Linux only, and invisible until this repo had CI at all.
 build:linux --sandbox_add_mount_pair=/tmp
 build:linux --action_env=XDG_CACHE_HOME=/tmp/xdg-cache
+# ⚠ Named explicitly as well. CI caches /tmp/xdg-cache/Tectonic across runs
+# (ci.yml), and on 2026-08-20 two consecutive runs restored a 404-byte — empty —
+# cache after Tectonic had compiled all three documents, i.e. the bundle was
+# being written somewhere else and fetched from the CDN every run. Tectonic
+# honours TECTONIC_CACHE_DIR over the XDG lookup; this removes the guesswork.
+build:linux --action_env=TECTONIC_CACHE_DIR=/tmp/xdg-cache/Tectonic
 
 # crate_universe runs cargo inside a repository rule, so cargo's own git
 # transport is what fetches the private fastverk-plugin-crates deps. Telling it

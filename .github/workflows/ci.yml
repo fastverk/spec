@@ -195,6 +195,22 @@ jobs:
           done
           exit 1
 
+      # ⛔ A cache step that saves an EMPTY directory reports "Cache saved" just
+      # like a full one. Two consecutive runs on 2026-08-20 restored 404 bytes
+      # after Tectonic had compiled every document — the bundle was landing
+      # somewhere this path is not. Say where it is and how big, every run, so
+      # the cache's reality is in the log rather than assumed.
+      - name: where did the bundle land?
+        if: always()
+        run: |
+          for d in /tmp/xdg-cache/Tectonic "$HOME/.cache/Tectonic"; do
+            if [ -d "$d" ]; then
+              echo "$d: $(du -sh "$d" | cut -f1), $(find "$d" -type f | wc -l) files"
+            else
+              echo "$d: absent"
+            fi
+          done
+
       - name: save the tectonic bundle cache
         if: always()
         uses: actions/cache/save@v4
