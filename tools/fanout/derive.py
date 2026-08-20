@@ -159,7 +159,7 @@ def derive_order(cfg, bindings, lattice, live_parties, direct_holds, as_of):
     acceptance_seen = set()
     acceptance = []
     for row in bindings:
-        ev = row.get("evidence", "")
+        ev = runnable_check(row.get("evidence", ""))
         if ev and row["claim"] in closure_claims:
             key = (row["claim"], ev)
             if key in acceptance_seen:
@@ -188,6 +188,38 @@ def derive_order(cfg, bindings, lattice, live_parties, direct_holds, as_of):
             "max_probes": int(cfg.get("max_probes", 0)),
         },
     }
+
+
+def runnable_check(evidence):
+    """`rfc:evidence` as a DECIDABLE check, or nothing.
+
+    ⛔ Most evidence is prose. "//model:agronomy, climate provenance: DAYMET v4
+    1km, 1991-2020 NORMALS AT SITE" cites a target and then explains itself;
+    "//model:constraints_test fails the build if the model's DTC volume exceeds
+    this" is a sentence about a target. Putting either in `acceptance` would
+    hand an agent a string it cannot run under a field whose type is
+    DecidableCheck — a packet asserting that something is checkable because a
+    label appears somewhere in a sentence about it.
+
+    So: a bare label, optionally followed by a single test-name token. Anything
+    else stays in the corpus as evidence, where it is true, and out of the
+    acceptance list, where it would be a lie. A claim whose evidence is prose
+    contributes NO acceptance check, which is the honest answer to "what would
+    tell us this thread is done".
+    """
+    ev = (evidence or "").strip()
+    if not ev.startswith("//"):
+        return ""
+    parts = ev.split()
+    if len(parts) == 1:
+        return ev if ":" in parts[0] and not parts[0].endswith(",") else ""
+    if len(parts) == 2 and ":" in parts[0] and not parts[0].endswith(","):
+        # `//pkg:target test_name` — the form the first external consumer
+        # already uses in au:blocksWorkOrder.
+        name = parts[1]
+        if name.replace("_", "").isalnum():
+            return ev
+    return ""
 
 
 def glossary_for(order, glossary_rows):
