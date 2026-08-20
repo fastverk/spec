@@ -1,3 +1,4 @@
+load("@rules_python//python:defs.bzl", "py_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -45,5 +46,33 @@ sh_test(
         "//services/spec/readmodel:payloads",
         "//services/spec/ui:panels.binpb",
         "//services/spec/ui:panels.textproto",
+    ],
+)
+
+# ⛔ The corpus directory contains the corpus, and nothing else.
+#
+# The emitter decides what a corpus is by LISTING THE DIRECTORY; the gates decide
+# by reading an rdf_dataset's srcs. Those two descriptions had come apart for
+# corpus/ampere, and the console served a conflict reading ADJUDICATED that every
+# gate saw open — see the docstring, which carries the measurement.
+#
+# ⚠ `:all_ttl` is a glob on purpose. The strays this catches are by definition
+# files nobody listed, so a check assembled from lists could not see them.
+py_test(
+    name = "corpus_is_the_corpus_test",
+    size = "small",
+    srcs = ["corpus_is_the_corpus_test.py"],
+    args = [
+        "$(rootpaths //corpus/ampere:corpus_ttl)",
+        "$(rootpaths //corpus/studio:corpus_ttl)",
+        "--",
+        "$(rootpaths //corpus/ampere:all_ttl)",
+        "$(rootpaths //corpus/studio:all_ttl)",
+    ],
+    data = [
+        "//corpus/ampere:all_ttl",
+        "//corpus/ampere:corpus_ttl",
+        "//corpus/studio:all_ttl",
+        "//corpus/studio:corpus_ttl",
     ],
 )

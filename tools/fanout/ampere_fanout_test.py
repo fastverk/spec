@@ -137,7 +137,7 @@ class Inv03Resolved(unittest.TestCase):
 class UnrungedParty(unittest.TestCase):
     """The fail-open control: a claim with no au:rung still holds its order.
 
-    See corpus/ampere/fixtures-unrunged-party.ttl. When bindings.rq made
+    See corpus/ampere/fixtures/unrunged-party.ttl. When bindings.rq made
     au:rung mandatory, such a claim was in no closure and therefore in no
     live-conflict intersection, so an OPEN conflict stopped holding the order
     and it derived READY. Every gate stayed green; the committed test passed;

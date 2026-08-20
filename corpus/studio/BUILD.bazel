@@ -41,21 +41,29 @@ package(default_visibility = ["//visibility:public"])
 # it sat untyped — a document the SHACL suite could not see — and the
 # untyped-documents gate now exists so that cannot quietly happen again.
 
+# ⛔ ONE LIST, TWO READERS. The gates load this dataset; `//tools/readmodel:
+# corpus_is_the_corpus_test` compares it against `glob(["*.ttl"])` — everything
+# actually on disk — and fails if they differ. That comparison is the whole gate:
+# `tools/readmodel/emit_readmodel.py` decides what the corpus IS by listing the
+# directory, so a `.ttl` here that the dataset does not name is a file the console
+# serves and no gate ever ran over.
+STUDIO_CORPUS = [
+    "corpus.ttl",
+    "disciplines.ttl",
+    # The named holes, from tools/import/decompose.py. Separate file because
+    # it is a separate act: import captures, decomposition names what is
+    # missing, and the two are re-runnable independently.
+    "terms.ttl",
+    # Promoted proposals — what people decided in the console. Separate file
+    # again because it is a separate act with a separate author: the
+    # importer captures, decomposition names holes, and this is a person
+    # answering. tools/proposals/materialize.py regenerates it from the log.
+    "proposals.ttl",
+]
+
 rdf_dataset(
     name = "studio",
-    srcs = [
-        "corpus.ttl",
-        "disciplines.ttl",
-        # The named holes, from tools/import/decompose.py. Separate file because
-        # it is a separate act: import captures, decomposition names what is
-        # missing, and the two are re-runnable independently.
-        "terms.ttl",
-        # Promoted proposals — what people decided in the console. Separate file
-        # again because it is a separate act with a separate author: the
-        # importer captures, decomposition names holes, and this is a person
-        # answering. tools/proposals/materialize.py regenerates it from the log.
-        "proposals.ttl",
-    ],
+    srcs = STUDIO_CORPUS,
     in_format = "turtle",
     # //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the authoring gates
     # key on au: terms and pass VACUOUSLY without them, which is the same defect
@@ -98,6 +106,18 @@ sparql_query(
     dataset = ":studio",
     query = "//corpus/ampere:queries/frontier.rq",
     out_format = "tsv",
+)
+
+# What the gates say the corpus is…
+filegroup(
+    name = "corpus_ttl",
+    srcs = STUDIO_CORPUS,
+)
+
+# …and what is actually in the directory.
+filegroup(
+    name = "all_ttl",
+    srcs = glob(["*.ttl"]),
 )
 
 exports_files(glob(["*.ttl"]))
