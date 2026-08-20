@@ -39,6 +39,14 @@ _QUERIES = {
     "direct_holds": Label("//rdf/lint/authoring:dispatch-hold.rq"),
 }
 
+# ⛔ Label(), not the bare string. A plain "//tools/fanout:derive" inside a
+# macro resolves against the CONSUMER's repository, where that package does not
+# exist — the consumer sees `no such package 'tools/fanout'` and no hint that
+# the label was supposed to be spec's. Label() resolves in the repo this .bzl
+# is defined in, which is what every other label here already does. Caught by
+# //smoke/consumer, from the only position that can see it.
+_DERIVE = Label("//tools/fanout:derive")
+
 def spec_workorders(name, dataset, config, srcs, **kwargs):
     """Derive work orders from `dataset` per `config`, hashing `srcs` into as_of."""
     for key, query in _QUERIES.items():
@@ -61,7 +69,7 @@ def spec_workorders(name, dataset, config, srcs, **kwargs):
             config,
         ] + srcs,
         outs = [name + ".json"],
-        cmd = ("$(execpath //tools/fanout:derive) " +
+        cmd = ("$(execpath %s) " % _DERIVE +
                "--bindings $(execpath :%s_bindings) " % name +
                "--lattice $(execpath :%s_lattice) " % name +
                "--live-conflicts $(execpath :%s_live_conflicts) " % name +
@@ -70,5 +78,5 @@ def spec_workorders(name, dataset, config, srcs, **kwargs):
                "--config $(execpath %s) " % config +
                "--out $@ " +
                "--ttl " + " ".join(["$(execpaths %s)" % s for s in srcs])),
-        tools = ["//tools/fanout:derive"],
+        tools = [_DERIVE],
     )
