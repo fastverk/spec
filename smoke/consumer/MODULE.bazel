@@ -44,4 +44,17 @@ bazel_dep(name = "rules_rdf", version = "0.3.0")
 # building without this line. A consumer writing its own python tests declares
 # rules_python the way any module declares what it loads by name.
 bazel_dep(name = "rules_python", version = "1.7.0")
+
+# ⚠ AND its own interpreter, at the SAME version spec requests. This is the
+# collision case a consumer actually hits: spec's non-dev `python.toolchain`
+# (for the fanout assembler) and the consumer's own both ask the shared
+# rules_python extension for 3.12. `is_default` from a non-root module is
+# ignored — the root module's choice wins — but "ignored" is a claim about
+# rules_python's behaviour, and this is where it gets tested rather than
+# believed. The first external corpus does exactly this.
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
 bazel_dep(name = "rules_jena", version = "0.3.2")
