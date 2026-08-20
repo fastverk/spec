@@ -347,6 +347,8 @@
     "https://registry.tbzl.dev/modules/rules_swift/2.1.1/MODULE.bazel": "not found",
     "https://registry.tbzl.dev/modules/rules_swift/2.4.0/MODULE.bazel": "not found",
     "https://registry.tbzl.dev/modules/rules_swift/3.1.2/MODULE.bazel": "not found",
+    "https://registry.tbzl.dev/modules/spec/0.8.2/MODULE.bazel": "8b426c0bb34dc42a49771ede0464486ad894bc20e1ac452d26196103bc51a9da",
+    "https://registry.tbzl.dev/modules/spec/0.8.2/source.json": "dc3fc42d256c9baddc4564f4fb2ccc68af8c1850c28d4d3852b985f1c6ff9ba5",
     "https://registry.tbzl.dev/modules/stardoc/0.5.1/MODULE.bazel": "not found",
     "https://registry.tbzl.dev/modules/stardoc/0.5.3/MODULE.bazel": "not found",
     "https://registry.tbzl.dev/modules/stardoc/0.7.0/MODULE.bazel": "not found",
