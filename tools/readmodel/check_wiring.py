@@ -208,6 +208,9 @@ check(
         # A measurement, like SubmitEvaluation: the platform meters the spend
         # and reports it; spec keeps the account (#46).
         "ReportSpend",
+        # And the release valve: without it a dispatched order with no budget
+        # could never end, so its scope stayed claimed against every sibling.
+        "CloseWorkOrder",
     },
     f"{RS_ROUTES}: AUTHORING_WRITES is {declared_writes}",
 )

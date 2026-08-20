@@ -109,25 +109,39 @@ def derive_order(cfg, bindings, lattice, live_parties, direct_holds, as_of):
         if row["scope"] not in scopes:
             continue
         closure_claims.add(row["claim"])
-        rung = local(row["rung"])
+        # A claim with no au:rung is in the closure and BINDS NOTHING. Empty
+        # rather than defaulted: "R0" would be a rung nobody recorded, and
+        # inventing one is how a non-binding claim becomes citable evidence.
+        rung = local(row["rung"]) if row.get("rung") else ""
         obligations.append({
             "claim": row["claim"],
             "rung": rung,
             "binding": rung in BINDING_RUNGS,
             "discipline": row.get("discipline", ""),
-            "stalled_on": "" if rung in BINDING_RUNGS else row.get("stalledOn", ""),
+            "stalled_on": (
+                "" if rung in BINDING_RUNGS
+                else (row.get("stalledOn")
+                      or ("no au:rung recorded — the claim binds nothing and names no blocker"
+                          if not rung else ""))
+            ),
         })
-    # Binding first, then IRI — the packet reads obligations before context.
-    obligations.sort(key=lambda o: (not o["binding"], o["claim"]))
-    # One claim can appear via one scope only (au:scopedBy is one per claim),
-    # but OPTIONAL evidence/stall multiplies rows; dedupe on claim.
-    seen, deduped = set(), []
+    # ⚠ Dedupe BEFORE sorting, and choose deterministically. OPTIONAL evidence
+    # and stall multiply one claim into several rows that differ only in which
+    # optional fields are bound, so "keep the first" made the packet's
+    # discipline and stall depend on ARQ's row order — a field that could
+    # change between engine versions with nothing to notice. Keep the most
+    # informative row instead: more bound fields wins, ties broken on the
+    # values themselves.
+    by_claim = {}
     for o in obligations:
-        if o["claim"] in seen:
-            continue
-        seen.add(o["claim"])
-        deduped.append(o)
-    obligations = deduped
+        prior = by_claim.get(o["claim"])
+        rank = (bool(o["discipline"]), bool(o["stalled_on"]),
+                o["discipline"], o["stalled_on"])
+        if prior is None or rank > prior[0]:
+            by_claim[o["claim"]] = (rank, o)
+    # Binding first, then IRI — the packet reads obligations before context.
+    obligations = sorted((o for _, o in by_claim.values()),
+                         key=lambda o: (not o["binding"], o["claim"]))
 
     holds = set()
     for row in live_parties:
@@ -138,10 +152,19 @@ def derive_order(cfg, bindings, lattice, live_parties, direct_holds, as_of):
             holds.add(row["conflict"])
     conflict_holds = sorted(holds)
 
+    # ⚠ From a SET, not from the rows: OPTIONAL evidence/stall multiply a claim
+    # into several rows, and collecting acceptance per row emitted the same
+    # check once per multiplied row — a packet whose acceptance list grew with
+    # the corpus's optional metadata rather than with its checks.
+    acceptance_seen = set()
     acceptance = []
     for row in bindings:
         ev = row.get("evidence", "")
         if ev and row["claim"] in closure_claims:
+            key = (row["claim"], ev)
+            if key in acceptance_seen:
+                continue
+            acceptance_seen.add(key)
             acceptance.append({"check": ev, "source": row["claim"]})
     for check in cfg.get("acceptance", []):
         acceptance.append({"check": check, "source": "config"})
@@ -234,12 +257,30 @@ def main():
     direct_holds = read_tsv(a.direct_holds)
     glossary_rows = read_tsv(a.glossary)
 
+    # Every scope the config names must EXIST in the corpus. A one-character
+    # typo — or the wrong IRI base, which is what the first external consumer
+    # actually hit — otherwise derives a fully-formed order with an empty
+    # closure and no holds, which reads as READY and dispatchable. A packet
+    # that authorizes writes against zero obligations is the worst possible
+    # thing to produce silently, so this is a hard failure and not a warning.
+    known_scopes = {row["scope"] for row in bindings}
+    known_scopes.update(row["broader"] for row in lattice)
+    known_scopes.update(row["narrower"] for row in lattice)
+
     orders = []
     ids = set()
     for cfg in config["orders"]:
         if cfg["order_id"] in ids:
             sys.exit("derive: duplicate order_id %s" % cfg["order_id"])
         ids.add(cfg["order_id"])
+        if cfg["scope"] not in known_scopes:
+            sys.exit(
+                "derive: order %s names scope %s, which no claim carries and no\n"
+                "        au:precedes edge mentions. Deriving it would produce an\n"
+                "        order with an empty closure that reads as READY.\n"
+                "        Scopes this corpus knows:\n          %s"
+                % (cfg["order_id"], cfg["scope"],
+                   "\n          ".join(sorted(known_scopes)) or "(none)"))
         order = derive_order(cfg, bindings, lattice, live_parties,
                              direct_holds, as_of)
         order["glossary"] = glossary_for(order, glossary_rows)

@@ -82,6 +82,10 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // platform metered. It rides the dispatch log because spend is only
     // meaningful against the thread that was authorized.
     ("ReportSpend", "POST", "workorder/spend"),
+    // Ending a thread. Without it a dispatched order with no budget could
+    // never be released — nothing else writes a terminal event — so its scope
+    // and paths stayed claimed forever and no sibling could ever dispatch.
+    ("CloseWorkOrder", "POST", "workorder/close"),
 ];
 
 /// The full `web_routes` array for `/describe`.

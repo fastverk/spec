@@ -18,6 +18,23 @@ spec:
         # Shared source tree: the git-sync sidecar writes it, the plugin reads it.
         - name: estate
           emptyDir: {}
+        {{- if .Values.fanout.enabled }}
+        # ⛔ The dispatch log, and it MUST outlive the pod. It is the only
+        # record of which orders are running: lose it and every live order
+        # reads as never dispatched, so the door hands its scope and paths to
+        # a SECOND set of agents while the first is still writing. The service
+        # refuses to serve a log it cannot READ, but it cannot detect one that
+        # came back empty — an emptyDir is indistinguishable from a fresh
+        # install.
+        #
+        # An explicit claim name is therefore required rather than defaulted:
+        # the chart will not silently give this an emptyDir, because the
+        # failure is silent and its consequence is two agent fleets writing
+        # one tree.
+        - name: dispatches
+          persistentVolumeClaim:
+            claimName: {{ required "fanout.enabled requires fanout.persistentVolumeClaim — the dispatch log must survive a restart, and an emptyDir here silently frees every running order's scope" .Values.fanout.persistentVolumeClaim | quote }}
+        {{- end }}
       containers:
         {{- if .Values.gate.enabled }}
         # The gate plane — the SPARQL suite over the corpus, held warm.
@@ -141,6 +158,10 @@ spec:
             - name: estate
               mountPath: {{ .Values.sourceSync.mountPath }}
               readOnly: true
+            {{- if .Values.fanout.enabled }}
+            - name: dispatches
+              mountPath: {{ .Values.fanout.dispatchLog | dir | quote }}
+            {{- end }}
           readinessProbe:
             httpGet: {path: /healthz, port: http}
             initialDelaySeconds: 3

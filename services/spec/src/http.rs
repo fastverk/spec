@@ -78,6 +78,23 @@ pub struct HttpState {
     /// door, for the reason the test harness gives: these tests share one
     /// process and `set_var` races.
     pub agents_enabled: bool,
+    /// Serializes read-check-append on the dispatch log.
+    ///
+    /// ⛔ The gate's decision is made from a SNAPSHOT of the log and then
+    /// written back to it. Without this, two dispatches arriving together both
+    /// read "nothing running", both pass the overlap check, and both append —
+    /// authorizing two agent sets against one path tree, which is the exact
+    /// cross-scope write P7's exit bar forbids and the one thing this door
+    /// exists to prevent. `ProposalLog::append` locks its own write, which
+    /// makes the WRITE atomic and the DECISION not.
+    ///
+    /// ⚠ Per-process. Two replicas of this service behind one log still race,
+    /// and nothing here would notice. That is a real limit, stated rather than
+    /// papered over: spec is deployed as a single replica today (see the
+    /// chart), and the durable fix is arbitration in the log itself — an
+    /// append-and-verify, or a lease of the kind the platform's fanout
+    /// scheduler already takes per package.
+    pub dispatch_gate: Arc<std::sync::Mutex<()>>,
     pub panels: Option<Arc<Vec<u8>>>,
 }
 
@@ -131,6 +148,7 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/workorders", get(list_work_orders))
         .route("/workorder/dispatch", post(dispatch_work_order))
         .route("/workorder/spend", post(report_spend))
+        .route("/workorder/close", post(close_work_order))
         .route("/ledger", get(list_ledger))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
@@ -392,7 +410,17 @@ async fn list_work_orders(State(s): State<HttpState>) -> ApiResult {
     let dispatches = s.dispatches.clone();
     run(move || {
         let mut payload = rm.route("workorders");
-        let running = Running::read(dispatches.path());
+        // A read may not fabricate. An unreadable log means the STATE column is
+        // unknown, not READY — so the rows are returned with the derivation's
+        // own state and the failure is named beside them, the same shape the
+        // read model already uses for a missing payload.
+        let running = match Running::read(dispatches.path()) {
+            Ok(r) => r,
+            Err(why) => {
+                payload["dispatch_log_unreadable"] = json!(why);
+                return payload;
+            }
+        };
         if let Some(rows) = payload.get_mut("orders").and_then(Value::as_array_mut) {
             for row in rows.iter_mut() {
                 let Some(id) = row.get("order_id").and_then(Value::as_str).map(str::to_string)
@@ -484,7 +512,24 @@ async fn dispatch_work_order(
 
     let payload = s.readmodel.route("workorders");
     let orders = workorder::orders(&payload);
-    let running = Running::read(s.dispatches.path());
+
+    // ⛔ Everything from here to the append is one critical section — see
+    // `HttpState::dispatch_gate`. No `.await` inside it; every call is
+    // synchronous by construction, and adding one would deadlock this rather
+    // than silently reopening the race.
+    let _gate = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(r) => r,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "E_LOG_UNREADABLE", "message": why })),
+            )
+        }
+    };
     let verdict = workorder::check(&order_id, &orders, &running);
     if !verdict.is_dispatched() {
         // 409: the request is well-formed and the state refuses it. Not 422 —
@@ -559,7 +604,21 @@ async fn report_spend(
     }
     let payload = s.readmodel.route("workorders");
     let orders = workorder::orders(&payload);
-    let running = Running::read(s.dispatches.path());
+    // Same critical section as dispatch, for the same reason: the stop decision
+    // is read from the log and written back to it.
+    let _gate = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(r) => r,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "E_LOG_UNREADABLE", "message": why })),
+            )
+        }
+    };
     let spend = match workorder::check_spend(&body, &orders, &running) {
         Ok(sp) => sp,
         Err(why) => {
@@ -576,14 +635,23 @@ async fn report_spend(
         );
     }
     let order = &orders[&spend.order_id];
-    let exhausted = spend.exhausts(order) && running.is_running(&spend.order_id);
+    // ⚠ The HIGH-WATER mark, not the submitted number. A stale report carrying
+    // a lower total is recorded and then ignored by the replay, so answering
+    // with the submitted figure would tell the caller a remaining balance the
+    // ledger does not agree with — and the caller is usually a machine that
+    // will act on it.
+    let (recorded, _) = running.spent(&spend.order_id);
+    let effective = recorded.max(spend.tokens);
+    let exhausted = order.budget_tokens > 0
+        && effective >= order.budget_tokens
+        && running.is_running(&spend.order_id);
     if exhausted {
         // The stop, as an event with a cause. Appended AFTER the spend, so a
         // reader replaying the log sees the number that caused it first.
         let stop = workorder::stop_record(
             &spend.order_id,
             workorder::STOP_BUDGET_EXHAUSTED,
-            spend.tokens,
+            effective,
             &who.email,
         );
         if let Err(why) = s.dispatches.append(&stop) {
@@ -594,7 +662,7 @@ async fn report_spend(
         }
     }
     let remaining = if order.budget_tokens > 0 {
-        (order.budget_tokens - spend.tokens).max(0)
+        (order.budget_tokens - effective).max(0)
     } else {
         0
     };
@@ -602,13 +670,96 @@ async fn report_spend(
         StatusCode::ACCEPTED,
         Json(json!({
             "order_id": spend.order_id,
-            "spent_tokens": spend.tokens,
+            "spent_tokens": effective,
+            // What was submitted, when it differs — so a caller sending a stale
+            // snapshot learns that it was, rather than silently disagreeing
+            // with the ledger forever.
+            "reported_tokens": spend.tokens,
             "budget_tokens": order.budget_tokens,
             "remaining_tokens": remaining,
             "stopped": exhausted,
             "stop_cause": if exhausted { workorder::STOP_BUDGET_EXHAUSTED } else { "" },
         })),
     )
+}
+
+/// `POST /workorder/close` — end a running thread, with a cause.
+///
+/// The release valve the enum implied and nothing provided: before this, only a
+/// budget crossing wrote a terminal event, so a dispatched order with no
+/// ceiling stayed RUNNING forever and its scope and paths stayed claimed
+/// against every sibling.
+async fn close_work_order(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    // Ending a thread frees its paths for the next dispatch, so it is the same
+    // authority as starting one.
+    if who.agent {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "E_AGENT_MAY_NOT_CLOSE",
+                "message": "an agent may not close its own work order — closing frees the \
+                            paths for the next dispatch, which is the authority that \
+                            started it",
+            })),
+        );
+    }
+    if !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_DISPATCH_LOG is unset; this instance records no dispatches",
+            })),
+        );
+    }
+    let payload = s.readmodel.route("workorders");
+    let orders = workorder::orders(&payload);
+    let _gate = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(poisoned) => poisoned.into_inner(),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(r) => r,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({ "error": "E_LOG_UNREADABLE", "message": why })),
+            )
+        }
+    };
+    let (order_id, cause) = match workorder::check_close(&body, &orders, &running) {
+        Ok(c) => c,
+        Err(why) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({ "error": "E_MALFORMED_CLOSE", "message": why })),
+            )
+        }
+    };
+    let (spent, _) = running.spent(&order_id);
+    let rec = workorder::stop_record(&order_id, cause, spent, &who.email);
+    match s.dispatches.append(&rec) {
+        Ok(offset) => (
+            StatusCode::ACCEPTED,
+            Json(json!({
+                "order_id": order_id,
+                "stop_cause": cause,
+                "spent_tokens": spent,
+                "log_offset": offset,
+            })),
+        ),
+        Err(why) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        ),
+    }
 }
 
 /// `GET /ledger` — where the tokens went, per thread and per discipline.
@@ -622,7 +773,21 @@ async fn list_ledger(State(s): State<HttpState>) -> ApiResult {
     run(move || {
         let payload = rm.route("workorders");
         let orders = workorder::orders(&payload);
-        let running = Running::read(dispatches.path());
+        let running = match Running::read(dispatches.path()) {
+            Ok(r) => r,
+            Err(why) => {
+                return json!({
+                    "ledger": [],
+                    "by_discipline": [],
+                    "records": 0,
+                    "write_enabled": dispatches.enabled(),
+                    // Zero rows with no explanation reads as "nothing was
+                    // spent". This is the difference between an empty ledger
+                    // and an unreadable one.
+                    "dispatch_log_unreadable": why,
+                })
+            }
+        };
         let rows = workorder::ledger(&orders, &running);
         let by_discipline = workorder::ledger_by_discipline(&rows);
         json!({
@@ -988,6 +1153,7 @@ mod tests {
                 evaluations,
                 dispatches,
                 agents_enabled,
+                dispatch_gate: Arc::new(std::sync::Mutex::new(())),
                 panels: None,
             },
             None,
@@ -1531,6 +1697,107 @@ mod tests {
         assert_eq!(rows.len(), 2, "a row per derived order, spend zero");
         assert!(rows.iter().all(|r| r["spent_tokens"] == 0));
         assert_eq!(ledger["write_enabled"], json!(false));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+
+    async fn close(addr: &str, sub: &str, body: Value) -> (u16, Value) {
+        let payload = body.to_string();
+        let hdr = format!("x-fastverk-user-sub: {sub}\r\nx-fastverk-user-email: d.okafor@example.com\r\n");
+        let (status, raw) = request(
+            addr,
+            "POST",
+            "/workorder/close",
+            Some((hdr.as_str(), payload.as_str())),
+        )
+        .await;
+        (status, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+
+    #[tokio::test]
+    async fn an_unbudgeted_thread_can_be_ended_and_frees_its_scope() {
+        // Before the close route existed, only a budget crossing wrote a
+        // terminal event — so this order, which has no ceiling, would have
+        // stayed RUNNING forever with its paths claimed against every sibling.
+        let dir = workorders_fixture("close");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+
+        let (status, _) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 202);
+
+        let (status, body) =
+            close(&addr, "google:d.okafor", json!({"order_id": "wo-ready", "cause": "completed"})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["stop_cause"], "STOP_CAUSE_COMPLETED");
+
+        // Ended, and re-dispatchable — the scope is free again.
+        let listed = get_json(&addr, "/workorders").await;
+        let row = listed["orders"].as_array().unwrap().iter()
+            .find(|r| r["order_id"] == "wo-ready").unwrap().clone();
+        assert_ne!(row["state_code"], "WORK_ORDER_STATE_RUNNING");
+        let (status, _) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 202, "a closed order dispatches again");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_person_may_not_label_a_close_as_budget_exhaustion() {
+        let dir = workorders_fixture("closecause");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        let (status, body) = close(
+            &addr, "google:d.okafor",
+            json!({"order_id": "wo-ready", "cause": "STOP_CAUSE_BUDGET_EXHAUSTED"}),
+        ).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["message"].as_str().unwrap().contains("spend door"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn closing_something_that_is_not_running_is_refused() {
+        let dir = workorders_fixture("closenotrunning");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let (status, body) =
+            close(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["message"].as_str().unwrap().contains("not running"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_agent_may_not_close() {
+        let dir = workorders_fixture("closeagent");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        let (status, body) = close(&addr, "agent:a-7714", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 403, "{body}");
+        assert_eq!(body["error"], "E_AGENT_MAY_NOT_CLOSE");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_unreadable_dispatch_log_refuses_rather_than_freeing_every_scope() {
+        // The fail-closed rule at the route: an unreadable log must not read as
+        // "nothing is running", which would hand a live order's paths to a
+        // second set of agents.
+        let dir = workorders_fixture("unreadable");
+        let as_dir = dir.join("dispatch.jsonl");
+        std::fs::create_dir_all(&as_dir).unwrap();
+        let addr = serve_dispatching(dir.to_str().unwrap(), as_dir.to_str()).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 503, "{body}");
+        assert_eq!(body["error"], "E_LOG_UNREADABLE");
+        // And the read routes say so rather than showing everything READY.
+        let listed = get_json(&addr, "/workorders").await;
+        assert!(listed["dispatch_log_unreadable"].is_string());
+        let ledger = get_json(&addr, "/ledger").await;
+        assert!(ledger["dispatch_log_unreadable"].is_string());
+        assert_eq!(ledger["ledger"].as_array().unwrap().len(), 0);
         std::fs::remove_dir_all(&dir).ok();
     }
 

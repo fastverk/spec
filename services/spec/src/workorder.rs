@@ -163,11 +163,32 @@ pub struct Running {
 }
 
 impl Running {
-    pub fn read(path: Option<&Path>) -> Self {
+    /// Replay the dispatch log.
+    ///
+    /// ⛔ FAILS CLOSED. `Err` is NOT an empty log: an unreadable file (permissions,
+    /// a half-mounted volume, a truncated read) returning "nothing is running"
+    /// makes every live order look never-dispatched, so its scope and paths are
+    /// free and the door hands them to a SECOND set of agents while the first is
+    /// still writing. An absent path is a different fact — the write path is
+    /// disabled, nothing was ever dispatched — and stays empty.
+    pub fn read(path: Option<&Path>) -> Result<Self, String> {
         let mut out = Self::default();
-        let Some(path) = path else { return out };
-        let Ok(body) = std::fs::read_to_string(path) else {
-            return out;
+        let Some(path) = path else { return Ok(out) };
+        let body = match std::fs::read_to_string(path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // Not yet created: the log is enabled and nothing has been
+                // written. That IS an empty log.
+                return Ok(out);
+            }
+            Err(e) => {
+                return Err(format!(
+                    "dispatch log at {} could not be read ({e}) — refusing rather than \
+                     reporting an empty running set, which would free every live order's \
+                     scope",
+                    path.display()
+                ))
+            }
         };
         for line in body.lines().filter(|l| !l.trim().is_empty()) {
             let Ok(rec) = serde_json::from_str::<Value>(line) else {
@@ -209,7 +230,7 @@ impl Running {
                 }
             }
         }
-        out
+        Ok(out)
     }
 
     pub fn is_running(&self, order_id: &str) -> bool {
@@ -253,6 +274,52 @@ impl Running {
             || self.spend.contains_key(order_id)
             || self.stops.contains_key(order_id)
     }
+}
+
+/// A close, checked. The counterpart of dispatch: a thread ends because its
+/// acceptance checks passed or because a person stopped it, and either way the
+/// ending is an EVENT with a cause rather than the absence of one.
+///
+/// ⛔ Budget exhaustion is NOT closable here. That cause is written by the
+/// spend door at the moment it can see the crossing, and letting a caller
+/// assert it would let anyone retroactively label a thread they stopped for
+/// another reason as having run out of money.
+pub fn check_close(
+    body: &Value,
+    orders: &HashMap<String, Order>,
+    running: &Running,
+) -> Result<(String, &'static str), String> {
+    let obj = body.as_object().ok_or("body is not a JSON object")?;
+    let order_id = obj
+        .get("order_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if order_id.is_empty() {
+        return Err("`order_id` is required — a close ends one thread".into());
+    }
+    if !orders.contains_key(&order_id) {
+        return Err(format!("no work order `{order_id}` at this cursor"));
+    }
+    if !running.is_running(&order_id) {
+        return Err(format!(
+            "`{order_id}` is not running — there is no thread to end. Closing a stopped \
+             order would write a second terminal event over the first"
+        ));
+    }
+    let cause = match obj.get("cause").and_then(Value::as_str).unwrap_or("").trim() {
+        "" | "completed" | "COMPLETED" | STOP_COMPLETED => STOP_COMPLETED,
+        "withdrawn" | "WITHDRAWN" | STOP_WITHDRAWN => STOP_WITHDRAWN,
+        other => {
+            return Err(format!(
+                "`{other}` is not a cause a person may record — completed (the acceptance \
+                 checks passed) or withdrawn (someone stopped it). Budget exhaustion is \
+                 written by the spend door at the moment it sees the crossing"
+            ))
+        }
+    };
+    Ok((order_id, cause))
 }
 
 /// A spend report, checked. `crate::evaluation`'s posture applies verbatim:
@@ -532,15 +599,37 @@ fn paths_overlap(a: &str, b: &str) -> bool {
     pa.starts_with(&pb) || pb.starts_with(&pa)
 }
 
+/// The literal prefix of a pattern, NORMALIZED.
+///
+/// ⛔ Normalization is not tidiness here, it is the difference between failing
+/// open and failing closed. `src/thermal/**` and `./src/thermal/**` and
+/// `/src/thermal/**` and `src/bid/../thermal/**` all name the same files, and a
+/// raw string comparison calls the last three disjoint from the first — so two
+/// orders would both be authorized to write one tree, which is precisely the
+/// cross-scope write P7's exit bar forbids. `..` is resolved rather than
+/// rejected because a config is written by a person, and a person who writes
+/// `src/bid/../thermal` means `src/thermal`.
 fn wildcard_prefix(pattern: &str) -> String {
-    let mut out = String::new();
+    let mut parts: Vec<&str> = Vec::new();
     for seg in pattern.split('/') {
         if seg.contains('*') || seg.contains('?') || seg.contains('[') {
             break;
         }
-        out.push_str(seg);
-        out.push('/');
+        match seg {
+            // A leading empty segment is an absolute path; an interior one is a
+            // doubled slash. Both mean "nothing here".
+            "" | "." => continue,
+            ".." => {
+                // Above the root is still the root: a pattern that escapes the
+                // repo claims everything under it, which is the conservative
+                // reading and the one that refuses rather than authorizes.
+                parts.pop();
+            }
+            other => parts.push(other),
+        }
     }
+    let mut out = parts.join("/");
+    out.push('/');
     out
 }
 
@@ -639,7 +728,7 @@ mod tests {
             .collect::<Vec<_>>()
             .join("");
         std::fs::write(&path, body).unwrap();
-        let running = Running::read(Some(&path));
+        let running = Running::read(Some(&path)).expect("fixture log is readable");
         std::fs::remove_dir_all(&dir).ok();
         running
     }
@@ -780,10 +869,45 @@ mod tests {
             "{\"order_id\":\"wo-042\",\"agents\":2}\nnot json\n{\"order_id\":\"wo-046\",\"agents\":1}\n",
         )
         .unwrap();
-        let r = Running::read(Some(&path));
+        let r = Running::read(Some(&path)).unwrap();
         assert_eq!(r.ids(), vec!["wo-042", "wo-046"]);
         assert_eq!(r.records, 2);
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_absent_log_is_empty_but_an_unreadable_one_is_an_error() {
+        // The distinction the whole fail-closed rule rests on: "the log does
+        // not exist yet" is an empty running set; "the log cannot be read" is
+        // NOT, because reporting empty frees every live order's scope.
+        let dir = std::env::temp_dir().join(format!("wo-unreadable-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(Running::read(None).unwrap().ids().is_empty());
+        let missing = dir.join("never-written.jsonl");
+        assert!(Running::read(Some(&missing)).unwrap().ids().is_empty());
+        // A directory where a file should be: readable metadata, unreadable
+        // contents — the closest portable stand-in for a broken mount.
+        let as_dir = dir.join("adirectory.jsonl");
+        std::fs::create_dir_all(&as_dir).unwrap();
+        let err = Running::read(Some(&as_dir)).unwrap_err();
+        assert!(err.contains("could not be read"), "{err}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn path_normalization_closes_the_aliasing_hole() {
+        // Every one of these names the same tree. A raw string comparison
+        // called them disjoint, which authorized two orders to write it.
+        for alias in ["./src/thermal/**", "/src/thermal/**", "src//thermal/**",
+                      "src/bid/../thermal/**"] {
+            assert!(
+                paths_overlap("src/thermal/**", alias),
+                "{alias} must overlap src/thermal/**"
+            );
+        }
+        // And normalization must not invent overlaps between real siblings.
+        assert!(!paths_overlap("src/thermal/**", "./src/bid/**"));
+        assert!(!paths_overlap("/src/itc/**", "src/bid/**"));
     }
 
     #[test]

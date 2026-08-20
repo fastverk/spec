@@ -189,3 +189,10 @@ gate:
 fanout:
   enabled: false
   dispatchLog: /var/lib/spec/dispatches.jsonl
+  # ⛔ REQUIRED when enabled, and deliberately without a default. The directory
+  # holding dispatchLog is mounted from this claim; an emptyDir would be
+  # indistinguishable from a fresh install after a restart, and the service
+  # cannot tell "nothing has been dispatched" from "the record of what was
+  # dispatched is gone". The first reads as free scopes and dispatches a second
+  # fleet against paths a live one is writing.
+  persistentVolumeClaim: ""

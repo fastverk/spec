@@ -255,6 +255,7 @@
             "disjoint_from": [
               "https://ampere.example/corpus#q-cap-contracted",
               "https://ampere.example/corpus#q-cap-insured",
+              "https://ampere.example/corpus#q-cap-nameplate",
               "https://ampere.example/corpus#q-cap-permitted"
             ],
             "quantity": "https://ampere.example/corpus#q-cap-accredited"

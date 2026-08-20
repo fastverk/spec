@@ -134,5 +134,74 @@ class Inv03Resolved(unittest.TestCase):
                             self.resolved["wo-042"]["order"]["as_of"])
 
 
+class UnrungedParty(unittest.TestCase):
+    """The fail-open control: a claim with no au:rung still holds its order.
+
+    See corpus/ampere/fixtures-unrunged-party.ttl. When bindings.rq made
+    au:rung mandatory, such a claim was in no closure and therefore in no
+    live-conflict intersection, so an OPEN conflict stopped holding the order
+    and it derived READY. Every gate stayed green; the committed test passed;
+    the dispatch gate failed open. This is the assertion that fails if the
+    rung ever becomes mandatory again.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = by_id(load("workorders"))
+        cls.with_unrunged = by_id(load("workorders_unrunged"))
+
+    def test_the_unrunged_claim_is_in_the_closure(self):
+        before = {ob["claim"] for ob in self.base["wo-042"]["order"]["obligations"]}
+        after = {ob["claim"] for ob in self.with_unrunged["wo-042"]["order"]["obligations"]}
+        self.assertEqual(after - before, {AMP + "mkt-quiet-hours"})
+
+    def test_it_binds_nothing_because_it_has_no_rung(self):
+        ob = next(o for o in self.with_unrunged["wo-042"]["order"]["obligations"]
+                  if o["claim"] == AMP + "mkt-quiet-hours")
+        self.assertEqual(ob["rung"], "")
+        self.assertFalse(ob["binding"])
+        # And it says why, rather than arriving as an unnamed stall.
+        self.assertIn("no au:rung", ob["stalled_on"])
+
+    def test_and_its_open_conflict_holds_the_order(self):
+        # THE POINT. INV-05 is open and wo-042 does not otherwise touch it.
+        self.assertNotIn(AMP + "INV-05", self.base["wo-042"]["order"]["conflict_holds"])
+        self.assertIn(AMP + "INV-05", self.with_unrunged["wo-042"]["order"]["conflict_holds"])
+        self.assertEqual(self.with_unrunged["wo-042"]["state_code"],
+                         "WORK_ORDER_STATE_HELD")
+
+
+class Glossary(unittest.TestCase):
+    """au:disjointQuantity is symmetric, and the packet must carry both ends.
+
+    rdf_dataset concatenates files and runs no entailment, so matching only the
+    asserted direction handed the lexically-later member of every registered
+    pair an EMPTY disjoint set — silently merging, in the agent's view, exactly
+    the two quantities an author had registered as different.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.orders = by_id(load("workorders"))
+
+    def test_disjointness_is_reported_from_both_ends(self):
+        pairs = set()
+        for o in self.orders.values():
+            for entry in o["order"]["glossary"]:
+                for d in entry["disjoint_from"]:
+                    pairs.add((entry["quantity"], d))
+        self.assertTrue(pairs, "no disjointness registered at all")
+        # Every edge present in one direction must be present in the other
+        # WHEREVER both quantities appear in the same packet.
+        for o in self.orders.values():
+            quantities = {e["quantity"]: set(e["disjoint_from"])
+                          for e in o["order"]["glossary"]}
+            for q, ds in quantities.items():
+                for d in ds:
+                    if d in quantities:
+                        self.assertIn(q, quantities[d],
+                                      "%s lists %s but not the reverse" % (q, d))
+
+
 if __name__ == "__main__":
     unittest.main()

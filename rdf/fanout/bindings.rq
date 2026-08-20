@@ -10,7 +10,19 @@ PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
 
 SELECT ?scope ?claim ?rung ?discipline ?stalledOn ?evidence
 WHERE {
-  ?claim a rfc:NormativeStatement ; au:scopedBy ?scope ; au:rung ?rung .
+  ?claim a rfc:NormativeStatement ; au:scopedBy ?scope .
+  # ⛔ OPTIONAL, and this is load-bearing. au:rung is what decides BINDING; it is
+  # irrelevant to whether a claim is in the closure — and nothing requires it:
+  # shapes.ttl mandates only rfc:modality and rfc:predicate, and every branch of
+  # ladder-integrity.rq opens with `?claim au:rung ?rung`, so a claim with no
+  # rung is invisible to that gate too. Making it mandatory here dropped such a
+  # claim out of the closure, and with it out of the LIVE-CONFLICT INTERSECTION,
+  # so an open conflict stopped holding the order — a dispatch gate failing
+  # OPEN, which is the one direction it must never fail. Studio's corpus makes
+  # this concrete rather than theoretical: 46 of its 69 rungs live in a
+  # separately generated terms.ttl, so a dataset listing corpus.ttl alone drops
+  # two thirds of its claims, silently and green.
+  OPTIONAL { ?claim au:rung ?rung }
   OPTIONAL { ?claim au:discipline ?discipline }
   OPTIONAL { ?claim au:stalledOn ?stalledOn }
   OPTIONAL { ?claim rfc:evidence ?evidence }

@@ -24,5 +24,6 @@ py_test(
     data = [
         "//corpus/ampere:workorders",
         "//corpus/ampere:workorders_inv03_resolved",
+        "//corpus/ampere:workorders_unrunged",
     ],
 )

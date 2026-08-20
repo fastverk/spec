@@ -147,3 +147,28 @@ spec_workorders(
         "fixtures-inv03-resolution.ttl",
     ],
 )
+
+# ── The fail-open control (see fixtures-unrunged-party.ttl) ─────────────────
+rdf_dataset(
+    name = "ampere_unrunged",
+    srcs = [
+        "conflicts.ttl",
+        "corpus.ttl",
+        "disciplines.ttl",
+        "fixtures-unrunged-party.ttl",
+    ],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+spec_workorders(
+    name = "workorders_unrunged",
+    config = "fanout.json",
+    dataset = ":ampere_unrunged",
+    srcs = [
+        "conflicts.ttl",
+        "corpus.ttl",
+        "disciplines.ttl",
+        "fixtures-unrunged-party.ttl",
+    ],
+)

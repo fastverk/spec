@@ -1,6 +1,39 @@
+load("@rules_python//python:defs.bzl", "py_test")
+
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
     name = "payloads",
     srcs = glob(["*.json"]),
+)
+
+# ⛔ THE DISPATCH GATE'S ONLY INPUT IS A COMMITTED FILE.
+#
+# workorders.json is what the door reads to learn which orders exist, what
+# holds them and what they may write. Every other payload here is a report; a
+# stale one shows an old number. A stale THIS one authorizes agents against a
+# corpus that has moved — an order whose conflict was raised after the last
+# copy still reads READY.
+#
+# The other payloads are emitted by tools/readmodel/emit_readmodel.py outside
+# the build, and nothing checks them either. This one is derived BY the build
+# (//corpus/ampere:workorders), so the check is available and worth taking:
+# regenerate and compare, exactly the discipline //tools/export:drift_test
+# holds the first external consumer to.
+# A py_test rather than skylib's diff_test: bazel_skylib is not a direct dep,
+# and a semantic comparison is better here anyway — the payload is JSON, so a
+# byte diff would fail on key order or indentation while the content agreed,
+# and that is the kind of red that teaches people to regenerate without reading.
+py_test(
+    name = "workorders_drift_test",
+    size = "small",
+    srcs = ["workorders_drift_test.py"],
+    args = [
+        "$(rootpath workorders.json)",
+        "$(rootpath //corpus/ampere:workorders)",
+    ],
+    data = [
+        "workorders.json",
+        "//corpus/ampere:workorders",
+    ],
 )

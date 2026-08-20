@@ -35,7 +35,7 @@ module(
     version = "0.0.0",
 )
 
-bazel_dep(name = "spec", version = "0.7.0")
+bazel_dep(name = "spec", version = "0.8.1")
 
 bazel_dep(name = "rules_rdf", version = "0.3.0")
 

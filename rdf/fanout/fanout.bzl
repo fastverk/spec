@@ -20,6 +20,16 @@ engine of record (ARQ via sparql_query), the assembler
 know — order ids, artifact paths, budgets: repo-layout and allocation facts,
 not graph facts. Its shape is documented against proto/spec/v1/workorder.proto.
 
+⚠ `srcs` is declared independently of `dataset`, and nothing ties them
+together. It exists only to feed the as_of digest, so a caller who lists fewer
+files than the dataset contains gets a cursor that does not describe what was
+queried — the packets are still derived from the whole dataset, but two
+different corpora can share an as_of. Passing exactly the dataset's own srcs is
+therefore not a convention but a requirement, and the reason it is not derived
+from the dataset is that a macro cannot read a target's providers. A rule
+could; that is the shape to reach for if this ever needs to be enforced rather
+than documented.
+
 ⚠ The dataset's deps must include @spec//rdf:authoring_vocab, the same rule
 as the gate suites: without the au: terms every pattern silently matches
 nothing and every order derives empty — which is exactly the vacuous pass
