@@ -172,3 +172,20 @@ gate:
       memory: 512Mi
     limits:
       memory: 1Gi
+
+# ── Fanout: agent dispatch and its ledger (RFC-002 §10, fastverk/spec#46) ─────
+#
+# ⛔ DEFAULT OFF, and deliberately two switches rather than one. `enabled`
+# false means the dispatch door answers 503 naming $SPEC_AGENT_ENABLED — RFC-004
+# §8 Q7 asks that an instance fan agents out because somebody decided it should,
+# never because nothing said otherwise. Turning it on ALSO needs a durable place
+# to write, because a dispatch that is authorized and not recorded is the one
+# state the plane must never reach.
+#
+# ⚠ dispatchLog wants a volume that survives a restart. An emptyDir loses the
+# record of what was authorized, and the ledger with it — every running order
+# reads as never dispatched, which is the fail-OPEN direction: an order whose
+# scope is being written by live agents would dispatch again to a second set.
+fanout:
+  enabled: false
+  dispatchLog: /var/lib/spec/dispatches.jsonl

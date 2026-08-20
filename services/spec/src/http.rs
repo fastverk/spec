@@ -72,6 +72,12 @@ pub struct HttpState {
     /// replaying "who decided this", "what did it measure" and "who was
     /// allowed to write where" from one file would make them one question.
     pub dispatches: Arc<ProposalLog>,
+    /// RFC-004 §8 Q7's breaker: `$SPEC_AGENT_ENABLED`, DEFAULT FALSE. An
+    /// instance that has not been told it may fan agents out does not,
+    /// whatever else is configured. A field rather than an env read at the
+    /// door, for the reason the test harness gives: these tests share one
+    /// process and `set_var` races.
+    pub agents_enabled: bool,
     pub panels: Option<Arc<Vec<u8>>>,
 }
 
@@ -124,6 +130,8 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/evaluation", post(submit_evaluation))
         .route("/workorders", get(list_work_orders))
         .route("/workorder/dispatch", post(dispatch_work_order))
+        .route("/workorder/spend", post(report_spend))
+        .route("/ledger", get(list_ledger))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
         .route("/proposal/verdict-preview", post(preview_proposal))
@@ -433,6 +441,21 @@ async fn dispatch_work_order(
             })),
         );
     }
+    // ⛔ The breaker, DEFAULT OFF (RFC-004 §8 Q7). Separate from the log check
+    // below and checked first: "nowhere to write it" and "not allowed to do it"
+    // are different refusals, and collapsing them would let configuring a log
+    // silently turn agents on.
+    if !s.agents_enabled {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_AGENTS_DISABLED",
+                "message": "$SPEC_AGENT_ENABLED is not set; this instance does not dispatch \
+                            agents. The default is off — an instance fans agents out because \
+                            someone decided it should, never because nothing said otherwise",
+            })),
+        );
+    }
     if !s.dispatches.enabled() {
         return (
             StatusCode::SERVICE_UNAVAILABLE,
@@ -495,6 +518,121 @@ async fn dispatch_work_order(
             Json(json!({ "error": "E_LOG_APPEND", "message": why })),
         ),
     }
+}
+
+/// `POST /workorder/spend` — record what a dispatched thread reported spending.
+///
+/// A MEASUREMENT, like `POST /evaluation`: the platform's scheduler holds the
+/// ceiling and accumulates the number; spec keeps the account. A report that
+/// crosses the ceiling is ACCEPTED and then stops the order — refusing it would
+/// leave the account understated at exactly the moment it matters most — and
+/// the stop is appended as its own event with a named cause.
+async fn report_spend(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    // An agent may not report its own spend: the number would be self-reported
+    // by the party it constrains. The platform reports it, under a machine
+    // credential, the way a consumer's CI reports a population.
+    if who.agent {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "E_AGENT_MAY_NOT_REPORT_SPEND",
+                "message": "an agent may not report the spend of the thread it is running — \
+                            the platform that metered it reports it",
+            })),
+        );
+    }
+    if !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_DISPATCH_LOG is unset; this instance keeps no ledger",
+            })),
+        );
+    }
+    let payload = s.readmodel.route("workorders");
+    let orders = workorder::orders(&payload);
+    let running = Running::read(s.dispatches.path());
+    let spend = match workorder::check_spend(&body, &orders, &running) {
+        Ok(sp) => sp,
+        Err(why) => {
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({ "error": "E_MALFORMED_SPEND", "message": why })),
+            )
+        }
+    };
+    if let Err(why) = s.dispatches.append(&spend.record(&who.email)) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        );
+    }
+    let order = &orders[&spend.order_id];
+    let exhausted = spend.exhausts(order) && running.is_running(&spend.order_id);
+    if exhausted {
+        // The stop, as an event with a cause. Appended AFTER the spend, so a
+        // reader replaying the log sees the number that caused it first.
+        let stop = workorder::stop_record(
+            &spend.order_id,
+            workorder::STOP_BUDGET_EXHAUSTED,
+            spend.tokens,
+            &who.email,
+        );
+        if let Err(why) = s.dispatches.append(&stop) {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+            );
+        }
+    }
+    let remaining = if order.budget_tokens > 0 {
+        (order.budget_tokens - spend.tokens).max(0)
+    } else {
+        0
+    };
+    (
+        StatusCode::ACCEPTED,
+        Json(json!({
+            "order_id": spend.order_id,
+            "spent_tokens": spend.tokens,
+            "budget_tokens": order.budget_tokens,
+            "remaining_tokens": remaining,
+            "stopped": exhausted,
+            "stop_cause": if exhausted { workorder::STOP_BUDGET_EXHAUSTED } else { "" },
+        })),
+    )
+}
+
+/// `GET /ledger` — where the tokens went, per thread and per discipline.
+///
+/// Log-backed: the budgets come from the derived payload and the spend from the
+/// dispatch log, so there is no `ledger.json` to emit and adding one would be a
+/// second place for the same numbers to live.
+async fn list_ledger(State(s): State<HttpState>) -> ApiResult {
+    let rm = s.readmodel.clone();
+    let dispatches = s.dispatches.clone();
+    run(move || {
+        let payload = rm.route("workorders");
+        let orders = workorder::orders(&payload);
+        let running = Running::read(dispatches.path());
+        let rows = workorder::ledger(&orders, &running);
+        let by_discipline = workorder::ledger_by_discipline(&rows);
+        json!({
+            "ledger": rows,
+            "by_discipline": by_discipline,
+            "records": running.records,
+            "write_enabled": dispatches.enabled(),
+        })
+    })
+    .await
 }
 
 /// `GET /proposals` — everything written but not yet adopted into the corpus.
@@ -808,12 +946,28 @@ mod tests {
         serve_with(readmodel_dir, log, None).await
     }
 
+    /// With agents ENABLED — the breaker is default-off, so every dispatch
+    /// test must turn it on explicitly, which is the property being tested as
+    /// much as it is setup.
+    async fn serve_dispatching(readmodel_dir: &str, dispatch_log: Option<&str>) -> String {
+        serve_inner(readmodel_dir, None, dispatch_log, true).await
+    }
+
     /// The same, plus a dispatch log — its own parameter rather than a third
     /// positional on every existing call site.
     async fn serve_with(
         readmodel_dir: &str,
         log: Option<&str>,
         dispatch_log: Option<&str>,
+    ) -> String {
+        serve_inner(readmodel_dir, log, dispatch_log, true).await
+    }
+
+    async fn serve_inner(
+        readmodel_dir: &str,
+        log: Option<&str>,
+        dispatch_log: Option<&str>,
+        agents_enabled: bool,
     ) -> String {
         let backend = Arc::new(crate::SpecBackend::from_env());
         // Constructed directly, never through the env: these tests run in parallel
@@ -833,6 +987,7 @@ mod tests {
                 log,
                 evaluations,
                 dispatches,
+                agents_enabled,
                 panels: None,
             },
             None,
@@ -1240,6 +1395,142 @@ mod tests {
         let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
         assert_eq!(status, 503, "{body}");
         assert_eq!(body["error"], "E_WRITE_DISABLED");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+
+    // ── The ledger and the breaker (#46) ────────────────────────────────────
+
+    async fn spend(addr: &str, sub: &str, body: Value) -> (u16, Value) {
+        let payload = body.to_string();
+        let hdr = format!("x-fastverk-user-sub: {sub}\r\nx-fastverk-user-email: ci@example.com\r\n");
+        let (status, raw) = request(
+            addr,
+            "POST",
+            "/workorder/spend",
+            Some((hdr.as_str(), payload.as_str())),
+        )
+        .await;
+        (status, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+
+    fn budgeted_fixture(tag: &str) -> std::path::PathBuf {
+        let dir = workorders_fixture(tag);
+        let p = dir.join("workorders.json");
+        let mut v: Value = serde_json::from_str(&std::fs::read_to_string(&p).unwrap()).unwrap();
+        v["orders"][0]["order"]["budget"] = json!({"max_tokens": 1000, "max_probes": 0});
+        v["orders"][0]["order"]["discipline"] = json!("https://x#d-thermal");
+        std::fs::write(&p, serde_json::to_vec_pretty(&v).unwrap()).unwrap();
+        dir
+    }
+
+    #[tokio::test]
+    async fn dispatch_is_off_until_an_operator_turns_it_on() {
+        let dir = budgeted_fixture("breaker");
+        let log = dir.join("dispatch.jsonl");
+        // agents_enabled = false: everything else is configured, including the
+        // log, so this refusal can only be the breaker.
+        let addr = serve_inner(dir.to_str().unwrap(), None, log.to_str(), false).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 503, "{body}");
+        assert_eq!(body["error"], "E_AGENTS_DISABLED");
+        assert!(!log.exists() || std::fs::read_to_string(&log).unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_agent_may_not_report_its_own_spend() {
+        let dir = budgeted_fixture("spendagent");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let (status, body) =
+            spend(&addr, "agent:a-7714", json!({"order_id": "wo-ready", "tokens": 10})).await;
+        assert_eq!(status, 403, "{body}");
+        assert_eq!(body["error"], "E_AGENT_MAY_NOT_REPORT_SPEND");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn spend_against_an_undispatched_thread_is_refused() {
+        let dir = budgeted_fixture("spendundispatched");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let (status, body) =
+            spend(&addr, "machine:fanout", json!({"order_id": "wo-ready", "tokens": 10})).await;
+        assert_eq!(status, 422, "{body}");
+        assert!(body["message"].as_str().unwrap().contains("never dispatched"));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_thread_stops_when_its_budget_exhausts_and_the_stop_is_recorded() {
+        let dir = budgeted_fixture("exhaust");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+
+        let (status, _) =
+            dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready", "agents": 2})).await;
+        assert_eq!(status, 202);
+
+        // Under the ceiling: recorded, still running.
+        let (status, body) =
+            spend(&addr, "machine:fanout", json!({"order_id": "wo-ready", "tokens": 400, "source": "run-7"})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["remaining_tokens"], 600);
+        assert_eq!(body["stopped"], json!(false));
+
+        // Crossing it: ACCEPTED — an understated account at the moment it
+        // matters is worse than a stop — and then stopped, with a cause.
+        let (status, body) =
+            spend(&addr, "machine:fanout", json!({"order_id": "wo-ready", "tokens": 1200, "source": "run-7"})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["stopped"], json!(true));
+        assert_eq!(body["stop_cause"], "STOP_CAUSE_BUDGET_EXHAUSTED");
+        assert_eq!(body["remaining_tokens"], 0);
+
+        // The stop is an EVENT in the log, after the number that caused it.
+        let lines: Vec<Value> = std::fs::read_to_string(&log)
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        let events: Vec<&str> = lines.iter().map(|l| l["event"].as_str().unwrap_or("dispatched")).collect();
+        assert_eq!(events, vec!["dispatched", "spend", "spend", "stopped"]);
+        assert_eq!(lines[3]["cause"], "STOP_CAUSE_BUDGET_EXHAUSTED");
+        assert_eq!(lines[3]["tokens"], 1200);
+
+        // And the ledger reads the whole story.
+        let ledger = get_json(&addr, "/ledger").await;
+        let row = ledger["ledger"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["order_id"] == "wo-ready")
+            .unwrap()
+            .clone();
+        assert_eq!(row["budget_tokens"], 1000);
+        assert_eq!(row["spent_tokens"], 1200);
+        assert_eq!(row["remaining_tokens"], 0);
+        assert_eq!(row["stop_cause"], "STOP_CAUSE_BUDGET_EXHAUSTED");
+        assert_eq!(row["spend_source"], "run-7");
+        assert_eq!(row["state"], "WORK_ORDER_STATE_READY", "a stop frees the thread");
+
+        // Per-discipline roll-up: the table the issue asks for instead of a guess.
+        let rolled = ledger["by_discipline"].as_array().unwrap();
+        let thermal = rolled.iter().find(|r| r["discipline"] == "d-thermal").unwrap();
+        assert_eq!(thermal["spent_tokens"], 1200);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn the_ledger_answers_before_anything_is_dispatched() {
+        let dir = budgeted_fixture("ledgerempty");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let ledger = get_json(&addr, "/ledger").await;
+        let rows = ledger["ledger"].as_array().unwrap();
+        assert_eq!(rows.len(), 2, "a row per derived order, spend zero");
+        assert!(rows.iter().all(|r| r["spent_tokens"] == 0));
+        assert_eq!(ledger["write_enabled"], json!(false));
         std::fs::remove_dir_all(&dir).ok();
     }
 

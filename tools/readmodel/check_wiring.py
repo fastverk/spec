@@ -205,6 +205,9 @@ check(
         # writes to a path set, and refuses (409) rather than queues when the
         # gate says no. See services/spec/src/workorder.rs.
         "DispatchWorkOrder",
+        # A measurement, like SubmitEvaluation: the platform meters the spend
+        # and reports it; spec keeps the account (#46).
+        "ReportSpend",
     },
     f"{RS_ROUTES}: AUTHORING_WRITES is {declared_writes}",
 )

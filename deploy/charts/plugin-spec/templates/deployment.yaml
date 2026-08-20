@@ -116,6 +116,20 @@ spec:
               value: {{ . | quote }}
             {{- end }}
             {{- end }}
+            {{- if .Values.fanout.enabled }}
+            # The dispatch log. Unset — which is the default, because
+            # `fanout.enabled` is false — leaves POST /workorder/dispatch and
+            # POST /workorder/spend answering 503 with the variable's name,
+            # which is the honest failure for an instance nobody has decided
+            # may authorize agent work.
+            - name: SPEC_DISPATCH_LOG
+              value: {{ .Values.fanout.dispatchLog | quote }}
+            # ⛔ RFC-004 §8 Q7's breaker, and it is SEPARATE from the log on
+            # purpose: configuring somewhere to write must not be what turns
+            # agents on. Both are required, and both default off.
+            - name: SPEC_AGENT_ENABLED
+              value: "true"
+            {{- end }}
             {{- with .Values.pluginToken.existingSecret }}
             - name: FASTVERK_PLUGIN_TOKEN
               valueFrom:

@@ -126,6 +126,14 @@ async fn main() -> Result<()> {
             log,
             evaluations,
             dispatches,
+            // RFC-004 §8 Q7: default OFF. Read once here rather than at the
+            // door — an instance fans agents out because someone decided it
+            // should, and that decision belongs in the deployment, not in a
+            // request.
+            agents_enabled: matches!(
+                std::env::var("SPEC_AGENT_ENABLED").unwrap_or_default().trim(),
+                "1" | "true" | "TRUE" | "yes"
+            ),
             panels: panels.clone(),
         },
         gateway_token,

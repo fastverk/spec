@@ -52,6 +52,9 @@ pub const AUTHORING_READS: &[(&str, &str, &str)] = &[
     // (service, method) pair since the mock was written; #45 is where it stops
     // resolving to nothing.
     ("ListWorkOrders", "GET", "workorders"),
+    // The account, not the meter: spec records reported spend against the
+    // budgets it allocated, and the platform enforces (#46).
+    ("ListLedger", "GET", "ledger"),
 ];
 
 /// The authoring write path. Declared unconditionally, even when
@@ -75,6 +78,10 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // Dispatch is neither a judgement nor a measurement: it authorizes writes.
     // Its own method, its own log — `crate::workorder`.
     ("DispatchWorkOrder", "POST", "workorder/dispatch"),
+    // A measurement, like SubmitEvaluation — a machine reports what the
+    // platform metered. It rides the dispatch log because spend is only
+    // meaningful against the thread that was authorized.
+    ("ReportSpend", "POST", "workorder/spend"),
 ];
 
 /// The full `web_routes` array for `/describe`.

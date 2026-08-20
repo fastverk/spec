@@ -231,7 +231,7 @@ fn degraded(field: &str, why: &str) -> Value {
 /// to `ROUTES` — doing so would make it try to load a file that will never exist
 /// and degrade every request. It is still asserted to be DECLARED below, so a
 /// log-backed route cannot quietly go missing from /describe either.
-pub const LOG_BACKED_ROUTES: &[&str] = &["proposals", "evaluations"];
+pub const LOG_BACKED_ROUTES: &[&str] = &["proposals", "evaluations", "ledger"];
 
 /// Routes whose payload is derived by the BUILD rather than emitted by
 /// `tools/readmodel/emit_readmodel.py` — the fanout derivation runs under ARQ

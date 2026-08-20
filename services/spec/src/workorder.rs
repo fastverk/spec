@@ -58,6 +58,14 @@ pub const REFUSED_OVERLAP: &str = "DISPATCH_VERDICT_REFUSED_OVERLAP";
 pub const REFUSED_UNKNOWN: &str = "DISPATCH_VERDICT_REFUSED_UNKNOWN";
 pub const REFUSED_ALREADY_RUNNING: &str = "DISPATCH_VERDICT_REFUSED_ALREADY_RUNNING";
 
+/// `spec.v1.StopCause` — why a dispatched order stopped. A stop is an EVENT
+/// with a named cause, never an absence: an order that vanishes from the
+/// running set is otherwise indistinguishable from one nobody dispatched.
+pub const STOP_BUDGET_EXHAUSTED: &str = "STOP_CAUSE_BUDGET_EXHAUSTED";
+pub const STOP_COMPLETED: &str = "STOP_CAUSE_COMPLETED";
+pub const STOP_WITHDRAWN: &str = "STOP_CAUSE_WITHDRAWN";
+pub const STOP_CAUSES: &[&str] = &[STOP_BUDGET_EXHAUSTED, STOP_COMPLETED, STOP_WITHDRAWN];
+
 /// `spec.v1.WorkOrderState`.
 pub const STATE_READY: &str = "WORK_ORDER_STATE_READY";
 pub const STATE_HELD: &str = "WORK_ORDER_STATE_HELD";
@@ -71,6 +79,12 @@ pub struct Order {
     pub scope: String,
     pub conflict_holds: Vec<String>,
     pub write_paths: Vec<String>,
+    /// The token ceiling set at derivation, immutable after dispatch (#46).
+    /// 0 means NO CEILING WAS SET — stated, never defaulted, because "unbounded
+    /// by decision" and "unbounded because nobody said" are different facts and
+    /// only one of them is a budget.
+    pub budget_tokens: i64,
+    pub discipline: String,
 }
 
 impl Order {
@@ -92,6 +106,15 @@ impl Order {
                     .get("write_capability")
                     .and_then(|c| c.get("artifact_paths")),
             ),
+            budget_tokens: order
+                .pointer("/budget/max_tokens")
+                .and_then(Value::as_i64)
+                .unwrap_or(0),
+            discipline: order
+                .get("discipline")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string(),
         })
     }
 }
@@ -130,6 +153,12 @@ pub fn orders(payload: &Value) -> HashMap<String, Order> {
 #[derive(Debug, Default)]
 pub struct Running {
     by_id: HashMap<String, Value>,
+    /// Cumulative reported spend per order, and where the last report came
+    /// from. Kept for CLOSED orders too — the ledger's question is "where did
+    /// this week's tokens go", and dropping an order's spend when it finishes
+    /// would answer it only for work still in flight.
+    spend: HashMap<String, (i64, String)>,
+    stops: HashMap<String, String>,
     pub records: usize,
 }
 
@@ -151,6 +180,29 @@ impl Running {
             match rec.get("event").and_then(Value::as_str).unwrap_or("dispatched") {
                 "closed" => {
                     out.by_id.remove(id);
+                }
+                "stopped" => {
+                    out.by_id.remove(id);
+                    if let Some(cause) = rec.get("cause").and_then(Value::as_str) {
+                        out.stops.insert(id.to_string(), cause.to_string());
+                    }
+                }
+                "spend" => {
+                    // Reports are CUMULATIVE snapshots of the platform's own
+                    // accumulator, so a delayed or duplicated report must be
+                    // idempotent rather than double-counted — and a report
+                    // LOWER than one already recorded is a stale snapshot, not
+                    // a refund. Keep the high-water mark and say so.
+                    let tokens = rec.get("tokens").and_then(Value::as_i64).unwrap_or(0);
+                    let source = rec
+                        .get("source")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .to_string();
+                    let entry = out.spend.entry(id.to_string()).or_insert((0, String::new()));
+                    if tokens >= entry.0 {
+                        *entry = (tokens, source);
+                    }
                 }
                 _ => {
                     out.by_id.insert(id.to_string(), rec);
@@ -178,6 +230,186 @@ impl Running {
             .and_then(Value::as_i64)
             .unwrap_or(0)
     }
+}
+
+impl Running {
+    /// Cumulative reported spend for an order, and the last reported source.
+    pub fn spent(&self, order_id: &str) -> (i64, &str) {
+        self.spend
+            .get(order_id)
+            .map(|(n, s)| (*n, s.as_str()))
+            .unwrap_or((0, ""))
+    }
+
+    /// Why an order stopped, if it did.
+    pub fn stop_cause(&self, order_id: &str) -> &str {
+        self.stops.get(order_id).map(String::as_str).unwrap_or("")
+    }
+
+    /// Whether the order was ever dispatched — running, stopped or closed.
+    /// Spend cannot be reported against a thread that never started.
+    pub fn was_dispatched(&self, order_id: &str) -> bool {
+        self.by_id.contains_key(order_id)
+            || self.spend.contains_key(order_id)
+            || self.stops.contains_key(order_id)
+    }
+}
+
+/// A spend report, checked. `crate::evaluation`'s posture applies verbatim:
+/// this is a MEASUREMENT a machine reports, not a judgement anyone is asked to
+/// agree with, and spec does not meter it — the platform's scheduler holds the
+/// ceiling and accumulates the number. What spec keeps is the account.
+#[derive(Debug, Clone)]
+pub struct Spend {
+    pub order_id: String,
+    pub tokens: i64,
+    pub source: String,
+}
+
+pub fn check_spend(
+    body: &Value,
+    orders: &HashMap<String, Order>,
+    running: &Running,
+) -> Result<Spend, String> {
+    let obj = body.as_object().ok_or("body is not a JSON object")?;
+    let order_id = obj
+        .get("order_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if order_id.is_empty() {
+        return Err("`order_id` is required — spend belongs to one thread".into());
+    }
+    if !orders.contains_key(&order_id) {
+        return Err(format!(
+            "no work order `{order_id}` at this cursor — spend reported against an order \
+             nobody derived cannot be reconciled with any budget"
+        ));
+    }
+    // ⛔ A thread that never started cannot have spent anything. Accepting this
+    // would let an unbudgeted number into the account and, worse, let a
+    // never-dispatched order read as exhausted.
+    if !running.was_dispatched(&order_id) {
+        return Err(format!(
+            "`{order_id}` was never dispatched — there is no thread to spend against"
+        ));
+    }
+    let tokens = obj
+        .get("tokens")
+        .and_then(Value::as_i64)
+        .ok_or("`tokens` must be an integer count of tokens spent")?;
+    if tokens < 0 {
+        return Err("`tokens` cannot be negative — a report is a cumulative total".into());
+    }
+    Ok(Spend {
+        order_id,
+        tokens,
+        source: obj
+            .get("source")
+            .and_then(Value::as_str)
+            .unwrap_or("")
+            .trim()
+            .to_string(),
+    })
+}
+
+impl Spend {
+    pub fn record(&self, author: &str) -> Value {
+        json!({
+            "event": "spend",
+            "order_id": self.order_id,
+            "tokens": self.tokens,
+            "source": self.source,
+            "author": author,
+        })
+    }
+
+    /// Does admitting this report exhaust the order's budget?
+    ///
+    /// A crossing report is ACCEPTED and then stops the order — refusing it
+    /// would leave the account understated at exactly the moment it matters
+    /// most, and the ceiling is the platform's to enforce anyway. What spec
+    /// does is record the stop, with its cause, at the moment it can see it.
+    pub fn exhausts(&self, order: &Order) -> bool {
+        order.budget_tokens > 0 && self.tokens >= order.budget_tokens
+    }
+}
+
+/// The record appended when a dispatched order stops.
+pub fn stop_record(order_id: &str, cause: &str, tokens: i64, author: &str) -> Value {
+    json!({
+        "event": "stopped",
+        "order_id": order_id,
+        "cause": cause,
+        "tokens": tokens,
+        "author": author,
+    })
+}
+
+/// One ledger row per derived order: allocated, reported, remaining, and what
+/// became of the thread.
+pub fn ledger(orders: &HashMap<String, Order>, running: &Running) -> Vec<Value> {
+    let mut ids: Vec<&String> = orders.keys().collect();
+    ids.sort();
+    ids.iter()
+        .map(|id| {
+            let order = &orders[*id];
+            let (spent, source) = running.spent(id);
+            let remaining = if order.budget_tokens > 0 {
+                (order.budget_tokens - spent).max(0)
+            } else {
+                0
+            };
+            json!({
+                "order_id": order.order_id,
+                "discipline": local_name(&order.discipline),
+                "budget_tokens": order.budget_tokens,
+                "spent_tokens": spent,
+                // ⚠ Zero remaining with a zero budget means NO CEILING WAS SET,
+                // not "nothing left". `budget_tokens` is what tells them apart,
+                // which is why both travel rather than one derived number.
+                "remaining_tokens": remaining,
+                "state": state(order, running),
+                "stop_cause": running.stop_cause(id),
+                "spend_source": source,
+            })
+        })
+        .collect()
+}
+
+/// Spend summed per discipline — "where did this week's tokens go", which the
+/// issue asks be a table rather than a guess.
+pub fn ledger_by_discipline(rows: &[Value]) -> Vec<Value> {
+    let mut totals: HashMap<String, (i64, i64, usize)> = HashMap::new();
+    for row in rows {
+        let d = row["discipline"].as_str().unwrap_or("").to_string();
+        let e = totals.entry(d).or_insert((0, 0, 0));
+        e.0 += row["budget_tokens"].as_i64().unwrap_or(0);
+        e.1 += row["spent_tokens"].as_i64().unwrap_or(0);
+        e.2 += 1;
+    }
+    let mut out: Vec<(String, (i64, i64, usize))> = totals.into_iter().collect();
+    out.sort_by(|a, b| b.1 .1.cmp(&a.1 .1).then(a.0.cmp(&b.0)));
+    out.into_iter()
+        .map(|(discipline, (budget, spent, orders))| {
+            json!({
+                "discipline": discipline,
+                "orders": orders,
+                "budget_tokens": budget,
+                "spent_tokens": spent,
+            })
+        })
+        .collect()
+}
+
+fn local_name(iri: &str) -> String {
+    for sep in ['#', '/'] {
+        if let Some((_, tail)) = iri.rsplit_once(sep) {
+            return tail.to_string();
+        }
+    }
+    iri.to_string()
 }
 
 /// The dispatch gate's answer.
@@ -383,18 +615,33 @@ mod tests {
         })
     }
 
+    /// ⛔ Through `Running::read`, NOT by populating the maps directly.
+    ///
+    /// The first version of this helper reimplemented the replay — and passed
+    /// every dispatch test while silently ignoring `spend` and `stopped`,
+    /// because a double that reimplements the thing under test proves the
+    /// double works. Writing the records and reading them back means these
+    /// tests exercise the parser they are about, including the event
+    /// dispatch, the high-water rule, and the malformed-line skip.
     fn running_with(lines: &[Value]) -> Running {
-        let mut r = Running::default();
-        for rec in lines {
-            let id = rec["order_id"].as_str().unwrap().to_string();
-            r.records += 1;
-            if rec.get("event").and_then(Value::as_str) == Some("closed") {
-                r.by_id.remove(&id);
-            } else {
-                r.by_id.insert(id, rec.clone());
-            }
-        }
-        r
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "spec-wo-replay-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("dispatch.jsonl");
+        let body: String = lines
+            .iter()
+            .map(|r| format!("{r}\n"))
+            .collect::<Vec<_>>()
+            .join("");
+        std::fs::write(&path, body).unwrap();
+        let running = Running::read(Some(&path));
+        std::fs::remove_dir_all(&dir).ok();
+        running
     }
 
     #[test]
@@ -548,5 +795,172 @@ mod tests {
         assert_eq!(rec["agents"], 3);
         // The packet is NOT copied into the log.
         assert!(rec.get("obligations").is_none());
+    }
+
+    // ── The ledger (#46) ────────────────────────────────────────────────────
+
+    fn budgeted() -> Value {
+        let mut p = payload();
+        p["orders"][1]["order"]["budget"] = json!({"max_tokens": 1000, "max_probes": 0});
+        p["orders"][1]["order"]["discipline"] = json!("https://x/corpus#d-market");
+        p["orders"][3]["order"]["discipline"] = json!("https://x/corpus#d-market");
+        p
+    }
+
+    #[test]
+    fn spend_cannot_be_reported_against_a_thread_that_never_started() {
+        let o = orders(&budgeted());
+        let err = check_spend(&json!({"order_id": "wo-042", "tokens": 10}), &o, &Running::default())
+            .unwrap_err();
+        assert!(err.contains("never dispatched"), "{err}");
+    }
+
+    #[test]
+    fn spend_cannot_be_reported_against_an_order_nobody_derived() {
+        let o = orders(&budgeted());
+        let r = running_with(&[json!({"order_id": "wo-042"})]);
+        let err = check_spend(&json!({"order_id": "wo-999", "tokens": 10}), &o, &r).unwrap_err();
+        assert!(err.contains("nobody derived"), "{err}");
+    }
+
+    #[test]
+    fn spend_must_be_a_non_negative_integer() {
+        let o = orders(&budgeted());
+        let r = running_with(&[json!({"order_id": "wo-042"})]);
+        assert!(check_spend(&json!({"order_id": "wo-042"}), &o, &r).is_err());
+        assert!(check_spend(&json!({"order_id": "wo-042", "tokens": -1}), &o, &r)
+            .unwrap_err()
+            .contains("negative"));
+    }
+
+    #[test]
+    fn reports_are_cumulative_snapshots_so_a_stale_one_does_not_refund() {
+        let r = running_with(&[
+            json!({"order_id": "wo-042"}),
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 800, "source": "run-7"}),
+            // Arrives late, reports less. A refund would understate the account.
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 300, "source": "run-7-retry"}),
+        ]);
+        assert_eq!(r.spent("wo-042"), (800, "run-7"));
+    }
+
+    #[test]
+    fn a_duplicate_report_is_idempotent() {
+        let r = running_with(&[
+            json!({"order_id": "wo-042"}),
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 500, "source": "run-7"}),
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 500, "source": "run-7"}),
+        ]);
+        assert_eq!(r.spent("wo-042").0, 500);
+    }
+
+    #[test]
+    fn a_report_reaching_the_ceiling_exhausts_it() {
+        let o = orders(&budgeted());
+        let order = &o["wo-042"];
+        assert_eq!(order.budget_tokens, 1000);
+        let r = running_with(&[json!({"order_id": "wo-042"})]);
+        let under = check_spend(&json!({"order_id": "wo-042", "tokens": 999}), &o, &r).unwrap();
+        assert!(!under.exhausts(order));
+        let at = check_spend(&json!({"order_id": "wo-042", "tokens": 1000}), &o, &r).unwrap();
+        assert!(at.exhausts(order), "reaching the ceiling exhausts it");
+        let over = check_spend(&json!({"order_id": "wo-042", "tokens": 5000}), &o, &r).unwrap();
+        assert!(over.exhausts(order));
+    }
+
+    #[test]
+    fn an_unbudgeted_order_is_never_exhausted_by_any_number() {
+        let o = orders(&budgeted());
+        // wo-046 has no budget set — 0 means nobody set a ceiling, which is not
+        // the same as a ceiling of zero.
+        assert_eq!(o["wo-046"].budget_tokens, 0);
+        let r = running_with(&[json!({"order_id": "wo-046"})]);
+        let s = check_spend(&json!({"order_id": "wo-046", "tokens": 10_000_000}), &o, &r).unwrap();
+        assert!(!s.exhausts(&o["wo-046"]));
+    }
+
+    #[test]
+    fn a_stop_frees_the_scope_and_names_its_cause() {
+        let o = orders(&budgeted());
+        let r = running_with(&[
+            json!({"order_id": "wo-042", "agents": 3}),
+            stop_record("wo-042", STOP_BUDGET_EXHAUSTED, 1000, "machine:ci"),
+        ]);
+        assert!(!r.is_running("wo-042"));
+        assert_eq!(r.stop_cause("wo-042"), STOP_BUDGET_EXHAUSTED);
+        // Its scope and paths are released — a stopped thread holds nothing.
+        assert_eq!(check("wo-057", &o, &r).verdict, DISPATCHED);
+        // But it is not re-dispatchable by accident: it is READY again only
+        // because a stop is not a hold. That is deliberate — re-dispatching a
+        // budget-exhausted order is a decision someone makes, and the ledger
+        // shows them the spend it already carries.
+        assert_eq!(state(&o["wo-042"], &r), STATE_READY);
+    }
+
+    #[test]
+    fn the_ledger_reports_allocation_spend_and_fate() {
+        let o = orders(&budgeted());
+        let r = running_with(&[
+            json!({"order_id": "wo-042", "agents": 3}),
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 400, "source": "fanout/run-7"}),
+        ]);
+        let rows = ledger(&o, &r);
+        let row = rows.iter().find(|r| r["order_id"] == "wo-042").unwrap();
+        assert_eq!(row["budget_tokens"], 1000);
+        assert_eq!(row["spent_tokens"], 400);
+        assert_eq!(row["remaining_tokens"], 600);
+        assert_eq!(row["state"], STATE_RUNNING);
+        assert_eq!(row["spend_source"], "fanout/run-7");
+        assert_eq!(row["stop_cause"], "");
+    }
+
+    #[test]
+    fn spend_survives_the_thread_that_spent_it() {
+        // The ledger's question is "where did this week's tokens go", which a
+        // view that forgets finished work answers only for work in flight.
+        let o = orders(&budgeted());
+        let r = running_with(&[
+            json!({"order_id": "wo-042", "agents": 3}),
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 900, "source": "run-7"}),
+            json!({"event": "closed", "order_id": "wo-042"}),
+        ]);
+        let rows = ledger(&o, &r);
+        let row = rows.iter().find(|r| r["order_id"] == "wo-042").unwrap();
+        assert_eq!(row["spent_tokens"], 900);
+        assert_eq!(row["state"], STATE_READY);
+    }
+
+    #[test]
+    fn an_unbudgeted_row_does_not_read_as_out_of_budget() {
+        let o = orders(&budgeted());
+        let r = running_with(&[
+            json!({"order_id": "wo-046"}),
+            json!({"event": "spend", "order_id": "wo-046", "tokens": 12_345, "source": "run-9"}),
+        ]);
+        let rows = ledger(&o, &r);
+        let row = rows.iter().find(|r| r["order_id"] == "wo-046").unwrap();
+        assert_eq!(row["budget_tokens"], 0, "no ceiling was set");
+        assert_eq!(row["remaining_tokens"], 0);
+        assert_eq!(row["spent_tokens"], 12_345);
+        // The pair (budget 0, spent > 0) is what a reader distinguishes on;
+        // remaining alone would read identically to an exhausted budget.
+    }
+
+    #[test]
+    fn spend_rolls_up_per_discipline() {
+        let o = orders(&budgeted());
+        let r = running_with(&[
+            json!({"order_id": "wo-042"}),
+            json!({"event": "spend", "order_id": "wo-042", "tokens": 400, "source": "a"}),
+            json!({"order_id": "wo-057"}),
+            json!({"event": "spend", "order_id": "wo-057", "tokens": 100, "source": "b"}),
+        ]);
+        let rolled = ledger_by_discipline(&ledger(&o, &r));
+        let market = rolled.iter().find(|r| r["discipline"] == "d-market").unwrap();
+        assert_eq!(market["orders"], 2);
+        assert_eq!(market["spent_tokens"], 500);
+        assert_eq!(market["budget_tokens"], 1000);
+        // Sorted by spend, so the biggest line item is first.
+        assert_eq!(rolled[0]["discipline"], "d-market");
     }
 }

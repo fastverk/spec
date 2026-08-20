@@ -179,6 +179,64 @@ message WorkOrderView {
   int32 agents = 3;
 }
 
+// ── The ledger (fastverk/spec#46) ──────────────────────────────────────────
+//
+// Spec does not enforce a budget and does not meter one: the platform's
+// admission predicate holds the ceiling (`CreateFanoutRunRequest.max_tokens`,
+// enforced by the fanout scheduler's `affords()`), and the spend it accumulates
+// lives in that run's own status. What spec keeps is the ACCOUNT — reported to
+// it the same way a population is reported (RFC-004a §4): a machine posts a
+// number it measured, spec records it, and nobody is asked to agree with it.
+//
+// ⚠ Reported, therefore RECONCILABLE and not authoritative. `source` names
+// where the number came from so a ledger row that disagrees with the platform's
+// own accounting is a visible disagreement rather than a silent overwrite.
+
+// One reported spend against one order. Cumulative, not incremental: the
+// platform accumulates `status.tokensSpent` and a report is a snapshot of it,
+// so a delayed or duplicated report is idempotent instead of double-counting.
+message SpendReport {
+  string order_id = 1;
+  // Cumulative tokens spent across every agent on the order.
+  int64 tokens = 2;
+  // Where the number came from — a FanoutRun name, a CI run URL. Free text,
+  // because the platforms that can answer this differ and pretending otherwise
+  // would make the field lie for whichever one it did not model.
+  string source = 3;
+}
+
+// Why a dispatched order stopped. A stop is an EVENT with a named cause, never
+// an absence: an order that simply vanishes from the running set is
+// indistinguishable from one nobody ever dispatched.
+enum StopCause {
+  STOP_CAUSE_UNSPECIFIED = 0;
+  // Reported spend reached the order's budget. Recorded by the door at the
+  // moment the crossing report is admitted.
+  STOP_CAUSE_BUDGET_EXHAUSTED = 1;
+  // The acceptance checks passed and the thread is done.
+  STOP_CAUSE_COMPLETED = 2;
+  // A person stopped it.
+  STOP_CAUSE_WITHDRAWN = 3;
+}
+
+// One row of the ledger: what a thread was allocated, what it reported
+// spending, and what became of it.
+message LedgerRow {
+  string order_id = 1;
+  string discipline = 2;
+  int64 budget_tokens = 3;
+  int64 spent_tokens = 4;
+  // budget - spent, floored at zero. Zero with a zero budget means NO CEILING
+  // WAS SET, which is a different fact from "nothing left" — `budget_tokens`
+  // is what tells them apart, so both travel.
+  int64 remaining_tokens = 5;
+  WorkOrderState state = 6;
+  StopCause stop_cause = 7;
+  // The last `source` reported, so a row disagreeing with the platform names
+  // where to go and look.
+  string spend_source = 8;
+}
+
 message ListWorkOrdersRequest {}
 
 message ListWorkOrdersResponse {
@@ -221,8 +279,26 @@ message DispatchWorkOrderResponse {
 // Declared because the fanout panel binds spec.v1.Authoring/ListWorkOrders.
 // The HTTP projection (routes.rs) is what serves today; this block is the
 // canonical contract either way — derivation.proto's precedent.
+message ListLedgerRequest {}
+
+message ListLedgerResponse {
+  repeated LedgerRow rows = 1;
+}
+
+// What the door did with a spend report. A report that crosses the ceiling is
+// ACCEPTED and then stops the order — refusing it would leave the account
+// understated at exactly the moment it matters most.
+message ReportSpendResponse {
+  int64 spent_tokens = 1;
+  int64 remaining_tokens = 2;
+  bool stopped = 3;
+  StopCause stop_cause = 4;
+}
+
 service Authoring {
   rpc ListWorkOrders(ListWorkOrdersRequest) returns (ListWorkOrdersResponse);
   rpc GetWorkOrder(GetWorkOrderRequest) returns (WorkOrderView);
   rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
+  rpc ReportSpend(SpendReport) returns (ReportSpendResponse);
+  rpc ListLedger(ListLedgerRequest) returns (ListLedgerResponse);
 }
