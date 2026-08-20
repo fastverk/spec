@@ -458,6 +458,16 @@ pub fn check_op(op: &Value, who: &Principal) -> (OpVerdict, String) {
         }
     }
 
+    // ⛔ A machine may not author (RFC-004a §4). The machine principal exists
+    // only on the console's evaluation route and never reaches this door; this
+    // is the second lock, for the day something wires one through.
+    if who.sub.starts_with(crate::evaluation::MACHINE_PREFIX) {
+        return (
+            OpVerdict::Rejected,
+            format!("machine principals may not author; `{kind}` is out of capability"),
+        );
+    }
+
     // Agents may write R0 only (RFC-002 §7.1's code property).
     if who.agent {
         if kind != "assertNS" {
@@ -837,6 +847,9 @@ mod tests {
     fn agent() -> Principal {
         Principal { agent: true, ..author() }
     }
+    fn machine() -> Principal {
+        Principal { sub: "machine:studio-nextjs".into(), ..author() }
+    }
 
     #[test]
     fn vocabulary_is_closed_and_total() {
@@ -848,6 +861,18 @@ mod tests {
             assert!(op_spec(o.kind).is_some());
         }
         assert!(op_spec("assertNSS").is_none());
+    }
+
+    /// RFC-004a §4: a machine reports what it measured and may not author. The
+    /// positive control is the same op from an author, which is admitted.
+    #[test]
+    fn machines_may_not_author() {
+        let op = json!({"op": "assertNS", "subject": "s", "text": "t",
+                        "discipline": "d", "rung": "R0"});
+        let (v, why) = check_op(&op, &machine());
+        assert_eq!(v, OpVerdict::Rejected);
+        assert!(why.contains("machine"), "{why}");
+        assert_eq!(check_op(&op, &author()).0, OpVerdict::Ok);
     }
 
     #[test]

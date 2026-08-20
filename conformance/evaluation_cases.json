@@ -7,10 +7,17 @@
     "The motivating measurement: AUTH-24 (`sponsor:edit never implies deploy`),",
     "grounded on the deployer role, examines 0 records in Studio. A check there",
     "would report success forever, having examined nothing. Case",
-    "`a_pass_over_zero_records_is_refused` is that finding, written down."
+    "`a_pass_over_zero_records_is_refused` is that finding, written down.",
+    "",
+    "A machine reports, never judges (RFC-004a §4): a case whose `author` carries",
+    "`machine_author_prefix` may record Examined / Vacuous / CannotBeGrounded and",
+    "is refused a Passes or a Fails — the `judgments`. `Examined` is deliberately",
+    "not a judgment: it is the one outcome a machine exists to report."
   ],
   "positive_outcomes": ["Passes", "Fails", "Examined"],
   "outcomes": ["Passes", "Fails", "Examined", "Vacuous", "CannotBeGrounded"],
+  "judgments": ["Passes", "Fails"],
+  "machine_author_prefix": "machine:",
   "cases": [
     {
       "name": "a_pass_over_zero_records_is_refused",
@@ -166,6 +173,71 @@
         "population": 5
       },
       "expect": "refused"
+    },
+    {
+      "name": "a_machine_may_report_what_it_examined",
+      "why": "RFC-004a §4: a consumer's CI posts a count under a machine principal. A count over real records is a measurement, and Examined is exactly 'measured, undecided'.",
+      "author": "machine:studio-nextjs",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Examined",
+        "population": 1412,
+        "query_fingerprint": "sha256:b05e76b22a0cc44b"
+      },
+      "expect": "accepted",
+      "normalized": { "population": 1412 }
+    },
+    {
+      "name": "a_machine_may_not_judge_a_pass",
+      "why": "A count says how many records a check would examine. Whether the claim holds over them is a judgment, and a SELECT count(*) did not make one. A machine reports, never judges.",
+      "author": "machine:studio-nextjs",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Passes",
+        "population": 1412
+      },
+      "expect": "refused",
+      "message_contains": "Examined"
+    },
+    {
+      "name": "a_machine_may_not_judge_a_failure",
+      "why": "Same boundary, the other judgment.",
+      "author": "machine:studio-nextjs",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Fails",
+        "population": 1412
+      },
+      "expect": "refused",
+      "message_contains": "judgment"
+    },
+    {
+      "name": "a_machine_zero_honestly_labeled_is_accepted",
+      "why": "The job that finds nothing says Vacuous, and the door takes it from a machine exactly as it does from a person.",
+      "author": "machine:studio-nextjs",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Vacuous",
+        "population": 0
+      },
+      "expect": "accepted"
+    },
+    {
+      "name": "a_machine_examined_over_zero_is_still_refused",
+      "why": "The machine rule ADDS a refusal and removes none: Examined over zero is the same lie whoever tells it.",
+      "author": "machine:studio-nextjs",
+      "body": {
+        "claim": "auth-24",
+        "implementation": "studio-nextjs",
+        "outcome": "Examined",
+        "population": 0
+      },
+      "expect": "refused",
+      "message_contains": "Vacuous"
     }
   ]
 }

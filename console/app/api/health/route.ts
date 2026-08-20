@@ -7,6 +7,7 @@
 import { NextResponse } from "next/server";
 
 import { principal } from "../../../lib/auth";
+import { machineCredentialHealth } from "../../../lib/auth/machine";
 import { CORPUS_VERSION, ROUTES, rowsOf } from "../../../lib/corpus";
 import { READ_ONLY_REASON, backend, evaluationRecords, proposalRecords, writeEnabled } from "../../../lib/store";
 
@@ -59,6 +60,9 @@ export async function GET() {
     // Whether a write would be attributed, not who to. The identity itself is
     // not something a health endpoint should hand out.
     principal: who ? "present" : "absent",
+    // Whether a machine credential COULD be verified here, and how many have
+    // been revoked by name. Not which implementations hold one.
+    machine_credentials: machineCredentialHealth(),
     grounding_adapter: process.env["GROUNDING_ADAPTER_URL"]?.trim() ? "configured" : "unset",
     adopt_with: "tools/proposals/materialize.py",
   });

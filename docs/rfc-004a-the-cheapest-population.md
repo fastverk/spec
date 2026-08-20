@@ -1,9 +1,10 @@
 # RFC-004a — the cheapest path to a real population
 
-Status: **proposed**. A narrowing of RFC-004 §5 Phase 3, written because the
-adapter is the only item on the critical path this repo cannot unblock, and the
-question *"how much of our model do we have to adopt to use this?"* deserves a
-smaller answer than "implement a gRPC service".
+Status: **proposed**; §4 (the machine credential) and §5 (the job) landed in
+#48. A narrowing of RFC-004 §5 Phase 3, written because the adapter is the only
+item on the critical path this repo cannot unblock, and the question *"how much
+of our model do we have to adopt to use this?"* deserves a smaller answer than
+"implement a gRPC service".
 
 ---
 
@@ -85,73 +86,75 @@ judgement. The adapter measures a population and refuses to decide the predicate
 and a CI job posting `Passes` would be making a claim its `SELECT count(*)` did
 not check.
 
-## 4. The one thing that does not exist yet
+## 4. The machine credential
 
 `POST /api/evaluation` authenticates with the console's session cookie —
-`principal()` resolves a signed-in human, or `SPEC_AUTHOR` in local development.
-**A CI job has neither.** There is no machine credential in this system today, so
-the job in §1 gets a 401.
+`principal()` resolves a signed-in human, or `SPEC_AUTHOR` in local development
+— **or with a machine credential**, which is the thing this section used to say
+did not exist. It is deliberately NOT a general-purpose API key:
 
-That is a small, well-scoped addition and it should NOT be a general-purpose API
-key:
+- **Accepted only by `POST /api/evaluation`.** `/api/proposal/op` never consults
+  it — that route calls `principal()`, which can only ever produce a `google:`
+  or `dev:` sub — so a machine cannot reach the op door by construction, and
+  `checkOp` refuses the `machine:` prefix as a second lock. A machine may report
+  what it measured and may not author, amend or withdraw a requirement: the same
+  boundary `proposal.ts` draws for agents, one door over.
+- **A named principal.** The token's `sub` is `machine:<implementation>`, and
+  that string is the `author` on the row. Invariant ⑤ is that nothing is
+  attributed to nobody, and "a machine did it" is nobody.
+- **Held in the project's CI secrets, rotatable, and useless for anything except
+  appending counts.** An HS256 JWT signed with `SPEC_MACHINE_TOKEN_SECRET` — a
+  secret of its own, required to differ from `SESSION_SECRET` — carrying
+  `aud spec-console:evaluation`, `typ spec-machine+jwt`, a required `exp`
+  (90 days by default, a year at most) and a `jti`, so one leaked token can be
+  revoked by name (`SPEC_MACHINE_TOKEN_REVOKED`) without rotating the secret
+  out from under every consumer. Rotating the secret kills every token at once;
+  re-mint and redistribute.
 
-- A bearer token accepted **only** by `POST /api/evaluation`. Not by
-  `/api/proposal/op` — a machine may report what it measured and may not author,
-  amend or withdraw a requirement, which is the same boundary
-  `proposal.ts:141-146` already draws for agents.
-- The token maps to a **named** principal, not to an anonymous one. Invariant ⑤
-  is that nothing is attributed to nobody, and "a machine did it" is nobody. The
-  natural name is the `implementation` the token is issued for, recorded as
-  `author: "machine:studio-nextjs"`.
-- Held in the project's CI secrets, rotatable, and useless for anything except
-  appending counts.
+Two rules ride on it, both enforced before anything is appended:
 
-Until that exists, §5 is runnable by a person with a session cookie, which is
-enough to prove the path end to end before anyone builds anything.
+- **A machine reports, never judges.** `Passes` and `Fails` from a `machine:`
+  author are refused (422). A count says how many records a check would
+  examine; whether the claim holds over them is a judgment, and a
+  `SELECT count(*)` did not make one. The rule lives in the shared conformance
+  cases (`conformance/evaluation_cases.json`), so the Rust door says the same.
+- **A credential reports for the implementation it names, and no other.** A
+  token issued for `studio-nextjs` posting against `implementation: "ampere"`
+  is a 403, not a rewrite.
+
+And a presented credential is judged, never ignored: an `Authorization` header
+that does not verify is a 401 here and now, never a fall-back to a cookie or
+`SPEC_AUTHOR`. The refusals, by code: `E_MACHINE_TOKEN_REJECTED` (not this
+console's, expired, or revoked), `E_MACHINE_TOKENS_UNCONFIGURED` (the
+deployment has no machine secret), `E_IMPLEMENTATION_MISMATCH`.
+
+Minting is an operator's laptop, not a route — `console/tools/mint-machine-token.mjs`,
+walked through in `console/DEPLOY.md` → "Machine credentials". The verifier is
+`console/lib/auth/machine.ts`; the tests that matter are
+`console/test/routes.test.ts`, written as the attack.
 
 ## 5. The job
 
-```js
-// A dependency-free sketch. Runs wherever the project's database is reachable —
-// which is the point: spec never sees the database, only the number.
-import { createHash } from "node:crypto";
+`tools/evaluation/post_evaluation.mjs` is the job: one dependency-free file a
+project copies into its CI. It runs wherever the project's database is
+reachable — which is the point: spec never sees the database, only the number.
 
-const CONSOLE = process.env.SPEC_CONSOLE_URL;   // https://spec-…vercel.app
-const TOKEN   = process.env.SPEC_EVALUATION_TOKEN;  // §4
+```sh
+# Your SQL, your pool, your credentials. Only the count leaves.
+POP=$(psql "$DATABASE_URL" -X -A -t -c "$(cat checks/auth-24.sql)")
 
-// One entry per grounded requirement. The SQL is YOURS — spec never parses it,
-// never stores it, and never sees a row it selected.
-const CHECKS = [
-  {
-    claim: "auth-24",
-    sql: `SELECT count(*) FROM team_memberships WHERE role = 'deployer'`,
-  },
-];
-
-for (const { claim, sql } of CHECKS) {
-  const { rows } = await db.query(sql);           // your pool, your credentials
-  const population = Number(rows[0].count);
-
-  const res = await fetch(`${CONSOLE}/api/evaluation`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${TOKEN}` },
-    body: JSON.stringify({
-      claim,
-      project: "studio",
-      implementation: "studio-nextjs",
-      // ⛔ Examined, never Passes. The count says how many records a check WOULD
-      // examine. Whether the claim holds over them is a different question and
-      // this job did not answer it.
-      outcome: population === 0 ? "Vacuous" : "Examined",
-      population,
-      // Reproduces the count later without storing what was counted.
-      query_fingerprint: `sha256:${createHash("sha256").update(sql).digest("hex").slice(0, 16)}`,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`${claim}: ${res.status} ${await res.text()}`);
-}
+SPEC_CONSOLE_URL=https://spec.example.com SPEC_EVALUATION_TOKEN=… \
+node post_evaluation.mjs --claim auth-24 --implementation studio-nextjs \
+    --project studio --population "$POP" --sql-file checks/auth-24.sql
 ```
+
+What it sends is §3's body: the claim, the implementation, the count, and
+`sha256:` + the first 16 hex of the SHA-256 of the query text — so the count
+can be reproduced later without storing what was counted. The outcome is a
+function of the count, `Vacuous` at zero and `Examined` otherwise; the script
+has no way to say `Passes`. `--dry-run` prints the body without reading the
+token. `tools/evaluation/README.md` has the GitHub Actions and GitLab CI shapes
+and the refusals the job will meet.
 
 Note what is absent: no `.proto`, no generated client, no ontology import, no
 term ids, no rungs. A list of `(claim, SQL)` pairs and one POST.
@@ -175,8 +178,9 @@ Phase 3 splits in two, and only the first half is on the critical path:
 
 | | | |
 |---|---|---|
-| **3a** | the CI job in §5, plus the machine token in §4 | days, no proto, unblocks the first real population |
+| **3a** | the CI job in §5, plus the machine credential in §4 | **shipped on the console side (#48).** What remains is the consumer's CI running it — days, and not this repo's days |
 | **3b** | `Probe`, for the grounding conversation | weeks, and worth it once terms are being bound at volume |
 
-The six-week clock RFC-004 §8 puts on Phase 3 should be started against **3a**.
-If a count has not arrived in that window, the blocker was never the protocol.
+The six-week clock RFC-004 §8 puts on Phase 3 should be started against **3a**
+— from the day the first credential is handed over. If a count has not arrived
+in that window, the blocker was never the protocol.

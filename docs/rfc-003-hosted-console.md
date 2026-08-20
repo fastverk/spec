@@ -215,6 +215,18 @@ attribution to nobody wearing a name. Because the log is append-only, a
 dev-authored record can never be removed — so it stamps `sub` as `dev:<email>`,
 self-labelling forever.
 
+Since #48 there is a second source of a principal, and it is a different type
+on purpose. A consumer's CI holds a **machine credential** — an HS256 JWT under
+its own secret, `aud spec-console:evaluation`, a required expiry and a
+revocable `jti` (RFC-004a §4) — and `console/lib/auth/machine.ts` resolves it
+to a `MachinePrincipal`: `sub machine:<implementation>`, no email, no kernel,
+no agent capability. It is not assignable to `Principal`, so it cannot be handed
+to `checkProposal`; only the evaluation route consults it, so it cannot reach
+the op door; and `checkOp` refuses the `machine:` prefix regardless. A machine
+reports what it measured and may not author, and the type system, the routing
+and the door each say so separately. Like `dev:<email>`, the `machine:` author
+is self-labelling forever in an append-only log.
+
 ## 8. The adapter, and the promotion loop
 
 **The adapter is deferred.** Its commits are unpushed on a GitLab repo by

@@ -19,7 +19,7 @@ exactly the way the two implementations are.
 
 | file | rule | executed by |
 |---|---|---|
-| `evaluation_cases.json` | zero is an exception, never a pass | `services/spec/src/evaluation.rs`, `console/lib/evaluation.ts` |
+| `evaluation_cases.json` | zero is an exception, never a pass; a machine reports, never judges | `services/spec/src/evaluation.rs`, `console/lib/evaluation.ts` |
 | `overlay_cases.json` | pending means *differs from the corpus*; adoption is measured against the corpus | `services/spec/src/overlay.rs`, `console/lib/overlay.ts` |
 
 Both carry cases in **both directions**. A check only ever shown to accept is an

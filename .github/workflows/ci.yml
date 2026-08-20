@@ -228,6 +228,13 @@ jobs:
         working-directory: console
         run: pnpm exec vitest run
 
+      # The consumer's half of RFC-004a: the dependency-free script a project's
+      # CI runs to post a count under a machine credential. It lives outside
+      # console/ because a consumer copies the one file, which also means vitest
+      # (rooted in console/) cannot see it — so it runs here, on the same Node.
+      - name: consumer script
+        run: node --test tools/evaluation/post_evaluation.test.mjs
+
       # ⚠ Builds the read model INTO the bundle, so this also proves the eight
       # payloads still parse and still agree on one corpus_version. A build that
       # spans two corpora fails here rather than serving a read point that is a

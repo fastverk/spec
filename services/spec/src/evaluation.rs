@@ -24,6 +24,14 @@
 //! Zero is an exception, never a result. `au:Vacuous` is the honest recording
 //! of "it ran and examined nothing"; `au:CannotBeGrounded` is "it could not run
 //! at all". Both legitimately carry a population of zero. Neither is a pass.
+//!
+//! ## A machine reports, never judges
+//!
+//! A machine principal — `author` prefixed `machine:`, which only the console's
+//! evaluation route mints from a credential (RFC-004a §4) — may report
+//! `Examined`, `Vacuous` or `CannotBeGrounded`, and may not report `Passes` or
+//! `Fails`. A count says how many records a check would examine; whether the
+//! claim holds over them is a judgment, and a `SELECT count(*)` did not make one.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -53,6 +61,22 @@ pub const OUTCOMES: &[&str] = &["Passes", "Fails", "Examined", "Vacuous", "Canno
 /// one of them meaningless — including `Examined`, whose whole content is "there
 /// were records to look at".
 const POSITIVE: &[&str] = &["Passes", "Fails", "Examined"];
+
+/// Outcomes that are a JUDGMENT rather than a measurement. A machine principal
+/// (`author` prefixed `MACHINE_PREFIX`, RFC-004a §4) may report `Examined`,
+/// `Vacuous` or `CannotBeGrounded` and may not report either of these: a count
+/// says how many records a check would examine, and whether the claim holds
+/// over them is a question the machine did not answer. `Examined` is
+/// deliberately NOT here — it is the one outcome a machine exists to report.
+///
+/// ⚠ Asserted against the TypeScript constant and the fixtures by
+/// `conformance/check_conformance.py`, like OUTCOMES and POSITIVE.
+pub const JUDGMENTS: &[&str] = &["Passes", "Fails"];
+
+/// The author prefix that marks a machine principal (RFC-004a §4). Keying the
+/// rule on the string is keying it on the credential, the same way agent
+/// capability is keyed on the `agent:` sub prefix.
+pub const MACHINE_PREFIX: &str = "machine:";
 
 #[derive(Debug, Clone)]
 pub struct Evaluation {
@@ -88,6 +112,16 @@ pub fn check(body: &Value, author: &str) -> Result<Evaluation, String> {
     let outcome = s("outcome");
     if !OUTCOMES.contains(&outcome.as_str()) {
         return Err(format!("`{outcome}` is not an au:Outcome (expected one of {OUTCOMES:?})"));
+    }
+
+    // ⛔ A machine reports, never judges. Before the population rules, so a
+    // machine's `Examined` over zero still hears "Vacuous": this rule adds a
+    // refusal and removes none.
+    if author.starts_with(MACHINE_PREFIX) && JUDGMENTS.contains(&outcome.as_str()) {
+        return Err(format!(
+            "`{outcome}` is a judgment, and a machine reports what it measured — record Examined \
+             with the population and let a person decide whether the claim holds"
+        ));
     }
 
     let population = match obj.get("population") {
@@ -290,6 +324,12 @@ mod tests {
             POSITIVE,
             "fixtures and POSITIVE disagree"
         );
+        assert_eq!(listed("judgments"), JUDGMENTS, "fixtures and JUDGMENTS disagree");
+        assert_eq!(
+            doc["machine_author_prefix"].as_str(),
+            Some(MACHINE_PREFIX),
+            "fixtures and MACHINE_PREFIX disagree"
+        );
 
         let cases = doc["cases"].as_array().expect("cases array");
         assert!(cases.len() >= 10, "suspiciously few cases: {}", cases.len());
@@ -367,5 +407,23 @@ mod tests {
         assert!(check(&b, "a@b.c").is_err(), "implementation is required");
 
         assert!(check(&body("Probably", Some(5)), "a@b.c").is_err(), "not an au:Outcome");
+    }
+
+    /// ⛔ A machine reports, never judges — both directions, hand-written so it
+    /// runs under Bazel where the shared fixture is not staged.
+    #[test]
+    fn a_machine_may_report_what_it_examined_and_may_not_judge() {
+        let machine = "machine:studio-nextjs";
+        assert!(check(&body("Passes", Some(88)), machine).is_err(), "a pass is a judgment");
+        assert!(check(&body("Fails", Some(88)), machine).is_err(), "so is a failure");
+        let ok = check(&body("Examined", Some(1412)), machine).expect("a count is a measurement");
+        assert_eq!(ok.population, Some(1412));
+        assert!(check(&body("Vacuous", Some(0)), machine).is_ok());
+        assert!(check(&body("CannotBeGrounded", None), machine).is_ok());
+        // The rule adds a refusal and removes none: Examined over zero is the
+        // same lie whoever tells it.
+        assert!(check(&body("Examined", Some(0)), machine).is_err());
+        // And a person may still judge.
+        assert!(check(&body("Passes", Some(88)), "a@b.c").is_ok());
     }
 }

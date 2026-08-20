@@ -88,6 +88,18 @@ def ts_str_array(src, name):
     return re.findall(r'"([^"]+)"', m.group(1))
 
 
+def rust_str_const(src, name):
+    """The string literal of a `const NAME: &str = "...";` declaration."""
+    m = re.search(rf'const {name}:\s*&str\s*=\s*"([^"]*)";', src)
+    return m.group(1) if m else None
+
+
+def ts_str_const(src, name):
+    """The string literal of a `const NAME = "...";` declaration in TypeScript."""
+    m = re.search(rf'const {name}\s*(?::[^=]+)?=\s*"([^"]*)"', src)
+    return m.group(1) if m else None
+
+
 # ── 1. the fixtures are well-formed ───────────────────────────────────────────
 ev = load(EVAL_CASES)
 ov = load(OVERLAY_CASES)
@@ -101,6 +113,21 @@ check(isinstance(fixture_positive, list) and fixture_positive,
 check(set(fixture_positive or []) <= set(fixture_outcomes or []),
       f"{EVAL_CASES}: positive_outcomes is not a subset of outcomes")
 
+# A machine reports, never judges (RFC-004a §4): the judgments are the outcomes
+# a `machine:`-authored measurement is refused.
+fixture_judgments = ev.get("judgments")
+fixture_prefix = ev.get("machine_author_prefix")
+check(isinstance(fixture_judgments, list) and fixture_judgments,
+      f"{EVAL_CASES}: no `judgments` list")
+check(set(fixture_judgments or []) <= set(fixture_positive or []),
+      f"{EVAL_CASES}: judgments is not a subset of positive_outcomes")
+# ⛔ Examined is a MEASUREMENT, not a judgment. Listing it here would lock every
+# machine out of the one outcome it exists to report.
+check("Examined" not in (fixture_judgments or []),
+      f"{EVAL_CASES}: judgments contains `Examined` — a machine could then report nothing")
+check(isinstance(fixture_prefix, str) and fixture_prefix.endswith(":"),
+      f"{EVAL_CASES}: `machine_author_prefix` must be a `<kind>:` prefix")
+
 ev_names = [c.get("name") for c in ev.get("cases", [])]
 check(len(ev_names) == len(set(ev_names)), f"{EVAL_CASES}: duplicate case names")
 check(len(ev_names) >= 10, f"{EVAL_CASES}: only {len(ev_names)} cases")
@@ -109,6 +136,16 @@ check(len(ev_names) >= 10, f"{EVAL_CASES}: only {len(ev_names)} cases")
 expects = [c.get("expect") for c in ev.get("cases", [])]
 check("refused" in expects, f"{EVAL_CASES}: no case expects a refusal")
 check("accepted" in expects, f"{EVAL_CASES}: no case expects an acceptance")
+
+# The machine half, both directions too: a rule only ever shown to refuse a
+# machine is a lockout, and one only shown to accept is no boundary at all.
+machine_cases = [c for c in ev.get("cases", [])
+                 if isinstance(c.get("author"), str)
+                 and c["author"].startswith(fixture_prefix or "machine:")]
+check(any(c.get("expect") == "refused" for c in machine_cases),
+      f"{EVAL_CASES}: no machine-authored case expects a refusal")
+check(any(c.get("expect") == "accepted" for c in machine_cases),
+      f"{EVAL_CASES}: no machine-authored case expects an acceptance")
 
 for c in ev.get("cases", []):
     n = c.get("name", "?")
@@ -172,6 +209,17 @@ if rs_positive is not None:
           f"{RS_EVAL}: POSITIVE no longer contains `Examined` — an Examined over "
           f"zero records is the same lie in a quieter voice")
 
+rs_judgments = rust_str_slice(rs_eval, "JUDGMENTS")
+rs_prefix = rust_str_const(rs_eval, "MACHINE_PREFIX")
+check(rs_judgments is not None, f"{RS_EVAL}: no JUDGMENTS slice")
+check(rs_prefix is not None, f"{RS_EVAL}: no MACHINE_PREFIX const")
+if rs_judgments is not None:
+    check(rs_judgments == fixture_judgments,
+          f"{RS_EVAL}: JUDGMENTS is {rs_judgments}, fixtures declare {fixture_judgments}")
+if rs_prefix is not None:
+    check(rs_prefix == fixture_prefix,
+          f"{RS_EVAL}: MACHINE_PREFIX is {rs_prefix!r}, fixtures declare {fixture_prefix!r}")
+
 # There must be no Unknown bucket; it would immediately become where anything
 # awkward went.
 check("Unknown" not in (rs_outcomes or []), f"{RS_EVAL}: OUTCOMES gained an `Unknown`")
@@ -180,7 +228,7 @@ check("Unknown" not in (rs_outcomes or []), f"{RS_EVAL}: OUTCOMES gained an `Unk
 # This is the cross-check that does not need a toolchain: the rule is small enough
 # to state independently, so state it, and make the fixtures agree with it. If the
 # rule and the fixtures disagree, one of them is wrong and a human must look.
-def derive(body, outcomes, positive):
+def derive(body, author, outcomes, positive, judgments, prefix):
     """Return None if the measurement is admissible, else why it is refused."""
     def s(k):
         v = body.get(k)
@@ -192,6 +240,10 @@ def derive(body, outcomes, positive):
         return "implementation"
     if s("outcome") not in outcomes:
         return "outcome"
+    # A machine reports, never judges — before the population rules, so a
+    # machine's Examined over zero is still refused as Vacuous.
+    if author.startswith(prefix) and s("outcome") in judgments:
+        return "judgment"
     pop = body.get("population")
     if pop is None:
         return "population" if s("outcome") in positive else None
@@ -207,7 +259,8 @@ def derive(body, outcomes, positive):
 if rs_outcomes and rs_positive:
     for c in ev.get("cases", []):
         n = c.get("name", "?")
-        why = derive(c.get("body", {}), rs_outcomes, rs_positive)
+        why = derive(c.get("body", {}), c.get("author", ""), rs_outcomes, rs_positive,
+                     rs_judgments or [], rs_prefix or "machine:")
         want_refused = c.get("expect") == "refused"
         check(
             (why is not None) == want_refused,
@@ -242,6 +295,16 @@ if ts_present:
               f"{TS_EVAL}: POSITIVE is {ts_positive}, fixtures declare {fixture_positive}")
         check("Examined" in (ts_positive or []),
               f"{TS_EVAL}: POSITIVE no longer contains `Examined`")
+    ts_judgments = ts_str_array(ts_eval, "JUDGMENTS")
+    ts_prefix = ts_str_const(ts_eval, "MACHINE_PREFIX")
+    check(ts_judgments is not None, f"{TS_EVAL}: no JUDGMENTS array")
+    check(ts_prefix is not None, f"{TS_EVAL}: no MACHINE_PREFIX const")
+    if ts_judgments is not None:
+        check(ts_judgments == fixture_judgments,
+              f"{TS_EVAL}: JUDGMENTS is {ts_judgments}, fixtures declare {fixture_judgments}")
+    if ts_prefix is not None:
+        check(ts_prefix == fixture_prefix,
+              f"{TS_EVAL}: MACHINE_PREFIX is {ts_prefix!r}, fixtures declare {fixture_prefix!r}")
 
 # ── 5. the reader may not read a field the vocabulary does not declare ────────
 # ⛔ This is the check that would have caught two live bugs, and it is here
@@ -450,4 +513,5 @@ print(f"OK — {checks} checks passed over {len(ev_names)} evaluation "
       f"and {len(ov_names)} overlay cases")
 print(f"     outcomes: {', '.join(rs_outcomes or [])}")
 print(f"     positive: {', '.join(rs_positive or [])}  (zero makes every one of these meaningless)")
+print(f"     judgments: {', '.join(rs_judgments or [])}  (refused from a {rs_prefix or 'machine:'}… author — a machine reports, never judges)")
 print(f"     typescript: {'checked' if ts_present else 'not present yet — ' + TS_EVAL}")

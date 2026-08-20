@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { OUTCOMES, POSITIVE, checkEvaluation } from "../lib/evaluation";
+import { JUDGMENTS, MACHINE_PREFIX, OUTCOMES, POSITIVE, checkEvaluation } from "../lib/evaluation";
 import { Pending, type Row } from "../lib/overlay";
 
 // ⚠ THE ONE PLACE that reaches outside console/ for the fixtures. On extraction
@@ -52,6 +52,8 @@ describe("conformance/evaluation_cases.json", () => {
   it("declares the same vocabulary the implementation does", () => {
     expect(doc.outcomes).toEqual([...OUTCOMES]);
     expect(doc.positive_outcomes).toEqual([...POSITIVE]);
+    expect(doc.judgments).toEqual([...JUDGMENTS]);
+    expect(doc.machine_author_prefix).toBe(MACHINE_PREFIX);
   });
 
   it("carries cases in both directions", () => {
@@ -59,6 +61,13 @@ describe("conformance/evaluation_cases.json", () => {
     expect(cases.some((c) => c.expect === "refused")).toBe(true);
     expect(cases.some((c) => c.expect === "accepted")).toBe(true);
     expect(cases.length).toBeGreaterThanOrEqual(10);
+
+    // And for a machine principal, both directions too: a rule only ever shown
+    // to refuse a machine is a lockout, and one only shown to accept is no
+    // boundary at all.
+    const machine = cases.filter((c) => c.author.startsWith(MACHINE_PREFIX));
+    expect(machine.some((c) => c.expect === "refused")).toBe(true);
+    expect(machine.some((c) => c.expect === "accepted")).toBe(true);
   });
 
   for (const c of cases) {
