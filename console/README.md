@@ -120,10 +120,34 @@ lib/overlay.ts      pending + adoption       ← conformance/overlay_cases.json
 lib/evaluated.ts    measurements, and stateOf (the display half of the refusal)
 lib/proposal.ts     the closed op vocabulary, 17 constructors
 lib/canonical.ts    canonical JSON — the pre-image of a content address
+lib/address.ts      the content address itself   ← conformance/address_cases.json
+lib/door.ts         THE ONE CALLSITE that appends a proposal (RFC-002 §4.1)
 lib/corpus.ts       the imported read model, and CORPUS_VERSION
 lib/store.ts        Neon | local JSONL | read-only
-db/migrations/      the two append-only tables
+db/migrations/      the two append-only tables, and the door's two columns
 ```
+
+⛔ Both write routes — `POST /api/proposal` (nested, multi-op) and
+`POST /api/proposal/op` (the flat one-op form a declarative `FormPanel` submits)
+— go through `lib/door.ts` and nothing else does. RFC-002 §4.1 asks for exactly
+one callsite that applies ops; `services/spec`'s copies of these routes answer
+**410 Gone** for the same reason, since two doors are two implementations of the
+content address and they had already disagreed about one.
+
+The door answers with the proposal's name and the decision that let it in:
+
+```json
+{ "verdict": "Admitted",
+  "address": "sha256:99dde1c2…",
+  "address_pre_image": "{\"author\":\"dev:you@example.com\",\"ops\":[…],\"parent\":\"…\"}",
+  "log_seq": 41 }
+```
+
+The pre-image is returned so a caller can recompute the digest without knowing
+the rule — and disagree with the server if it is wrong. ⛔ Three fields:
+`surface` and `intent` are recorded with the proposal and are NOT in the name, so
+the same change authored by clicking and by chatting is one proposal with two
+provenance records (§9.1).
 
 `lib/evaluation.ts` and `lib/overlay.ts` implement rules that also exist in Rust.
 Neither owns its test cases — both run `conformance/*.json`, and so does

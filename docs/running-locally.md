@@ -78,6 +78,39 @@ evaluation route and nowhere else. `SPEC_AUTHOR` is not consulted while an
 ignored. `/api/health` reports `machine_credentials.configured` so a deployment
 that forgot the secret reads as one.
 
+**The door** — a proposal, and the name it gets:
+
+```sh
+curl -s -X POST localhost:5175/api/proposal -H 'content-type: application/json' \
+  -d '{"parent":"corpus:studio@today","ops":[
+        {"op":"bindTerm","term":"session","definition":"a row in auth.sessions","project":"studio"}]}'
+# 202 {"verdict":"Admitted","address":"sha256:…","address_pre_image":"{\"author\":…}","log_seq":1}
+```
+
+⛔ Now send the identical op through the flat route with a different surface, and
+compare the two addresses:
+
+```sh
+curl -s -X POST localhost:5175/api/proposal/op -H 'content-type: application/json' \
+  -d '{"parent":"corpus:studio@today","surface":"Chat","op":"bindTerm",
+       "term":"session","definition":"a row in auth.sessions","project":"studio"}'
+```
+
+Same `address`, different `canonical`. That is RFC-002 §9.1: one proposal, two
+provenance records. The name is `sha256` over `{author, ops, parent}` and over
+nothing else, so the surface and the intent are recorded and do not vote. Then:
+
+```sh
+python3 tools/proposals/replay.py --log /tmp/spec-proposals.jsonl --list
+python3 tools/proposals/replay.py --log /tmp/spec-proposals.jsonl \
+    --address sha256:… --project studio --out /tmp/replayed
+```
+
+⚠ The plugin's `POST /proposal` answers **410 Gone** and names these routes. Two
+doors are two implementations of the address, and they had already disagreed
+about one (the plugin coerced a form's `bound_value` to a float; the console does
+not coerce at all).
+
 ### What to look at
 
 | | |

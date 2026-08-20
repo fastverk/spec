@@ -46,6 +46,20 @@ tonic = "0.12"
 hyper = { version = "1", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
 http-body-util = "0.1"
+# ⛔ THE HASH PRIMITIVE THIS CRATE SPENT A YEAR SAYING IT COULD NOT HAVE.
+#
+# proposal.rs used to open with "this crate has no hash primitive and cannot
+# acquire one without re-pinning the plugin's crate universe", and answered
+# `"address": null` on every write. Re-pinning turned out to be one line here and
+# a `cargo update -p` — eight small pure-Rust crates, no C, no build script that
+# runs a compiler. The claim was true when it was written (there was no reason to
+# pay for it) and had quietly become a reason not to build the door.
+#
+# RustCrypto's sha2, not a hand-rolled one: this digest is the permanent NAME of
+# a proposal, checked against NIST vectors by a crate thousands of things depend
+# on. The one thing worse than no address is an address only this program agrees
+# with.
+sha2 = "0.10"
 
 [build-dependencies]
 prost-build.workspace = true

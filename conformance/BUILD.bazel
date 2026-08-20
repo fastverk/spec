@@ -3,6 +3,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "address_cases.json",
     "check_conformance.py",
     "decomposition_cases.json",
     "evaluation_cases.json",
@@ -23,6 +24,11 @@ filegroup(
         "decomposition_cases.json",
         "evaluation_cases.json",
         "overlay_cases.json",
+        # The content address: the pre-image bytes AND the digest, executed by
+        # three canonicalizers. Pinning the bytes as well as the hash is the
+        # difference between learning THAT two implementations disagree and
+        # learning WHERE.
+        "address_cases.json",
     ],
 )
 

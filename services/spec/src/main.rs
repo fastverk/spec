@@ -10,10 +10,11 @@
 //!
 //! The two sources are the estate **spec index** (`$SPEC_SOURCE_ROOT`, a scan of
 //! the git-synced tree) and the RFC-002 **authoring read model**
-//! (`$SPEC_READMODEL_DIR`, precomputed SPARQL results). Both are read-only. The one
-//! write surface — `POST /proposal` — appends to `$SPEC_PROPOSAL_LOG` and is
-//! disabled unless that is set; it queues rather than admits, because the door that
-//! admits runs in the build (see `spec::proposal`).
+//! (`$SPEC_READMODEL_DIR`, precomputed SPARQL results). Both are read-only, and so
+//! is this process now: the write surface — `POST /proposal`, `POST /proposal/op` —
+//! is RETIRED and answers 410 naming the console's routes. `$SPEC_PROPOSAL_LOG` is
+//! still read, for the pending overlay; it is no longer written. One door, because
+//! two doors are two implementations of a content address (see `spec::proposal`).
 //!
 //! Both planes run concurrently; if either exits, the process exits. No outbound
 //! network.
@@ -76,6 +77,8 @@ async fn main() -> Result<()> {
         tracing::error!(%why, "web_routes and the served read-model routes disagree");
     }
 
+    // ⚠ READ ONLY. `$SPEC_PROPOSAL_LOG` still names the file the pending overlay
+    // replays; nothing here appends to it any more.
     let log = Arc::new(spec::proposal::ProposalLog::from_env());
     // A SEPARATE file. Replaying judgements and measurements from one log would
     // make "who decided this" and "what did it measure" the same question.

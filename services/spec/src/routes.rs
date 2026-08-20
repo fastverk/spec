@@ -50,16 +50,25 @@ pub const AUTHORING_READS: &[(&str, &str, &str)] = &[
     ("ListEvaluations", "GET", "evaluations"),
 ];
 
-/// The authoring write path. Declared unconditionally, even when
-/// `$SPEC_PROPOSAL_LOG` is unset and the routes answer 503: a declared route that
-/// explains why it refuses is a better failure than an undeclared one, which the
-/// shell reports as a missing route and the author reads as a broken console.
+/// The authoring write path. Declared unconditionally, even though two of the
+/// four now answer **410 Gone**: a declared route that explains why it refuses is
+/// a better failure than an undeclared one, which the shell reports as a missing
+/// route and the author reads as a broken console.
+///
+/// ⛔ `SubmitProposal` and `SubmitOp` are RETIRED — the console is the one door
+/// (see `http::write_retired`). They stay here, and stay served, precisely so the
+/// 410 and its `use_instead` reach a caller who still has the old path wired.
+/// Deleting them would turn a message into a 404.
 pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
+    // 410 Gone → POST /api/proposal on the console.
     ("SubmitProposal", "POST", "proposal"),
     ("PreviewProposal", "POST", "proposal/verdict-preview"),
-    // The flat, one-op form a meridian `FormPanel` can submit. This is what makes a
-    // write affordance DECLARATIVE — see `proposal::from_flat`, and RFC-002a §5 for
-    // why that turned out to matter more than the adhoc route.
+    // 410 Gone → POST /api/proposal/op on the console. The flat, one-op lift that
+    // makes a write affordance DECLARATIVE moved with it, to
+    // `console/lib/proposal.ts::fromFlat`; see RFC-002a §5 for why that shape
+    // turned out to matter more than the adhoc route, and `crate::proposal` for
+    // why having TWO implementations of it stopped being survivable once a
+    // proposal had a name.
     ("SubmitOp", "POST", "proposal/op"),
     // ⚠ Served since #29 and declared only now. `routes_match_describe` compares
     // GET routes only, and `check_wiring.py` checks declared→registered but never

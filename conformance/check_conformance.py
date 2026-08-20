@@ -30,6 +30,7 @@ target being unrunnable, not a replacement for it.
 Needs nothing but the standard library, which is the point — it runs in CI, in a
 pre-commit hook, or on a laptop with no Bazel and no crate registry access.
 """
+import hashlib
 import json
 import os
 import re
@@ -39,9 +40,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 EVAL_CASES = "conformance/evaluation_cases.json"
 OVERLAY_CASES = "conformance/overlay_cases.json"
+ADDRESS_CASES = "conformance/address_cases.json"
 RS_EVAL = "services/spec/src/evaluation.rs"
 RS_OVERLAY = "services/spec/src/overlay.rs"
+RS_PROPOSAL = "services/spec/src/proposal.rs"
+RS_HTTP = "services/spec/src/http.rs"
 TS_EVAL = "console/lib/evaluation.ts"
+TS_ADDRESS = "console/lib/address.ts"
+TS_OVERLAY = "console/lib/overlay.ts"
 
 # The overlay entry points a case may target, and the corpus payloads each needs.
 APPLY_TARGETS = {
@@ -86,6 +92,10 @@ def ts_str_array(src, name):
     if not m:
         return None
     return re.findall(r'"([^"]+)"', m.group(1))
+
+
+def strip_line_comments(src):
+    return "\n".join(re.sub(r"//.*$", "", ln) for ln in src.split("\n"))
 
 
 def rust_str_const(src, name):
@@ -181,12 +191,32 @@ for c in ov.get("cases", []):
     for entry in c.get("log", []):
         check(("ops" in entry) != ("malformed" in entry),
               f"{OVERLAY_CASES}: {n}: a log entry must carry exactly one of ops|malformed")
+        # `verdict` is the door's au:Verdict for the whole proposal. Optional,
+        # because every record written before the door computed one has none.
+        check(entry.get("verdict", "Admitted") in ("Admitted", "Queued", "Rejected"),
+              f"{OVERLAY_CASES}: {n}: verdict={entry.get('verdict')!r} is not an au:Verdict")
 
 # `pending means differs from the corpus` is the rule most likely to be lost in a
 # port, and the only proof it survived is a case where the corpus already agrees.
 check(any("absent" in r and "pending" in r["absent"]
           for c in ov.get("cases", []) for r in c.get("expect", {}).get("rows", [])),
       f"{OVERLAY_CASES}: no case asserts that an ADOPTED proposal stops being pending")
+
+# ⛔ And the other direction of the same idea: the door's verdict has to be
+# HONOURED downstream or recording it is decoration. A Rejected record is never
+# appended by the door, so one in the log came from a hand-edited or restored
+# file — and replaying it applies a change nobody was allowed to make.
+_rejected_cases = [c for c in ov.get("cases", [])
+                   if any(e.get("verdict") == "Rejected" for e in c.get("log", []))]
+check(bool(_rejected_cases),
+      f"{OVERLAY_CASES}: no case plants a Rejected record — nothing proves either "
+      f"overlay refuses to replay one")
+# …with a record carrying NO verdict beside it, or the case is equally satisfied
+# by an overlay that drops everything.
+check(any(any("verdict" not in e and "ops" in e for e in c.get("log", []))
+          for c in _rejected_cases),
+      f"{OVERLAY_CASES}: the Rejected case plants no un-verdicted record beside it — "
+      f"an overlay that dropped EVERY record would pass it")
 
 # ── 2. the Rust constants ─────────────────────────────────────────────────────
 rs_eval = read(RS_EVAL)
@@ -306,6 +336,158 @@ if ts_present:
         check(ts_prefix == fixture_prefix,
               f"{TS_EVAL}: MACHINE_PREFIX is {ts_prefix!r}, fixtures declare {fixture_prefix!r}")
 
+# ── 4a. the content address, re-derived in a THIRD implementation ────────────
+#
+# ⛔ This is the only check in this file that recomputes a permanent NAME rather
+# than comparing constants. The address is what makes a proposal quotable,
+# replayable, and — via RFC-002 §9.1 — the same proposal whether it was clicked
+# or typed. Two implementations that disagree about the pre-image do not produce
+# an error anywhere: they produce two names for one thing, forever, and the first
+# symptom is a replay that finds nothing.
+#
+# So the bytes are rebuilt here from the fixture's PROPOSAL, in stdlib Python,
+# and hashed with hashlib. Neither implementation is consulted. If this file, the
+# fixture, TypeScript and Rust all agree, the rule is what four independent
+# things say it is.
+def canonical_json(v):
+    """Keys sorted by UTF-8 bytes, no whitespace, no unrenderable number.
+
+    ⚠ Python sorts `str` by code point and Rust sorts `String` by UTF-8 bytes,
+    which agree everywhere — UTF-8 is order-preserving. JavaScript's default sort
+    does NOT (the astral-plane boundary), which is why console/lib/canonical.ts
+    carries a comparator and this does not need one.
+    """
+    if v is None:
+        return "null"
+    if v is True:
+        return "true"
+    if v is False:
+        return "false"
+    if isinstance(v, int):
+        # 2^53 − 1: the range where every implementation renders plain digits.
+        if abs(v) > 9007199254740991:
+            raise ValueError(f"{v} is not a safe integer")
+        return str(v)
+    if isinstance(v, float):
+        raise ValueError(f"{v} is not a safe integer")
+    if isinstance(v, str):
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, list):
+        return "[" + ",".join(canonical_json(x) for x in v) + "]"
+    if isinstance(v, dict):
+        keys = sorted(v, key=lambda k: k.encode("utf-8"))
+        return "{" + ",".join(
+            f"{json.dumps(k, ensure_ascii=False)}:{canonical_json(v[k])}" for k in keys) + "}"
+    raise ValueError(f"cannot serialize {type(v).__name__}")
+
+
+ad = load(ADDRESS_CASES)
+ad_cases = ad.get("cases", [])
+ad_prefix = ad.get("prefix")
+
+check(ad_prefix == "sha256:", f"{ADDRESS_CASES}: prefix is {ad_prefix!r}")
+# ⛔ THE EXCLUSION IS THE DESIGN. RFC-002 §4.1: the door takes {parents, ops} and
+# not provenance. If `surface` ever enters the pre-image, a click and a chat
+# authoring the same change stop being one proposal and §9.1 is silently false.
+check(ad.get("pre_image_keys") == ["author", "ops", "parent"],
+      f"{ADDRESS_CASES}: pre_image_keys is {ad.get('pre_image_keys')}")
+check(ad.get("not_in_the_pre_image") == ["surface", "intent"],
+      f"{ADDRESS_CASES}: not_in_the_pre_image is {ad.get('not_in_the_pre_image')}")
+check(len(ad_cases) >= 8, f"{ADDRESS_CASES}: only {len(ad_cases)} cases")
+check(len({c.get("name") for c in ad_cases}) == len(ad_cases),
+      f"{ADDRESS_CASES}: duplicate case names")
+
+ad_by_name = {}
+for c in ad_cases:
+    n = c.get("name", "?")
+    check(bool(c.get("why")), f"{ADDRESS_CASES}: {n}: no `why`")
+    pr = c.get("proposal") or {}
+    for key in ("author", "parent", "ops", "surface"):
+        check(key in pr, f"{ADDRESS_CASES}: {n}: proposal has no `{key}`")
+    try:
+        pre = canonical_json({"author": pr.get("author"), "ops": pr.get("ops"),
+                              "parent": pr.get("parent")})
+    except ValueError as e:
+        check(False, f"{ADDRESS_CASES}: {n}: pre-image is not canonicalizable ({e})")
+        continue
+    check(pre == c.get("pre_image"),
+          f"{ADDRESS_CASES}: {n}: pre-image re-derived here is\n    {pre}\n  fixture says\n    {c.get('pre_image')}")
+    addr = ad_prefix + hashlib.sha256(pre.encode("utf-8")).hexdigest()
+    check(addr == c.get("address"),
+          f"{ADDRESS_CASES}: {n}: address is {addr}, fixture says {c.get('address')}")
+    check(re.fullmatch(r"sha256:[0-9a-f]{64}", str(c.get("address"))) is not None,
+          f"{ADDRESS_CASES}: {n}: address is not a lower-case sha256 content address")
+    ad_by_name[n] = addr
+
+# The groups, which are where the DESIGN is asserted rather than the arithmetic.
+for group in ad.get("same_address", []):
+    names = group.get("cases", [])
+    check(len(names) >= 2, f"{ADDRESS_CASES}: same_address/{group.get('name')}: needs 2+ cases")
+    check(all(n in ad_by_name for n in names),
+          f"{ADDRESS_CASES}: same_address/{group.get('name')}: names a case that does not exist")
+    check(len({ad_by_name.get(n) for n in names}) == 1,
+          f"{ADDRESS_CASES}: same_address/{group.get('name')} — {group.get('why')}")
+    # …and the surfaces must actually differ, or the group proves nothing.
+    surfaces = {(next(c for c in ad_cases if c["name"] == n)["proposal"].get("surface"))
+                for n in names if n in ad_by_name}
+    check(len(surfaces) > 1,
+          f"{ADDRESS_CASES}: same_address/{group.get('name')}: every case uses the same "
+          f"surface, so it proves nothing about §9.1")
+for group in ad.get("different_address", []):
+    names = group.get("cases", [])
+    check(all(n in ad_by_name for n in names),
+          f"{ADDRESS_CASES}: different_address/{group.get('name')}: names a case that does not exist")
+    check(len({ad_by_name.get(n) for n in names}) == len(names),
+          f"{ADDRESS_CASES}: different_address/{group.get('name')} — {group.get('why')}")
+
+# Both directions, or the fixture is an assertion.
+check(bool(ad.get("same_address")), f"{ADDRESS_CASES}: no same_address group — §9.1 is unasserted")
+check(bool(ad.get("different_address")),
+      f"{ADDRESS_CASES}: no different_address group — a constant function would pass")
+
+# The prefix, in both sources.
+rs_proposal_src = read(RS_PROPOSAL)
+check(rust_str_const(rs_proposal_src, "ADDRESS_PREFIX") == ad_prefix,
+      f"{RS_PROPOSAL}: ADDRESS_PREFIX disagrees with {ADDRESS_CASES}")
+if os.path.exists(os.path.join(ROOT, TS_ADDRESS)):
+    ts_address_src = read(TS_ADDRESS)
+    check(ts_str_const(ts_address_src, "ADDRESS_PREFIX") == ad_prefix,
+          f"{TS_ADDRESS}: ADDRESS_PREFIX disagrees with {ADDRESS_CASES}")
+else:
+    check(False, f"{TS_ADDRESS} is missing or not staged")
+
+# ── 4b. one door, and one verdict that is honoured ───────────────────────────
+#
+# ⛔ The plugin's write path was retired because two doors are two
+# implementations of the pre-image above — and they had already diverged on
+# `bound_value`. If it comes back, the address stops meaning anything, quietly.
+rs_http = read(RS_HTTP)
+check("E_WRITE_PATH_RETIRED" in rs_http,
+      f"{RS_HTTP}: the retired write path's 410 is gone — if the plugin appends "
+      f"again there are two implementations of the content address")
+check("from_flat" not in strip_line_comments(rs_proposal_src),
+      f"{RS_PROPOSAL}: `from_flat` is back. The console does not coerce and this did "
+      f"(`bound_value` string vs f64), so the same submission gets two names")
+
+# A rejected proposal is never appended, so a record carrying that verdict came
+# from a hand-edited or restored log. Three readers refuse to replay one, and
+# each is here because the others can be bypassed.
+for path, needle in (
+    (TS_OVERLAY, 'rec.verdict === REJECTED'),
+    (RS_OVERLAY, 'Some("Rejected")'),
+    ("tools/proposals/materialize.py", 'rec.get("verdict") == "Rejected"'),
+):
+    check(needle in read(path),
+          f"{path}: no longer refuses to replay a Rejected record — the door's "
+          f"verdict would be a column nobody reads")
+
+# The database says the same thing about the address's SHAPE. A CHECK that
+# drifted from ADDRESS_PATTERN would admit a spelling the readers cannot match.
+_migration = read("console/db/migrations/0004_the_door.sql")
+check("^sha256:[0-9a-f]{64}$" in _migration,
+      "console/db/migrations/0004_the_door.sql: the address CHECK no longer pins "
+      "the lower-case 64-hex shape")
+
 # ── 5. the reader may not read a field the vocabulary does not declare ────────
 # ⛔ This is the check that would have caught two live bugs, and it is here
 # because they were both found by hand.
@@ -319,10 +501,6 @@ if ts_present:
 #
 # Nothing in the type system connects a `s(op, "discipline")` to the OpSpec that
 # permits it. So the connection is made here.
-def strip_line_comments(src):
-    return "\n".join(re.sub(r"//.*$", "", ln) for ln in src.split("\n"))
-
-
 rs_proposal = strip_line_comments(read("services/spec/src/proposal.rs"))
 ops_block = re.search(r"pub const OPS:.*?\n\];", rs_proposal, re.S)
 check(ops_block is not None, "services/spec/src/proposal.rs: no OPS table")
@@ -509,9 +687,11 @@ if failures:
     for f in failures:
         print(f"  * {f}", file=sys.stderr)
     sys.exit(1)
-print(f"OK — {checks} checks passed over {len(ev_names)} evaluation "
-      f"and {len(ov_names)} overlay cases")
+print(f"OK — {checks} checks passed over {len(ev_names)} evaluation, "
+      f"{len(ov_names)} overlay and {len(ad_cases)} address cases")
 print(f"     outcomes: {', '.join(rs_outcomes or [])}")
 print(f"     positive: {', '.join(rs_positive or [])}  (zero makes every one of these meaningless)")
 print(f"     judgments: {', '.join(rs_judgments or [])}  (refused from a {rs_prefix or 'machine:'}… author — a machine reports, never judges)")
 print(f"     typescript: {'checked' if ts_present else 'not present yet — ' + TS_EVAL}")
+print(f"     address: {ad_prefix}… over {ad.get('pre_image_keys')}  "
+      f"(NOT {ad.get('not_in_the_pre_image')} — a click and a chat are one proposal)")

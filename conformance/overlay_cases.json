@@ -17,7 +17,17 @@
     "`expect.rows[].where` selects a row by matching every listed field; `fields`",
     "must then all be equal, and every key in `absent` must not be present at all.",
     "Absence is asserted rather than compared to false because the Rust overlay",
-    "inserts no key at all when a proposal matches the corpus."
+    "inserts no key at all when a proposal matches the corpus.",
+    "",
+    "A log entry may carry `verdict`, the door's au:Verdict for the whole proposal.",
+    "⛔ A `Rejected` record must NOT be replayed: the door answers 422 and appends",
+    "nothing, so such a record can only have come from a hand-edited or restored",
+    "log — which is exactly the case recording the verdict exists to survive. A",
+    "decision nothing downstream honours is decoration.",
+    "",
+    "⚠ ABSENT is not Rejected. Every record written before the door computed a",
+    "verdict has none, and treating those as refusals would blank the overlay for",
+    "the whole history — which is why the case below plants BOTH."
   ],
   "cases": [
     {
@@ -239,6 +249,39 @@
         "rows": [
           { "where": { "subject": "auth-99" }, "fields": { "adopted": true } },
           { "where": { "subject": "auth-98" }, "fields": { "adopted": false } }
+        ]
+      }
+    },
+    {
+      "name": "a_rejected_record_is_not_replayed",
+      "why": "The door never appends a refusal, so a Rejected record is evidence of a hand-edited or restored log; replaying it applies a change nobody was allowed to make. The record after it carries NO verdict — what every record written before the door had one looks like — and must still be applied, or the whole history disappears.",
+      "apply": "terms",
+      "log": [
+        { "verdict": "Rejected", "ops": [
+          { "op": "bindTerm", "term": "deploy:*", "definition": "WHATEVER THE ATTACKER WANTED", "project": "studio" }
+        ] },
+        { "ops": [
+          { "op": "bindTerm", "term": "publish:*", "definition": "role='publisher'", "project": "studio" }
+        ] }
+      ],
+      "corpus": {
+        "terms": [
+          { "project": "studio", "surface": "deploy:*", "open": true },
+          { "project": "studio", "surface": "publish:*", "open": true }
+        ]
+      },
+      "expect": {
+        "records": 1,
+        "rows": [
+          {
+            "where": { "surface": "deploy:*" },
+            "fields": { "open": true },
+            "absent": ["pending", "bound_to"]
+          },
+          {
+            "where": { "surface": "publish:*" },
+            "fields": { "open": false, "pending": true, "bound_to": "role='publisher'" }
+          }
         ]
       }
     }

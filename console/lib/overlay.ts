@@ -35,7 +35,26 @@ export type ProposalRecord = {
   author_email?: string;
   surface?: string;
   canonical?: string;
+  /** `sha256:<64 hex>` over `{author, ops, parent}` — RFC-002 §5's `Proposal.id`. */
+  address?: string;
+  /** `au:Verdict`. Absent on records written before the door computed one. */
+  verdict?: string;
 };
+
+/**
+ * ⛔ The one verdict this reader ACTS on.
+ *
+ * A rejected proposal is never appended — `lib/door.ts` returns 422 and writes
+ * nothing — so a record carrying this verdict cannot have come from the door.
+ * It can only come from a hand-edited log or a restored file, which is precisely
+ * the case the verdict column exists to survive: recording the door's decision
+ * is decoration unless something downstream refuses to replay a refusal.
+ *
+ * ⚠ Absent is NOT rejected. Every record written before the door computed a
+ * verdict has no `verdict` at all, and treating those as refusals would blank
+ * the overlay for the whole history.
+ */
+const REJECTED = "Rejected";
 
 const str = (o: Row, k: string): string => {
   const v = o[k];
@@ -97,6 +116,7 @@ export class Pending {
     for (const rec of records) {
       const author =
         (rec.author_email && rec.author_email !== "" ? rec.author_email : rec.author) ?? "";
+      if (rec.verdict === REJECTED) continue;
       if (typeof rec.canonical !== "string") continue;
       let body: unknown;
       try {

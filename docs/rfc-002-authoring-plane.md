@@ -299,6 +299,25 @@ discipline: there is no `admit` overload that can see who wrote it. Correspondin
 the audit that keeps this true is small and static — there must be exactly one
 callsite that applies ops, inside the door.
 
+Both halves of that landed in #44 and neither is a convention any more.
+`lean/Spec/Authoring/{Op,Proposal,Door}.lean` is the signature, compiled
+sorry-free by `//lean:authoring_test`: `admit` takes `parent` and `ops`, the
+`Provenance` type appears in the type of nothing else in the namespace, and
+`verdict_ignores_provenance` and `application_ignores_provenance` are `rfl`
+because there is nothing else they could be. `console/lib/door.ts` is the one
+callsite — both console write routes reach it, and the plugin's two answer **410
+Gone** rather than being a second one. Two doors would have been two
+implementations of the pre-image above, and they had already diverged: the
+plugin's flat-form lift coerced a form's `bound_value` string to a float and the
+console's did not, so the same submission had two canonical bodies and would now
+have two names.
+
+What the Lean model deliberately does NOT contain: the 17-op vocabulary (it
+exists twice already, with `conformance/` holding those two together; a third
+copy checked by nothing would be a fourth place to forget, wearing the authority
+of a proof) and the hash itself (what is modelled is its pre-image, which is
+where every claim anyone makes about the address actually lives).
+
 ## 5. The proposal IR
 
 ```
@@ -325,12 +344,31 @@ Proposal
 | `openConflict` / `witness` / `adjudicate` | the conflict lifecycle |
 | `declarePrecedence` | assert `au:precedes` — **kernel capability only** |
 
+`id` was a promise until #44. It is now **computed, at the console's door**, and
+pinned by `conformance/address_cases.json`, which three implementations execute:
+
+```
+sha256:<64 lower-case hex>   over   canonicalJson({ author, ops, parent })
+```
+
+**Three fields.** `surface` and `intent` are stored with the proposal and
+deliberately left out of the pre-image — §4.1 says why, and §9.1 is the gate that
+would fail if they were in. Note that this is not a hash of the bytes the log
+stores: those carry the provenance, on purpose. Provenance is kept; it does not
+get a vote.
+
+`verdict` is computed and recorded beside it, and is the door's answer at the
+door's width — typing and capability. §7.1 has the rest.
+
 Three properties fall out and are worth naming:
 
 1. **Replay is by id, never by re-running a model.** A chat-authored proposal
    replays because the ops are recorded, not because the LLM is deterministic —
    which it is not. This is the answer to "how can an LLM-authored spec be
-   reproducible."
+   reproducible." `tools/proposals/replay.py` is that, since #44: it names every
+   record by hashing its own bytes (never by reading the `address` field — the
+   point is to be able to disagree with it) and re-materializes the log prefix
+   ending at the one you asked for.
 2. **Review is at op granularity.** Accepting three of five ops emits a derived
    proposal against the same parent. A form panel models one record; a proposal is
    a diff with per-row triage.
@@ -472,6 +510,33 @@ after application; that the corrector is meaning-preserving, energy-non-increasi
 and idempotent for the dedup pass (`mem_dedupE`, `dedupE_length_le`,
 `dedupE_idem`, already proved); that graph state is untouched on rejection.
 
+**Where each of those now runs, since #44,** because "the door can prove it" was
+doing too much work in one sentence:
+
+| | decided by | when |
+|---|---|---|
+| well-typedness against the closed vocabulary | the console's door (`lib/proposal.ts`) | at the write, synchronously |
+| capability | the console's door | at the write, synchronously |
+| **the gate set** | the **build**, `//corpus/...` + `//rdf/...` | on the promotion PR |
+| graph state untouched on rejection | `//lean:authoring_test` | proved, once |
+
+The split is not a compromise, it is what the two questions are. Typing and
+capability are decidable from the proposal alone, so a serverless function with
+no query engine can answer them in a request. "Every named gate returns zero rows
+after application" is a `GROUP BY … HAVING` over the post-admission graph and
+needs Jena, the whole corpus and the ontology. Reporting either as the other is
+the failure mode: an `au:Verdict` of `Admitted` in the log means *this proposal
+is well-formed and its author was allowed to make it*, and says nothing yet about
+whether the corpus stays coherent — which is the promotion PR's job, and it is a
+reviewed diff rather than a status code.
+
+Preflight-at-write was considered and deferred, for four reasons each
+independently sufficient: the `spec.v1.Derivation` gate plane is gRPC-only (no
+HTTP path a Vercel function can call), it is not deployed alongside the console,
+its `Preflight` takes triples rather than ops, and it refuses a parent pin and
+any removal — so it could not answer this door's question even if it were
+reachable. See RFC-006 and RFC-003 §8.
+
 **Cannot, today:**
 
 - **That a `provenBy` theorem says what the claim says.**
@@ -521,26 +586,46 @@ The mutation surface is three routes, not two:
 
 | route | method | for |
 |---|---|---|
-| `POST /proposal` | `SubmitProposal` | the nested, multi-op form — an MCP client or an adhoc composer |
-| `POST /proposal/op` | `SubmitOp` | the **flat, one-op** form a declarative `FormPanel` can submit |
+| `POST /api/proposal` | `SubmitProposal` | the nested, multi-op form — an MCP client or an adhoc composer |
+| `POST /api/proposal/op` | `SubmitOp` | the **flat, one-op** form a declarative `FormPanel` can submit |
 | `POST /proposal/verdict-preview` | `PreviewProposal` | the structural check, written to nothing |
+
+⚠ **The first two moved to the console in #44**; the plugin's copies answer 410
+Gone and name these. `POST /proposal/verdict-preview` stays where it is — it
+writes nothing, so it is not a door, and it now returns the address the console
+would give the proposal, which is what §9 step 6 ("a `pid` whose content hash the
+user already saw") needs.
 
 `SubmitOp` exists because `buildRequestFromBindings` produces a flat object of
 strings, one level deep, and a `Proposal` is `{parent, ops: [...]}`. Rather than
-concede that declarative writes are impossible, the plugin accepts the flat shape
-of the common case and lifts it. The coercion is narrow and declared — only the
-named array / boolean / numeric fields, only on that route — and the property that
-matters is tested: **a form submission and an API submission of the same op produce
-identical canonical bytes**, which is §9.1's equal-citizen guarantee on the write
-side rather than a hope about it.
+concede that declarative writes are impossible, the door accepts the flat shape
+of the common case and lifts it.
 
-What the plugin's write path deliberately does *not* do is decide. It validates
-against the closed vocabulary and appends to an append-only log; the content
-address, the parent check and the gate verdict happen in the build, where the SPARQL
-gates and the Lean kernel already are. **The build adjudicates, the plugin queues.**
-`verdict-preview` returns its own `limits` array saying exactly that, because a
-route with that name under-delivering silently is worse than one that states its
-scope.
+⛔ **This paragraph used to claim a property it could not test, and the property
+was false.** It said: *"the coercion is narrow and declared — only the named array
+/ boolean / numeric fields, only on that route — and the property that matters is
+tested: a form submission and an API submission of the same op produce identical
+canonical bytes."* Both halves of that were true only WITHIN one implementation.
+There were two, and only one coerced: the plugin turned a form's
+`bound_value: "70"` into the float `70.0` and the console left it the string
+`"70"`. No suite could compare them, because one was a `cargo test` and the other
+a `vitest` run, and the fixtures they shared did not cover the lift. Once a
+proposal had a name, that divergence stopped being cosmetic — it was two
+permanent names for one submission.
+
+The fix was not to make them agree. It was to have one door. The console's
+`fromFlat` **does not coerce**: a value that arrived from an `<input>` is a
+string and is recorded as a string. `console/test/door.test.ts` executes the
+property across both console routes, which is now possible because both are in
+the same process. If coercion comes back it belongs in the one door, pinned by
+`conformance/address_cases.json` so both halves coerce identically or neither
+does.
+
+What the door deliberately does *not* do is decide the gate set — see §7.1's
+table. **The build adjudicates the gates; the door decides typing and
+capability.** `verdict-preview` returns its own `limits` array saying exactly
+that, because a route with that name under-delivering silently is worse than one
+that states its scope.
 
 ### 8.2 The surfaces
 
@@ -638,6 +723,32 @@ sequence and a scripted chat session that author the same change must produce
 proposals with identical content hashes.** Content-addressing collapses them to
 one proposal with two provenance records. If the hashes differ, the surfaces are
 composing different ops and the claim of equivalence is false.
+
+Since #44 this is executable, and the precise form matters. The gate is on the
+**address**, not on the stored bytes:
+
+```
+address    sha256 over { author, ops, parent }        SAME from every surface
+canonical  { parent, author, surface, ops, intent }   DIFFERENT, and kept
+```
+
+Two proposals authored through different surfaces have *different* stored bytes
+— provenance is recorded forever — and the *same* name. An earlier draft of §8.1
+asserted the equality on `canonical`, which cannot hold: `surface` is in it. The
+weaker-looking claim is the true one and is also the useful one, because the
+address is what everything downstream keys on.
+
+`conformance/address_cases.json` carries the gate as data: a `same_address` group
+naming three cases that differ in surface and intent, and `different_address`
+groups for the three things that must NOT collapse — the read point, the author
+(invariant ⑤: the surface collapses, the person never does), and the ORDER of the
+ops. Three implementations execute it, and each canonicalizes independently.
+`console/test/door.test.ts` runs the same property through the live routes, and
+`lean/Spec/Authoring/Proposal.lean` proves it about the pre-image type.
+
+Still not covered: an actual scripted chat session. The gate proves that two
+proposals with the same ops get the same name; that the chat plane *composes* the
+same ops as the click plane is P5's, and it is the part that can still be false.
 
 ## 10. Agent fanout over an authored spec
 
@@ -750,6 +861,7 @@ sequencing, not commitments.
 |---|---|---|---|
 | **P0** Wire what exists | 1–2 | `BUILD.bazel` targets for `rdf/ontology/authoring.ttl` + the gates + both fixtures. **Written; never exercised — see §12.1** | The §7 control table runs under `bazel test`. Blocked on the pre-existing `//java/...` maven and `//graph/...` svg2pdf failures |
 | **P1** Proposal + door | 3–8 | `lean/Spec/Authoring/{Proposal,Op,Door}.lean`; append-only proposal log; `spec propose` / `spec replay` CLI over `java/kg/edit`'s existing `WriteOps` | `spec replay <bootstrap-pid>` reproduces the committed corpus TTL **byte-identically** |
+| ↳ **landed in #44** | | the three Lean files (`//lean:authoring_test`); the content address + `au:Verdict` at the console door, mirrored in the plugin's preview and in Python; migration `0004`; `tools/proposals/replay.py`; the plugin's write path retired to 410 | `//tools/proposals:replay_test` replays a fixture log prefix byte-identically, refuses a record the door rejected, and refuses a record whose stored address is not the address of its own body. ⚠ The gate over the REAL log still reads zero, because `logs/proposals.jsonl` is empty until the first promotion — see §12.2 |
 | **P2** TTL becomes emitted | 6–11 | The corpus becomes an emit target of the proposal log via `Spec.Emit.TtlEmit` | **The existing 55× `rfc_NNNN_ttl_diff_test` pass unchanged — same tests, inverted meaning, zero test deletion.** The strongest available proof the new write path is faithful |
 | **P3** Ladder + import | 9–13 | R0–R5 as graph state; import the existing corpus, assigning rungs from evidence | Every existing claim lands at its correct rung with **zero hand annotation**, and the rung histogram is published |
 | **P4** Adhoc authoring surfaces | 10–16 | The §8.2 panels as adhoc handlers; `POST /proposal`; the draft bar | A requirement authored end-to-end **by clicking** merges through the door |
@@ -798,6 +910,29 @@ empty `glob()` across a new package boundary. `rdf/lint/authoring/BUILD.bazel`
 makes that directory a subpackage; `glob()` does not match into a subpackage; so
 `glob(["lint/authoring/*.rq"])` in `//rdf` matched nothing — and an empty glob is a
 hard error under `--incompatible_disallow_empty_glob`, default-on since Bazel 7.
+
+### 12.2 P1's acceptance gate cannot run over the real log yet, and says so
+
+`spec replay <pid>` reproducing the committed TTL byte-identically is the right
+gate and it is worth being exact about what currently satisfies it.
+
+`logs/proposals.jsonl` is **empty**. No proposal has been promoted, because
+promotion needs `NEON_EXPORT_URL` in the `corpus-production` environment and that
+is not set yet (#49 landed the workflow; the secret is an operator step). A gate
+run over an empty log would pass by examining nothing — the exact defect
+`vacuous-invariant.rq` exists to catch, in a test instead of a corpus.
+
+So `//tools/proposals:replay_test` runs over a **fixture** log that plants two
+defects and fails if either goes undetected: a record the door refused (which
+must not reach the corpus, since the door never appends one — such a record can
+only come from a hand-edited or restored log) and a record whose stored address
+disagrees with the address of its own body. A third record carries no address and
+no verdict at all, standing for everything written before the door computed
+either; it must still replay, or the whole history disappears.
+
+When the first real promotion lands, `//corpus/studio:proposals_ttl_matches_the_log`
+and a `replay --check` over the last address become the same assertion by two
+routes, and that is the moment P1's gate is genuinely met.
 That would have broken loading of `//rdf` for every consumer, locally as much as
 in CI. Fixed, with a comment at both sites naming the trap.
 
@@ -857,3 +992,23 @@ runs where a bazel is not provisioned, which is most agent sessions.
    addressee, but a four-party empty envelope has four stewards and no obvious
    chair. Does the corpus need an explicit escalation order, and is that itself a
    scope-precedence claim?
+8. **Should the door coerce a form's strings?** #44 removed the coercion along
+   with the second door, so `bound_value` from a `FormPanel` is recorded as the
+   string `"70"` and the same op sent as JSON with `70` is a DIFFERENT proposal
+   with a different address. That is honest — the values genuinely differ — and it
+   is also a trap for anyone who submits the same change twice by two routes. If
+   coercion returns it belongs in the one door with the fixture pinning it; the
+   open question is whether a typed op vocabulary (each field carrying its own
+   type, checked at the door) is the better answer than a coercion table.
+9. **Does the address need a `drafted_by` or an idempotency key?** Two identical
+   proposals from one author against one read point have the same address by
+   construction, which is correct — content addressing means what it says, and
+   `verify.mjs` proves the index is deliberately not unique. But it means "did my
+   click land twice" is answerable only by `seq`. Whether that wants a separate
+   submission id is a real question and #44 did not answer it.
+10. **What names a `parent`?** The door records the read point the author saw and
+   checks nothing about it — §7.1 has said "does NOT verify `parent` names a real
+   bitemporal read point" since P0, and the address now makes that omission
+   load-bearing: two proposals against read points that differ only in spelling
+   are two proposals. A canonical form for `parent` is probably needed before
+   there are enough of them to matter.

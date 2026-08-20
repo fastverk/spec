@@ -325,18 +325,35 @@ Two consequences worth stating rather than discovering:
 
 ## 10. What is not done
 
-- The export step in §8 is documented and **not automated** — nothing yet writes
-  `logs/*.jsonl` from the database; the gate over it exists and passes. The
+- ~~The export step in §8 is documented and **not automated**~~ — automated in
+  #49 (`.github/workflows/promote.yml`, daily or on dispatch). ⚠ It cannot run
+  until `NEON_EXPORT_URL` is set in the `corpus-production` environment, so
+  `logs/*.jsonl` is still empty and every gate over it is examining nothing. The
   migrations themselves have since run against Neon, from CI under the
   `database-production` environment, and `db/verify.mjs` re-proved the refusals
   there in a rolled-back transaction.
 - The npm package that carries the read model and fixtures across the repo
   boundary is not built; the console reads both by relative path, from one file
   each, so extraction is a two-line change.
-- **Two live write paths.** `services/spec` can still append to a file. Both are
+- ~~**Two live write paths.** `services/spec` can still append to a file. Both are
   "the" log; neither sees the other. Retiring spec's write path is a config
   change — `SPEC_PROPOSAL_LOG` unset already answers 503 with a stated reason —
-  and it must happen in the same change that points the console at Neon.
+  and it must happen in the same change that points the console at Neon.~~
+  **Closed in #44, and not as a config change.** Leaving it to configuration was
+  the wrong instinct: an unset variable is a state an operator can restore, and
+  what was needed was for the second door to stop existing. `POST /proposal` and
+  `POST /proposal/op` on the plugin now answer **410 Gone** with a `use_instead`
+  naming the console's routes — 410 rather than 404 because the route existed and
+  works, and its removal is a decision rather than a deployment fault.
+
+  The reason it could not wait: two doors are two implementations of the content
+  address, and they had already diverged. The plugin's flat-form lift coerced
+  `bound_value: "70"` to the float `70.0`; the console's leaves it a string. Same
+  submission, two canonical bodies, and — once the door computed a name — two
+  permanent names. `services/spec` still READS the log (the pending overlay is
+  served from it); it no longer writes one. The plugin's `POST /evaluation` is a
+  separate question and is still live: a measurement is not a judgement, and it
+  has no address to disagree about.
 - The Rust conformance tests are **written but not compiled**. The private crates
   401 in this environment and `protoc` is absent, which is the same hole CI has.
 - The OAuth flow has since been run end to end against the live deployment by a

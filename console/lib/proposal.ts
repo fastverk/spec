@@ -7,6 +7,7 @@
  * ⛔ The author is taken from the session, never from the request body. A
  * proposal cannot name its own author.
  */
+import { contentAddress } from "./address";
 import { canonicalJson } from "./canonical";
 import { MACHINE_PREFIX } from "./evaluation";
 
@@ -80,11 +81,88 @@ export const opSpec = (kind: string) => OPS.find((o) => o.kind === kind);
 export type Principal = { sub: string; email: string; kernel: boolean; agent: boolean };
 export type Verdict = "OK" | "QUEUED" | "REJECTED";
 
+/**
+ * `au:Verdict` — the door's answer for the proposal AS A WHOLE, in the
+ * ontology's own words (rdf/ontology/authoring.ttl). Distinct from the per-op
+ * `Verdict` above, which is this door's internal three-way split.
+ *
+ * The proposal's verdict is the weakest of its ops':
+ *
+ *   Rejected  some op is not well-formed. NOTHING is appended — a half-written
+ *             proposal is a permanent record of something nobody proposed.
+ *   Queued    every op is well-formed and at least one is out of capability.
+ *             Partial admission is normal (§5); the proposal is appended and the
+ *             queued ops wait for an operator.
+ *   Admitted  every op is well-formed and in capability.
+ *
+ * ⛔ What this verdict does NOT include is the gate set. RFC-002 §7.1 lists what
+ * the door can prove — typing and capability — and the gates are a `GROUP BY …
+ * HAVING` over the POST-admission graph, which needs a query engine and the
+ * whole corpus. That verdict is the build's, on the promotion PR, and the two
+ * are deliberately not conflated: this one is decidable from the proposal alone.
+ */
+export const PROPOSAL_VERDICTS = ["Admitted", "Queued", "Rejected"] as const;
+export type ProposalVerdict = (typeof PROPOSAL_VERDICTS)[number];
+
 const isEmpty = (v: unknown): boolean =>
   v === null ||
   v === undefined ||
   (typeof v === "string" && v.trim() === "") ||
   (Array.isArray(v) && v.length === 0);
+
+/**
+ * Why this value cannot be part of a content address, or null if it can.
+ *
+ * ⛔ This exists because `canonicalJson` THROWS on a value it cannot render
+ * reproducibly, and a throw inside the write route is a 500 — an author told
+ * "internal server error" for typing `1.5` into a bound. The door's job is to
+ * refuse legibly, so the same rule is applied here, per op, where the refusal
+ * lands in the per-op report with the field named.
+ *
+ * The two cases are the two ways two implementations end up writing different
+ * permanent bytes for the same proposal:
+ *
+ *   a non-integer number   JavaScript renders 1e21 as "1e+21" and Rust's ryu
+ *                          does not. There is no float in the op vocabulary
+ *                          today — `bound_value` arrives from a form as a
+ *                          string — so this refuses something nothing sends,
+ *                          which is exactly when to refuse it.
+ *   an unpaired surrogate  representable in a JS string, not in a Rust `String`.
+ *                          See lib/canonical.ts.
+ */
+function unrepresentable(v: unknown, path: string): string | null {
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) return `\`${path}\` is ${v}, which JSON cannot represent`;
+    // ⚠ SAFE integer. `Number.isInteger(1e21)` is true and `String(1e21)` is
+    // "1e+21", which Rust's ryu spells "1e21" — see lib/canonical.ts.
+    if (!Number.isSafeInteger(v)) {
+      return (
+        `\`${path}\` is ${v}, which is not a safe integer; its rendering differs between ` +
+        "implementations and this value is part of a content address — send it as a string"
+      );
+    }
+    return null;
+  }
+  if (typeof v === "string") {
+    return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(v)
+      ? `\`${path}\` carries an unpaired surrogate, which has no UTF-8 encoding`
+      : null;
+  }
+  if (Array.isArray(v)) {
+    for (let i = 0; i < v.length; i++) {
+      const why = unrepresentable(v[i], `${path}[${i}]`);
+      if (why) return why;
+    }
+    return null;
+  }
+  if (typeof v === "object" && v !== null) {
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      const why = unrepresentable(k, `${path} key`) ?? unrepresentable(val, `${path}.${k}`);
+      if (why) return why;
+    }
+  }
+  return null;
+}
 
 /** Check one op. `queued` — not `rejected` — is what a capability shortfall yields. */
 export function checkOp(op: unknown, who: Principal): { verdict: Verdict; reason: string } {
@@ -107,6 +185,13 @@ export function checkOp(op: unknown, who: Principal): { verdict: Verdict; reason
     if (key === "op" || spec.required.includes(key) || spec.optional.includes(key)) continue;
     return bad(`\`${kind}\` has no field \`${key}\``);
   }
+
+  // Before anything semantic: can these bytes even be a pre-image? An op that
+  // cannot be canonicalized has no content address, so it has no name, so it
+  // cannot be reviewed or replayed — that is a well-formedness failure, not a
+  // serialization detail to be discovered later inside a 500.
+  const un = unrepresentable(o, kind);
+  if (un) return bad(un);
 
   if (spec.exactlyOneOf.length > 0) {
     const present = spec.exactlyOneOf.filter((f) => f in o && !isEmpty(o[f]));
@@ -194,7 +279,22 @@ export function fromFlat(body: unknown): { ok: true; value: Record<string, unkno
 export type CheckedProposal = {
   parent: string;
   surface: string;
+  /** The bytes STORED in the log: `{parent, author, surface, ops, intent}`. Provenance is kept. */
   canonical: string;
+  /** The bytes the ADDRESS is taken over: `{author, ops, parent}`. Provenance does not get a vote. */
+  addressPreImage: string | null;
+  /**
+   * `sha256:<64 hex>` — RFC-002 §5's `Proposal.id`.
+   *
+   * ⚠ Null ONLY when some op carries a value that has no reproducible rendering,
+   * which `checkOp` has already rejected. A proposal that cannot be canonicalized
+   * cannot be named, and saying so is better than minting a name for bytes that
+   * two implementations would spell differently. When `rejected === 0` this is
+   * always a string.
+   */
+  address: string | null;
+  /** `au:Verdict` for the proposal as a whole — the weakest of its ops'. */
+  verdict: ProposalVerdict;
   ops: { index: number; op: string; verdict: Verdict; reason: string }[];
   rejected: number;
   admissible: number;
@@ -228,24 +328,68 @@ export function checkProposal(
     return { index, op: typeof kind === "string" ? kind : "", verdict, reason };
   });
 
-  const canonical = canonicalJson({
-    parent,
-    author: who.sub,
-    surface,
-    ops,
-    intent: o["intent"] ?? null,
-  });
+  // ⛔ TWO DIFFERENT STRINGS, on purpose.
+  //
+  //   canonical   what is STORED — parent, author, surface, ops, intent. Every
+  //               provenance record is kept: "who authored this, through what"
+  //               stays answerable forever.
+  //   pre-image   what the address is TAKEN OVER — author, ops, parent only.
+  //
+  // RFC-002 §4.1 puts the difference in the door's signature: `Door.admit` takes
+  // `{parents, ops}` and not provenance, so a chat-authored change and a
+  // click-authored change are indistinguishable downstream. §9.1 turns that into
+  // a mechanical gate — the same change from two surfaces must produce the same
+  // id — and the id can only satisfy it if the surface is outside the pre-image.
+  // Keeping provenance AND excluding it from the name is the whole arrangement.
+  //
+  // ⚠ Both are computed inside a guard. `canonicalJson` refuses values it cannot
+  // render reproducibly, and `checkOp` already rejects an op carrying one — but
+  // `parent`, `surface` and `intent` do not go through `checkOp`, and an
+  // uncaught throw here is a 500 telling the author nothing.
+  const rejected = report.filter((r) => r.verdict === "REJECTED").length;
+  const queued = report.filter((r) => r.verdict === "QUEUED").length;
+
+  let canonical: string | null = null;
+  let addressPreImage: string | null = null;
+  let address: string | null = null;
+  try {
+    canonical = canonicalJson({
+      parent,
+      author: who.sub,
+      surface,
+      ops,
+      intent: o["intent"] ?? null,
+    });
+    addressPreImage = canonicalJson({ author: who.sub, ops, parent });
+    address = contentAddress({ author: who.sub, ops, parent });
+  } catch (e) {
+    // ⛔ Order matters here and it is not obvious. `checkOp` already rejects an
+    // op carrying a value with no reproducible rendering, so if anything is
+    // rejected the proposal is refused either way — and the per-op reason names
+    // the FIELD, which is a better answer than a whole-proposal message. So the
+    // throw is swallowed, the address stays null, and the 422 carries the
+    // report. With nothing rejected the offending value is outside the ops
+    // (`intent` is arbitrary JSON from the body), and then this is the only
+    // thing that can say so.
+    if (rejected === 0) return { ok: false, message: e instanceof Error ? e.message : String(e) };
+  }
 
   return {
     ok: true,
     checked: {
       parent,
       surface,
-      canonical,
+      canonical: canonical ?? "",
+      addressPreImage,
+      address,
+      // The weakest of the ops'. A rejected proposal is never appended, so this
+      // value is reported to the author and not recorded; Admitted and Queued
+      // are what the log ever carries.
+      verdict: rejected > 0 ? "Rejected" : queued > 0 ? "Queued" : "Admitted",
       ops: report,
-      rejected: report.filter((r) => r.verdict === "REJECTED").length,
+      rejected,
       admissible: report.filter((r) => r.verdict === "OK").length,
-      queued: report.filter((r) => r.verdict === "QUEUED").length,
+      queued,
     },
   };
 }

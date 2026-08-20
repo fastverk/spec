@@ -1,0 +1,281 @@
+{
+  "about": [
+    "The content address — RFC-002 §5's `Proposal.id`, the name a proposal has",
+    "that nothing else can give it.",
+    "",
+    "    sha256:<64 lower-case hex>  over  canonicalJson({ author, ops, parent })",
+    "",
+    "THREE FIELDS. `surface` and `intent` are deliberately NOT in the pre-image,",
+    "and that exclusion is the whole content of the fixture. RFC-002 §4.1: the",
+    "door takes `{parents, ops}` and not provenance, 'so a chat-authored change",
+    "and a click-authored change are indistinguishable downstream — enforced by",
+    "the signature, not by review discipline'. §9.1 makes that mechanical: a",
+    "scripted click and a scripted chat that author the same change must produce",
+    "the same id. `same_address` below is that gate, as data.",
+    "",
+    "⚠ The address is NOT a hash of the stored `canonical` bytes. Those carry",
+    "`surface` and `intent` on purpose — provenance is KEPT, it just does not get",
+    "a vote. Hashing the stored line would give the two surfaces different ids and",
+    "quietly invert §9.1.",
+    "",
+    "⛔ `author` IS in the pre-image, and that is not a contradiction. It is",
+    "invariant ⑤ (nothing is attributed to nobody): two people proposing the same",
+    "words are making two proposals, each of which one of them is answerable for.",
+    "What §9.1 collapses is the surface, never the person.",
+    "",
+    "`pre_image` is pinned as well as `address` because a digest that disagrees",
+    "tells you only THAT two implementations differ; the bytes tell you WHERE.",
+    "",
+    "Three implementations execute these cases, each canonicalizing independently:",
+    "console/lib/address.ts (vitest), services/spec/src/proposal.rs (cargo test),",
+    "and conformance/check_conformance.py, which canonicalizes in stdlib Python",
+    "and hashes with hashlib rather than trusting either."
+  ],
+  "prefix": "sha256:",
+  "pre_image_keys": [
+    "author",
+    "ops",
+    "parent"
+  ],
+  "not_in_the_pre_image": [
+    "surface",
+    "intent"
+  ],
+  "cases": [
+    {
+      "name": "a_one_op_proposal_from_a_form",
+      "why": "The ordinary case: one op, composed by a meridian FormPanel and lifted by fromFlat.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "assertNS",
+            "subject": "auth-24",
+            "text": "Every session MUST expire within 12 hours",
+            "discipline": "security",
+            "rung": "R0"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:99dde1c21cd601d11c5a60b987af60529d6edd5cb12c3ad6890a973f46e0640a"
+    },
+    {
+      "name": "the_same_change_authored_in_chat",
+      "why": "§9.1's equal-citizen gate. Same author, same read point, same ops — a DIFFERENT surface and a chat transcript for intent. One proposal with two provenance records, so the address must be identical to the case above.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Chat",
+        "ops": [
+          {
+            "op": "assertNS",
+            "subject": "auth-24",
+            "text": "Every session MUST expire within 12 hours",
+            "discipline": "security",
+            "rung": "R0"
+          }
+        ],
+        "intent": "user asked for a session cap; back-translated and confirmed"
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:99dde1c21cd601d11c5a60b987af60529d6edd5cb12c3ad6890a973f46e0640a"
+    },
+    {
+      "name": "the_same_change_with_its_op_keys_written_in_another_order",
+      "why": "Canonicalization, not luck. An MCP client that serializes an op's keys in declaration order and a browser that serializes them alphabetically are submitting the same op.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Ingest",
+        "ops": [
+          {
+            "rung": "R0",
+            "discipline": "security",
+            "text": "Every session MUST expire within 12 hours",
+            "subject": "auth-24",
+            "op": "assertNS"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:99dde1c21cd601d11c5a60b987af60529d6edd5cb12c3ad6890a973f46e0640a"
+    },
+    {
+      "name": "a_different_read_point_is_a_different_proposal",
+      "why": "The parent is what the author was looking at. The same words against a corpus that has moved are a different judgement, and RFC-002 §5 makes the read point part of the id for exactly that reason.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-19",
+        "author": "google:110452103958871",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "assertNS",
+            "subject": "auth-24",
+            "text": "Every session MUST expire within 12 hours",
+            "discipline": "security",
+            "rung": "R0"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"}],\"parent\":\"corpus:studio@2026-08-19\"}",
+      "address": "sha256:91d484191a271a1de214f1af8909230dd338b7a39aa642c58c515d5e9aac9c63"
+    },
+    {
+      "name": "a_different_author_is_a_different_proposal",
+      "why": "⑤ nothing is attributed to nobody. Two people proposing the same words are making two proposals, each of which one of them is answerable for. The surface collapses; the person never does.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:998877665544332",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "assertNS",
+            "subject": "auth-24",
+            "text": "Every session MUST expire within 12 hours",
+            "discipline": "security",
+            "rung": "R0"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:998877665544332\",\"ops\":[{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:bdd46daf130f7bc6acdba4e290a932055d117b44ffacd1d543c3798439437ff5"
+    },
+    {
+      "name": "a_two_op_proposal",
+      "why": "A claim and the binding that makes one of its terms resolvable, submitted together.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "assertNS",
+            "subject": "auth-24",
+            "text": "Every session MUST expire within 12 hours",
+            "discipline": "security",
+            "rung": "R0"
+          },
+          {
+            "op": "bindTerm",
+            "term": "session",
+            "definition": "a row in auth.sessions with revoked_at IS NULL",
+            "project": "studio"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"},{\"definition\":\"a row in auth.sessions with revoked_at IS NULL\",\"op\":\"bindTerm\",\"project\":\"studio\",\"term\":\"session\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:42fc63552a39f3020b2fb65ca036b5e5970a1f9bda752e9777388c0d65c211bf"
+    },
+    {
+      "name": "the_same_two_ops_in_the_other_order",
+      "why": "⛔ Ops are ORDERED (§5) — they are applied in sequence and reviewed in sequence. Swapping them is a different proposal, so it must be a different address. A set-hash here would silently merge two reviews.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "bindTerm",
+            "term": "session",
+            "definition": "a row in auth.sessions with revoked_at IS NULL",
+            "project": "studio"
+          },
+          {
+            "op": "assertNS",
+            "subject": "auth-24",
+            "text": "Every session MUST expire within 12 hours",
+            "discipline": "security",
+            "rung": "R0"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"definition\":\"a row in auth.sessions with revoked_at IS NULL\",\"op\":\"bindTerm\",\"project\":\"studio\",\"term\":\"session\"},{\"discipline\":\"security\",\"op\":\"assertNS\",\"rung\":\"R0\",\"subject\":\"auth-24\",\"text\":\"Every session MUST expire within 12 hours\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:11d924cc2dc022e87453b80ef61ad9abfaf733ee0a57bb26d2b61b10ee3f2979"
+    },
+    {
+      "name": "a_kernel_op_is_addressed_like_any_other",
+      "why": "declarePrecedence needs kernel capability, so this proposal is QUEUED rather than admitted. A queued proposal is still a proposal and still has a name — the verdict is recorded beside the address, never instead of it.",
+      "proposal": {
+        "parent": "corpus:ampere@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "declarePrecedence",
+            "higher": "st:fire-safety",
+            "lower": "st:market-commitment",
+            "rationale": "life safety precedes a commercial undertaking"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"higher\":\"st:fire-safety\",\"lower\":\"st:market-commitment\",\"op\":\"declarePrecedence\",\"rationale\":\"life safety precedes a commercial undertaking\"}],\"parent\":\"corpus:ampere@2026-08-20\"}",
+      "address": "sha256:19a1f8f8a23c6970ef1aca5d584d194a00b66e6d481706f7dc08cfc1d5f8d8f6"
+    },
+    {
+      "name": "text_outside_ascii_and_the_two_escapes",
+      "why": "The pre-image is UTF-8 with JSON's own escaping and nothing else: a non-ASCII character stays raw, a quote and a backslash are escaped. Both implementations must agree byte for byte or the same proposal gets two names.",
+      "proposal": {
+        "parent": "corpus:studio@2026-08-20",
+        "author": "google:110452103958871",
+        "surface": "Meridian",
+        "ops": [
+          {
+            "op": "amendNS",
+            "subject": "auth-31",
+            "text": "The identité fédérée path MUST log the \"issuer\" claim, escaped \\ and all"
+          }
+        ],
+        "intent": null
+      },
+      "pre_image": "{\"author\":\"google:110452103958871\",\"ops\":[{\"op\":\"amendNS\",\"subject\":\"auth-31\",\"text\":\"The identité fédérée path MUST log the \\\"issuer\\\" claim, escaped \\\\ and all\"}],\"parent\":\"corpus:studio@2026-08-20\"}",
+      "address": "sha256:1f7a529fc801b52d2cf78efe810e49adef47ec96dda956eda485b48a2a17f624"
+    }
+  ],
+  "same_address": [
+    {
+      "name": "click_and_chat_and_an_mcp_client_are_one_proposal",
+      "why": "§9.1's equal-citizen gate. Three surfaces, three intents, one change — one address. If these ever differ the surfaces are composing different ops and the claim that they are one system is false.",
+      "cases": [
+        "a_one_op_proposal_from_a_form",
+        "the_same_change_authored_in_chat",
+        "the_same_change_with_its_op_keys_written_in_another_order"
+      ]
+    }
+  ],
+  "different_address": [
+    {
+      "name": "the_read_point_the_author_saw",
+      "why": "A proposal made against a corpus that has moved is a different proposal.",
+      "cases": [
+        "a_one_op_proposal_from_a_form",
+        "a_different_read_point_is_a_different_proposal"
+      ]
+    },
+    {
+      "name": "who_is_answerable_for_it",
+      "why": "⑤ — the person does not collapse.",
+      "cases": [
+        "a_one_op_proposal_from_a_form",
+        "a_different_author_is_a_different_proposal"
+      ]
+    },
+    {
+      "name": "ops_are_ordered_not_a_set",
+      "why": "⛔ Ops are applied in sequence and reviewed in sequence. A set-hash would silently merge two different reviews into one name.",
+      "cases": [
+        "a_two_op_proposal",
+        "the_same_two_ops_in_the_other_order"
+      ]
+    }
+  ]
+}

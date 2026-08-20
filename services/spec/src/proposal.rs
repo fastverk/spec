@@ -1,43 +1,63 @@
-//! proposal — the RFC-002 §5 proposal IR, queue-side.
+//! proposal — the RFC-002 §5 proposal IR, checker-side.
 //!
 //! # What this is, and the one thing it deliberately is not
 //!
 //! RFC-002 puts `Door.admit` in Lean: it takes `{parents, ops}` and **not**
 //! provenance, which is what makes a chat-authored change and a click-authored
-//! change indistinguishable downstream by signature. That door does not live here
-//! and must not be simulated here.
+//! change indistinguishable downstream by signature. That model now exists —
+//! `lean/Spec/Authoring/Door.lean`, compiled by `//lean:authoring_test` — and the
+//! door that runs is the console's. Neither is simulated here.
 //!
-//! What lives here is the **queue side**: accept a proposal from a browser or an
-//! MCP client, check every op against the closed vocabulary and its *local*
-//! decidable preconditions, and append the canonical bytes to an append-only log.
-//! Admission — the content address, the parent check against a real bitemporal read
-//! point, and the gate verdict — happens in the build, where the SPARQL gates and
-//! the Lean kernel already are. This is the write-side reading of the same decision
-//! `readmodel.rs` records for reads: **the build adjudicates, the plugin queues.**
+//! What lives here is the **checker**: parse a proposal, check every op against
+//! the closed vocabulary and its *local* decidable preconditions, and compute the
+//! canonical bytes, the content address and the `au:Verdict` those ops imply.
+//! `POST /proposal/verdict-preview` is what that is for — an author sees the name
+//! and the verdict before submitting (§9 step 6). Nothing here appends.
 //!
-//! Two consequences worth being blunt about, because a route named `POST /proposal`
-//! invites the assumption that it decides something:
+//! ⚠ This module used to say **"the build adjudicates, the plugin queues"**, and
+//! both halves have moved. The plugin does not queue: it has no write path
+//! (below). The build still adjudicates the GATE set and only that — RFC-002 §7.1
+//! now has a table saying which of admission's four questions is answered where,
+//! because "the door can prove it" was doing too much work in one sentence.
 //!
-//! 1. **No content address is computed here.** `Proposal.id` is a hash over
-//!    `(parent, author, ops)`; this crate has no hash primitive and cannot acquire
-//!    one without re-pinning the plugin's crate universe. Rather than mint a
-//!    plausible-looking identifier from `DefaultHasher` — which is neither stable
-//!    across releases nor collision-resistant, and whose docs say so — the response
-//!    returns the exact canonical bytes the address will be taken over and
-//!    `"address": null`. A fabricated address is strictly worse than an absent one:
-//!    it would be indistinguishable from a real one at every downstream callsite.
-//! 2. **`verdict-preview` previews the *structure*, not the verdict.** It answers
-//!    "is this a well-formed proposal, and what does it touch" plus "here is what is
-//!    currently infeasible". It cannot answer "will admitting this create an
-//!    unrecorded empty envelope", because that is a `GROUP BY … HAVING` over the
-//!    post-admission graph and this plugin has no query engine. Saying so in the
-//!    response body is part of the contract.
+//! ⛔ **THE WRITE PATH IS RETIRED.** `POST /proposal` and `POST /proposal/op`
+//! answer **410 Gone** and name the console's routes instead. Two doors that both
+//! append are two places the op vocabulary, the canonical bytes and the content
+//! address can disagree — and they DID: `from_flat` here coerced a form's
+//! `bound_value` string to an f64 while the console left it a string, so the same
+//! submission got two different names. One door, or the address means nothing.
+//!
+//! What remains here is the READ side of the same log (the pending overlay) and
+//! `verdict-preview`, which writes nothing.
+//!
+//! Two things worth being blunt about, because a route named `verdict-preview`
+//! invites the assumption that it decides everything:
+//!
+//! 1. **The content address IS computed here**, and this module is one of three
+//!    implementations of it — `console/lib/address.ts` and
+//!    `conformance/check_conformance.py` are the others, and all three execute
+//!    `conformance/address_cases.json`. This paragraph used to say the opposite:
+//!    *"this crate has no hash primitive and cannot acquire one without re-pinning
+//!    the plugin's crate universe"*, so every response carried `"address": null`.
+//!    Re-pinning was one line in Cargo.toml. The claim was true when it was
+//!    written and had become a reason not to build the door.
+//!
+//!    `sha256:<64 hex>` over `canonical_json({author, ops, parent})`. **Three
+//!    fields**: `surface` and `intent` are stored and deliberately not hashed, so
+//!    a chat-authored and a click-authored change are ONE proposal with two
+//!    provenance records (RFC-002 §4.1, §9.1).
+//! 2. **`verdict-preview` previews the *structure*, not the gate set.** It answers
+//!    "is this a well-formed proposal, what does it touch, and what will it be
+//!    called" plus "here is what is currently infeasible". It cannot answer "will
+//!    admitting this create an unrecorded empty envelope", because that is a
+//!    `GROUP BY … HAVING` over the post-admission graph and this plugin has no
+//!    query engine. Saying so in the response body is part of the contract.
 //!
 //! # What it does enforce
 //!
 //! Everything decidable from the op alone, which is more than it sounds:
 //!
-//!   * the op kind is in the closed 16-constructor vocabulary (§5);
+//!   * the op kind is in the closed 17-constructor vocabulary (§5, plus `retractTerm`);
 //!   * required fields are present and non-empty, and no unknown field is silently
 //!     dropped — a typo'd key is a rejection, not a no-op;
 //!   * `declQuantity` carries **all six** referent fields. Dimension alone is
@@ -61,6 +81,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 
 /// `au:Surface` — audit-only provenance. The door cannot see it (§4); it is
 /// recorded so "who authored this, through what" stays answerable, and so the
@@ -416,6 +437,13 @@ pub fn check_op(op: &Value, who: &Principal) -> (OpVerdict, String) {
         }
     }
 
+    // Before anything semantic: can these bytes even be a pre-image? An op that
+    // cannot be canonicalized has no content address, so it has no name, so it
+    // cannot be reviewed or replayed.
+    if let Some(why) = unrepresentable(op, kind) {
+        return (OpVerdict::Rejected, why);
+    }
+
     // Enumerated values against the au: individuals.
     if let Some(rung) = obj.get("rung").and_then(Value::as_str) {
         if !RUNGS.contains(&rung) {
@@ -494,6 +522,74 @@ pub fn check_op(op: &Value, who: &Principal) -> (OpVerdict, String) {
     (OpVerdict::Ok, String::new())
 }
 
+/// Why this value cannot be part of a content address, or `None` if it can.
+///
+/// ⛔ The rule is `Number.isSafeInteger`'s, and it is stated in JavaScript's
+/// terms on purpose: the CONSOLE is the door now, and the two implementations
+/// have to refuse the same set or the same submission gets two names.
+///
+///   * a float renders through ryu here and through `String(n)` there, and the
+///     two disagree (`1e21` vs `1e+21`);
+///   * an integer outside ±(2^53−1) is a float in JavaScript whatever it is
+///     here, so it renders in exponent form there and in full here.
+///
+/// No op in the vocabulary carries a number today — `bound_value` arrives from a
+/// form as a string — so this refuses something nothing sends, which is exactly
+/// when to put it in.
+///
+/// ⚠ There is no surrogate case. A Rust `String` cannot hold an unpaired
+/// surrogate and serde_json's parser refuses one on the way in, so the
+/// asymmetric half of this rule lives only in `console/lib/canonical.ts`.
+fn unrepresentable(v: &Value, path: &str) -> Option<String> {
+    const SAFE: i64 = 9_007_199_254_740_991; // 2^53 − 1
+    match v {
+        Value::Number(n) => match n.as_i64() {
+            Some(i) if i.abs() <= SAFE => None,
+            _ => Some(format!(
+                "`{path}` is {n}, which is not a safe integer; its rendering differs between \
+                 implementations and this value is part of a content address — send it as a string"
+            )),
+        },
+        Value::Array(a) => a
+            .iter()
+            .enumerate()
+            .find_map(|(i, item)| unrepresentable(item, &format!("{path}[{i}]"))),
+        Value::Object(m) => m
+            .iter()
+            .find_map(|(k, val)| unrepresentable(val, &format!("{path}.{k}"))),
+        _ => None,
+    }
+}
+
+/// `sha256:` — the digest is named in the address; a bare hex string ages badly.
+pub const ADDRESS_PREFIX: &str = "sha256:";
+
+/// The exact bytes a content address is taken over.
+///
+/// ⛔ **Three fields.** `surface` and `intent` are stored in the log and NOT
+/// hashed. RFC-002 §4.1 has `Door.admit` take `{parents, ops}` and not
+/// provenance, "so a chat-authored change and a click-authored change are
+/// indistinguishable downstream — enforced by the signature, not by review
+/// discipline". §9.1 turns that into a mechanical gate; the id can only satisfy
+/// it if the surface is outside the pre-image.
+///
+/// ⛔ `author` IS hashed, and that is not a contradiction: it is invariant ⑤.
+/// Two people proposing the same words are making two proposals, each of which
+/// one of them is answerable for. The surface collapses; the person never does.
+pub fn address_pre_image(author: &str, ops: &[Value], parent: &str) -> String {
+    let mut m = Map::new();
+    m.insert("author".into(), json!(author));
+    m.insert("ops".into(), Value::Array(ops.to_vec()));
+    m.insert("parent".into(), json!(parent));
+    canonical_json(&Value::Object(m))
+}
+
+/// RFC-002 §5's `Proposal.id`.
+pub fn content_address(author: &str, ops: &[Value], parent: &str) -> String {
+    let digest = Sha256::digest(address_pre_image(author, ops, parent).as_bytes());
+    format!("{ADDRESS_PREFIX}{digest:x}")
+}
+
 fn is_empty_value(v: &Value) -> bool {
     match v {
         Value::Null => true,
@@ -504,17 +600,48 @@ fn is_empty_value(v: &Value) -> bool {
     }
 }
 
-/// A checked proposal: the ops with their verdicts, plus the canonical bytes.
+/// `au:Verdict` — the door's answer for the proposal AS A WHOLE
+/// (rdf/ontology/authoring.ttl), as distinct from the per-op `OpVerdict`.
+///
+/// The weakest of the ops': `Rejected` if any op is ill-formed (nothing is
+/// appended), else `Queued` if any is out of capability (partial admission is
+/// normal — RFC-002 §5), else `Admitted`.
+///
+/// ⚠ NOT the gate set. §7.1 counts "every named gate returns zero rows after
+/// application" as part of admission, and that is a `GROUP BY … HAVING` over the
+/// post-admission graph. That verdict is the build's, on the promotion PR.
+pub const PROPOSAL_VERDICTS: &[&str] = &["Admitted", "Queued", "Rejected"];
+
+/// A checked proposal: the ops with their verdicts, the canonical bytes, and the
+/// name those ops give the proposal.
 #[derive(Debug)]
 pub struct Checked {
     pub parent: String,
     pub surface: String,
     pub author: Principal,
     pub verdicts: Vec<(String, OpVerdict, String)>,
+    /// What is STORED: `{parent, author, surface, ops, intent}`. Provenance kept.
     pub canonical: String,
+    /// What the ADDRESS is taken over: `{author, ops, parent}`. `None` only when
+    /// an op carries a value with no reproducible rendering — which `check_op`
+    /// has already rejected, so this is `Some` whenever `rejected() == 0`.
+    pub pre_image: Option<String>,
+    /// `sha256:<64 hex>` — RFC-002 §5's `Proposal.id`. `None` for the same reason.
+    pub address: Option<String>,
 }
 
 impl Checked {
+    /// `au:Verdict` for the proposal as a whole.
+    pub fn verdict(&self) -> &'static str {
+        if self.rejected() > 0 {
+            "Rejected"
+        } else if self.queued() > 0 {
+            "Queued"
+        } else {
+            "Admitted"
+        }
+    }
+
     pub fn admissible(&self) -> usize {
         self.verdicts.iter().filter(|(_, v, _)| *v == OpVerdict::Ok).count()
     }
@@ -590,11 +717,16 @@ pub fn check(body: &Value, author: Principal) -> Result<Checked, String> {
         })
         .collect();
 
-    // The canonical bytes: exactly `(parent, author, surface, ops, intent)` with
-    // keys in a fixed order at every level. This is what the door's content address
-    // will be taken over, so it is emitted here — byte-for-byte — rather than
-    // re-derived downstream from a re-serialization that might order keys
-    // differently.
+    // ⛔ TWO DIFFERENT STRINGS, on purpose.
+    //
+    //   canonical   what is STORED — parent, author, surface, ops, intent. Every
+    //               provenance record is kept: "who authored this, through what"
+    //               stays answerable forever.
+    //   pre-image   what the address is TAKEN OVER — author, ops, parent only.
+    //
+    // Keeping provenance AND excluding it from the name is the whole arrangement
+    // (§4.1, §9.1). Both are emitted here byte-for-byte rather than re-derived
+    // downstream from a re-serialization that might order keys differently.
     let mut canon = Map::new();
     canon.insert("parent".into(), json!(parent));
     canon.insert("author".into(), json!(author.sub));
@@ -606,112 +738,52 @@ pub fn check(body: &Value, author: Principal) -> Result<Checked, String> {
     );
     let canonical = canonical_json(&Value::Object(canon));
 
+    // A proposal whose ops cannot be canonicalized has no name. `check_op`
+    // rejected every such op above, so the report already says why with the
+    // field named — better than one message about the whole proposal.
+    let nameable = ops.iter().all(|op| unrepresentable(op, "op").is_none());
+    let (pre_image, address) = if nameable {
+        (
+            Some(address_pre_image(&author.sub, ops, &parent)),
+            Some(content_address(&author.sub, ops, &parent)),
+        )
+    } else {
+        (None, None)
+    };
+
     Ok(Checked {
         parent,
         surface,
         author,
         verdicts,
         canonical,
+        pre_image,
+        address,
     })
 }
 
-// ── the flat, single-op form of a proposal ────────────────────────────────────
+// ── the flat, single-op form of a proposal — RETIRED ─────────────────────────
 //
-// A meridian `FormPanel` submits a FLAT object: `buildRequestFromBindings` maps
-// each binding to `req[request_field] = <form field value>`, and every value is a
-// string because it came out of an `<input>`. So a declarative form cannot post
-// `{parent, ops: [{...}]}` directly — the shape is one level too deep and the types
-// are all strings.
+// `from_flat` lived here: it lifted a meridian `FormPanel`'s flat object of
+// strings into `{parent, ops: [{...}]}`, re-typing the named array / boolean /
+// numeric fields on the way. It went with the write path, and the coercion is
+// WHY rather than merely a casualty.
 //
-// Rather than give up on declarative writes (which would mean every write
-// affordance needs shell-side JavaScript), the plugin accepts the flat form of the
-// COMMON case: a proposal carrying exactly one op. Multi-op proposals with per-op
-// triage still need a richer surface; one-op proposals are most of them, and they
-// become expressible with no browser code at all.
+// The console's `fromFlat` does not coerce. So `bound_value: "70"` from a form
+// became the f64 `70.0` here and stayed the string `"70"` there — two different
+// canonical bodies, and once the address existed, two different permanent NAMES
+// for one submission. RFC-002 §8.1 asserted the opposite property ("a form
+// submission and an API submission of the same op produce identical canonical
+// bytes") and it was only ever tested WITHIN one implementation, because no
+// suite could reach both.
 //
-// The coercion below is deliberately narrow and declared, not inferred: only these
-// named fields are re-typed, only on this route, and a value that doesn't parse is
-// an error rather than a silent passthrough. `POST /proposal` (the nested route)
-// coerces nothing — a programmatic client sends real JSON types.
-
-/// Fields whose form value is a comma-separated list.
-const ARRAY_FIELDS: &[&str] = &["parties"];
-/// Fields whose form value is a boolean.
-const BOOL_FIELDS: &[&str] = &["is_axiom", "defeasible"];
-/// Fields whose form value is a number.
-const NUMBER_FIELDS: &[&str] = &["bound_value"];
-
-/// Turn a flat form submission into a one-op proposal body.
-///
-/// `{parent, surface?, op, <op fields…>}` → `{parent, surface, ops: [{op, …}]}`.
-pub fn from_flat(body: &Value) -> Result<Value, String> {
-    let obj = body.as_object().ok_or("body is not a JSON object")?;
-    let parent = obj
-        .get("parent")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("a form submission requires `parent` — the read point the author saw")?;
-    let surface = obj
-        .get("surface")
-        .and_then(Value::as_str)
-        .filter(|s| !s.is_empty())
-        .unwrap_or("Meridian");
-    let kind = obj
-        .get("op")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .ok_or("a form submission requires `op` — bind it as a literal in the descriptor")?;
-
-    let mut op = Map::new();
-    op.insert("op".into(), json!(kind));
-    for (key, raw) in obj {
-        if matches!(key.as_str(), "parent" | "surface" | "op") {
-            continue;
-        }
-        // An empty optional field is what an untouched form input sends. Dropping it
-        // is the difference between "the author left this blank" and "the author set
-        // this to the empty string", and only the first is what a form can mean.
-        if is_empty_value(raw) {
-            continue;
-        }
-        op.insert(key.clone(), coerce(key, raw)?);
-    }
-    Ok(json!({ "parent": parent, "surface": surface, "ops": [Value::Object(op)] }))
-}
-
-fn coerce(key: &str, raw: &Value) -> Result<Value, String> {
-    // Already the right type (a programmatic caller, or a form field the shell sent
-    // as a number) — leave it alone.
-    let s = match raw.as_str() {
-        Some(s) => s.trim(),
-        None => return Ok(raw.clone()),
-    };
-    if ARRAY_FIELDS.contains(&key) {
-        let items: Vec<Value> = s
-            .split(',')
-            .map(str::trim)
-            .filter(|x| !x.is_empty())
-            .map(|x| json!(x))
-            .collect();
-        return Ok(Value::Array(items));
-    }
-    if BOOL_FIELDS.contains(&key) {
-        return match s {
-            "true" => Ok(Value::Bool(true)),
-            "false" => Ok(Value::Bool(false)),
-            other => Err(format!("`{key}` must be true or false; got `{other}`")),
-        };
-    }
-    if NUMBER_FIELDS.contains(&key) {
-        return s
-            .parse::<f64>()
-            .map(|n| json!(n))
-            .map_err(|_| format!("`{key}` must be a number; got `{s}`"));
-    }
-    Ok(json!(s))
-}
+// Coercing is arguably the friendlier behaviour, and if it comes back it belongs
+// in the one door, checked by `conformance/address_cases.json` so both halves
+// coerce identically or neither does. What it cannot be again is a second
+// implementation of the same lift.
+//
+// The lift itself now lives in `console/lib/proposal.ts::fromFlat`, and
+// `console/test/door.test.ts` executes the property across both console routes.
 
 /// Deterministic JSON: object keys sorted, no insignificant whitespace, numbers as
 /// serde_json renders them.
@@ -843,6 +915,9 @@ mod tests {
     }
     fn kernel() -> Principal {
         Principal { kernel: true, ..author() }
+    }
+    fn author_with(sub: &str) -> Principal {
+        Principal { sub: sub.into(), ..author() }
     }
     fn agent() -> Principal {
         Principal { agent: true, ..author() }
@@ -985,54 +1060,154 @@ mod tests {
         assert_eq!((c.admissible(), c.queued(), c.rejected()), (1, 1, 1));
     }
 
+    /// ⛔ The SHARED cases — `conformance/address_cases.json` — executed here so
+    /// this canonicalizer and the console's cannot drift. The pre-image is
+    /// asserted as BYTES before the digest is compared: a digest that disagrees
+    /// says only THAT two implementations differ; the bytes say where.
+    ///
+    /// Same `option_env!` + exists() guard as `evaluation.rs`: the fixtures are
+    /// source files, so under `cargo test` they are right there and under a
+    /// bazel `rust_test` they are not staged — which is why the hand-written
+    /// cases below are not deleted.
     #[test]
-    fn a_flat_form_submission_becomes_a_one_op_proposal() {
-        // Every value a string, as a meridian FormPanel sends them.
-        let flat = json!({
-            "parent": "p", "op": "assertNS", "subject": "fire-soc-cap",
-            "text": "MUST NOT exceed 70 MW", "discipline": "fire & life safety",
-            "rung": "R4", "quantity": "q-sustained-discharge",
-            "bound_kind": "UpperBound", "bound_value": "70", "defeasible": "false",
-            "guard": ""
-        });
-        let body = from_flat(&flat).unwrap();
-        let ops = body["ops"].as_array().unwrap();
-        assert_eq!(ops.len(), 1);
-        // Coerced by the declared tables…
-        assert_eq!(ops[0]["bound_value"], json!(70.0));
-        assert_eq!(ops[0]["defeasible"], json!(false));
-        // …and the blank optional field dropped, not sent as "".
-        assert!(ops[0].get("guard").is_none(), "an untouched input must not be sent");
-        let c = check(&body, author()).unwrap();
-        assert_eq!((c.admissible(), c.queued(), c.rejected()), (1, 0, 0));
+    fn the_shared_address_cases_all_hold() {
+        let Some(dir) = option_env!("CARGO_MANIFEST_DIR") else {
+            return;
+        };
+        let path = std::path::PathBuf::from(dir).join("../../conformance/address_cases.json");
+        if !path.is_file() {
+            return;
+        }
+        let raw = std::fs::read_to_string(&path).expect("read address_cases.json");
+        let doc: Value = serde_json::from_str(&raw).expect("parse address_cases.json");
+
+        assert_eq!(doc["prefix"].as_str(), Some(ADDRESS_PREFIX));
+        // ⛔ The exclusion IS the design (RFC-002 §4.1). Asserting it here means a
+        // change that starts hashing the surface fails a named test rather than
+        // silently un-collapsing click and chat.
+        assert_eq!(doc["pre_image_keys"], json!(["author", "ops", "parent"]));
+        assert_eq!(doc["not_in_the_pre_image"], json!(["surface", "intent"]));
+
+        let cases = doc["cases"].as_array().expect("cases array");
+        assert!(cases.len() >= 8, "suspiciously few cases: {}", cases.len());
+        let mut by_name: std::collections::HashMap<&str, String> = std::collections::HashMap::new();
+        for c in cases {
+            let name = c["name"].as_str().unwrap_or("?");
+            let pr = &c["proposal"];
+            let author = pr["author"].as_str().expect("author");
+            let parent = pr["parent"].as_str().expect("parent");
+            let ops = pr["ops"].as_array().expect("ops");
+            assert_eq!(
+                address_pre_image(author, ops, parent),
+                c["pre_image"].as_str().unwrap_or_default(),
+                "{name}: pre-image bytes"
+            );
+            let got = content_address(author, ops, parent);
+            assert_eq!(got, c["address"].as_str().unwrap_or_default(), "{name}: address");
+            by_name.insert(name, got);
+        }
+
+        for group in doc["same_address"].as_array().unwrap_or(&vec![]) {
+            let names: Vec<&str> = group["cases"]
+                .as_array()
+                .expect("group cases")
+                .iter()
+                .filter_map(Value::as_str)
+                .collect();
+            let set: std::collections::HashSet<&String> =
+                names.iter().map(|n| &by_name[n]).collect();
+            assert_eq!(set.len(), 1, "{}: {}", group["name"], group["why"]);
+        }
+        for group in doc["different_address"].as_array().unwrap_or(&vec![]) {
+            let names: Vec<&str> = group["cases"]
+                .as_array()
+                .expect("group cases")
+                .iter()
+                .filter_map(Value::as_str)
+                .collect();
+            let set: std::collections::HashSet<&String> =
+                names.iter().map(|n| &by_name[n]).collect();
+            assert_eq!(set.len(), names.len(), "{}: {}", group["name"], group["why"]);
+        }
+    }
+
+    /// The hand-written half, for the Bazel run where the fixtures are not staged.
+    #[test]
+    fn the_address_does_not_see_the_surface_and_does_see_the_author() {
+        let ops = vec![json!({"op": "retractNS", "subject": "s", "reason": "r"})];
+        let a = content_address("google:1", &ops, "corpus:p");
+
+        // Same ops, same author, same read point, another surface and another
+        // intent — §9.1: one proposal, two provenance records.
+        let click = check(
+            &json!({"parent": "corpus:p", "surface": "Meridian", "ops": ops}),
+            author_with("google:1"),
+        )
+        .unwrap();
+        let chat = check(
+            &json!({"parent": "corpus:p", "surface": "Chat", "ops": ops, "intent": "asked in chat"}),
+            author_with("google:1"),
+        )
+        .unwrap();
+        assert_eq!(click.address.as_deref(), Some(a.as_str()));
+        assert_eq!(chat.address.as_deref(), Some(a.as_str()));
+        // The STORED bytes differ, which is the other half of the claim.
+        assert_ne!(click.canonical, chat.canonical);
+
+        // ⑤ The person does not collapse.
+        assert_ne!(content_address("google:2", &ops, "corpus:p"), a);
+        // The read point does not either.
+        assert_ne!(content_address("google:1", &ops, "corpus:q"), a);
+        // Ops are ordered, not a set.
+        let two = vec![ops[0].clone(), json!({"op": "retractNS", "subject": "t", "reason": "r"})];
+        let swapped = vec![two[1].clone(), two[0].clone()];
+        assert_ne!(
+            content_address("google:1", &two, "corpus:p"),
+            content_address("google:1", &swapped, "corpus:p")
+        );
     }
 
     #[test]
-    fn a_flat_parties_list_becomes_an_array() {
-        let flat = json!({"parent": "p", "op": "openConflict", "conflict": "INV-20",
-                          "kind": "EmptyEnvelope", "parties": "claim-a, claim-b"});
-        let body = from_flat(&flat).unwrap();
-        assert_eq!(body["ops"][0]["parties"], json!(["claim-a", "claim-b"]));
-        assert_eq!(check(&body, author()).unwrap().admissible(), 1);
-        // One party is still a rejection — the coercion must not smuggle past the check.
-        let one = json!({"parent": "p", "op": "openConflict", "conflict": "INV-20",
-                         "kind": "EmptyEnvelope", "parties": "claim-a"});
-        let body = from_flat(&one).unwrap();
-        assert_eq!(check(&body, author()).unwrap().rejected(), 1);
+    fn the_proposal_verdict_is_the_weakest_of_its_ops() {
+        let ok = json!({"op": "retractNS", "subject": "s", "reason": "r"});
+        let kernel_op = json!({"op": "declarePrecedence", "higher": "a", "lower": "b", "rationale": "r"});
+        let bad = json!({"op": "assertNS", "subject": "s"});
+
+        let v = |ops: Value, who: Principal| {
+            check(&json!({"parent": "p", "ops": ops}), who).unwrap().verdict()
+        };
+        assert_eq!(v(json!([ok.clone()]), author()), "Admitted");
+        assert_eq!(v(json!([ok.clone(), kernel_op.clone()]), author()), "Queued");
+        assert_eq!(v(json!([ok.clone(), kernel_op.clone()]), kernel()), "Admitted");
+        assert_eq!(v(json!([ok, kernel_op, bad.clone()]), author()), "Rejected");
+        assert!(PROPOSAL_VERDICTS.contains(&v(json!([bad]), author())));
     }
 
     #[test]
-    fn a_flat_field_that_will_not_coerce_is_an_error_not_a_passthrough() {
-        let flat = json!({"parent": "p", "op": "assertNS", "subject": "s", "text": "t",
-                          "discipline": "d", "rung": "R4", "bound_value": "seventy"});
-        let err = from_flat(&flat).expect_err("a non-numeric bound must not pass");
-        assert!(err.contains("bound_value"), "{err}");
-    }
+    fn a_value_with_no_reproducible_rendering_is_refused_and_leaves_no_name() {
+        // ⛔ `1e21` is the case that matters and it is NOT a float in JSON's eyes:
+        // JavaScript's `Number.isInteger(1e21)` is true and `String(1e21)` is
+        // "1e+21", while ryu writes "1e21". Both implementations refuse the whole
+        // safe-integer complement so neither ever has to render it.
+        for bad in [json!(1.5), json!(1e21), json!(9007199254740992i64)] {
+            let op = json!({"op": "assertNS", "subject": "s", "text": "t",
+                            "discipline": "d", "rung": "R0", "bound_value": bad});
+            let (v, why) = check_op(&op, &author());
+            assert_eq!(v, OpVerdict::Rejected, "{bad} should be refused");
+            assert!(why.contains("bound_value"), "{why}");
+            assert!(why.contains("safe integer"), "{why}");
 
-    #[test]
-    fn a_flat_submission_needs_a_parent_and_an_op() {
-        assert!(from_flat(&json!({"op": "retractNS"})).is_err());
-        assert!(from_flat(&json!({"parent": "p"})).is_err());
+            let c = check(&json!({"parent": "p", "ops": [op]}), author()).unwrap();
+            // No name, rather than a plausible-looking one for bytes the other
+            // implementation would spell differently.
+            assert!(c.address.is_none(), "{bad} must leave the proposal unnamed");
+            assert_eq!(c.verdict(), "Rejected");
+        }
+        // The safe range is admitted and rendered as plain digits.
+        let op = json!({"op": "assertNS", "subject": "s", "text": "t",
+                        "discipline": "d", "rung": "R0", "bound_value": 9007199254740991i64});
+        assert_eq!(check_op(&op, &author()).0, OpVerdict::Ok);
+        assert!(address_pre_image("a", &[op], "p").contains("9007199254740991"));
     }
 
     #[test]
