@@ -188,6 +188,41 @@ jobs:
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors //services/...
 
 
+  # The half the gate job cannot see: spec resolved FROM THE REGISTRY, the way
+  # a consumer resolves it. The gate job builds the working tree, which is
+  # exactly the position that shipped #58 (rules_shell as dev_dependency —
+  # invisible in-repo, fatal to every consumer) and #59 (`isolate = True`
+  # rejected by a consumer's Bazel before dev-scoping is considered) green.
+  # This job holds the first external corpus's position permanently:
+  # smoke/consumer is its own Bazel module (root .bazelignore keeps it out of
+  # the working-tree build) pinning the latest PUBLISHED spec, and runs the
+  # full gate suite over spec's own negative-control fixture across the repo
+  # boundary.
+  #
+  #   * No setup-java: the smoke's .bazelrc pins hermetic remotejdk_21, same as
+  #     the real consumer. If this job ever says "Unable to locate a Java
+  #     Runtime", the smoke's .bazelrc lost its Java pins — do not fix it by
+  #     adding setup-java here, which would hide exactly that regression from
+  #     consumers who don't have one.
+  #   * Known spurious failure: a network error naming registry.tbzl.dev is the
+  #     Fastly CDN, not the release — rerun the job. (Bazel falls through to
+  #     the next registry only on 404, so a mirror second in line would not
+  #     absorb an outage.)
+  #   * On a release: publish to tomato-bazel/bazel-registry, THEN bump the pin
+  #     in smoke/consumer/MODULE.bazel. This job is what proves the tag +
+  #     registry entry actually resolve — the check that had to be done by hand
+  #     for v0.7.0.
+  consumer:
+    name: registry consumer smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: resolve the published spec from registry.tbzl.dev and run its gates
+        working-directory: smoke/consumer
+        run: bazel $BAZEL_FLAGS test //...
+
+
   # ⛔ The console is where the safety rules run for real, and it is the ONLY half
   # of the conformance suite that executes on an ordinary PR — //services/spec:
   # spec_test needs the private-crate token and has been skipping. If this job
