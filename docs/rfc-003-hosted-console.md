@@ -241,9 +241,10 @@ submitted measurement and does not care where the count came from, so the AUTH-2
 refusal is demonstrable the moment any measurement source reports zero. Wiring a
 live Studio is one environment variable.
 
-**Promotion** runs from CI, not from Vercel: export with a SELECT-only
-credential, `materialize.py`, re-emit the read model, run the gates, open a PR. A
-human merges it. The PR diff — appended log lines, regenerated `proposals.ttl`,
+**Promotion** runs from CI, not from Vercel — `.github/workflows/promote.yml`
+since #49: export with a SELECT-only credential (pinned to a seq, so the two
+logs describe one moment), `materialize.py`, re-emit the read model, run the
+gates, open a PR. A human merges it. The PR diff — appended log lines, regenerated `proposals.ttl`,
 regenerated payloads, new `corpus_version` — is the reviewable step between
 "someone clicked a button" and "the specification changed".
 

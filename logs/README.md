@@ -28,12 +28,15 @@ matters most:
 
 ## How they get updated
 
-Not by hand. The promotion workflow exports from Neon with a SELECT-only
-credential and commits the result alongside the regenerated TTL and read model:
+Not by hand. `.github/workflows/promote.yml` (daily, or on dispatch) runs
+`tools/proposals/promote.sh`, which exports from Neon with the SELECT-only
+credential — pinned, `WHERE seq <= $THROUGH`, the pins taken once before either
+export so the two files describe one moment — and commits the result alongside
+the regenerated TTL and read model in one PR:
 
 ```sh
 psql "$NEON_EXPORT_URL" -X -A -t -q --no-psqlrc -v ON_ERROR_STOP=1 \
-  -c "SELECT line FROM spec.proposal_log ORDER BY seq" > logs/proposals.jsonl
+  -c "SELECT line FROM spec.proposal_log WHERE seq <= $THROUGH ORDER BY seq" > logs/proposals.jsonl
 ```
 
 See `console/db/README.md` for why export is a `SELECT` of a stored line rather
