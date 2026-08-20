@@ -1,4 +1,14 @@
 #!/usr/bin/env python3
+
+## Regenerating, honestly
+
+`corpus.ttl` as committed is NOT this script's raw output: `decompose.py` runs
+after it and retracts the R0 line of every claim it promotes to R2 (into
+`terms.ttl`). So a faithful regeneration is import THEN decompose, and `--check`
+against the committed file reports drift today regardless of the source. The
+source itself needs `GITLAB_TOKEN`. When the document node's shape changed (#50)
+the generator and the committed block were edited together, byte for byte, so
+the next person holding the token gets the same file back.
 """AuthRequirements.md → the au: corpus.
 
 ## What this replaces
@@ -255,13 +265,17 @@ def main() -> int:
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix st:      <https://aion.savvi.io/corpus/studio#> .
 
-# ⚠ NOT typed rfc:Document. The framework's DocumentShape requires an rfcId
-# matching RFC-NNNN, and this is a product requirements document, not an RFC.
-# Minting a fake number to satisfy a shape would invent an identity that then
-# has to be maintained, so the source is recorded as plain provenance instead.
-# That the framework assumes RFC-numbered documents is a genericity gap worth
-# closing upstream — see the note in corpus/studio/BUILD.bazel.
-st:studio-authz
+# Typed rfc:Document under the rfc:PlainDocument profile (rdf/ontology/aion-rfc.ttl):
+# the rfcId is the identifier the source already carries, not a minted RFC
+# number — minting one to satisfy a shape would invent an identity that then has
+# to be maintained. No rfc:Sections yet: the importer reads claims, not
+# headings, and the plain profile does not require them. Emitting the document's
+# section structure, and so giving every claim a path back to its heading, is a
+# separate step.
+st:studio-authz a rfc:Document ;
+    rfc:documentProfile rfc:PlainDocument ;
+    rfc:rfcId "AuthRequirements.md" ;
+    rfc:title "Authentication & Authorization Requirements" ;
     rdfs:label "Authentication & Authorization Requirements" ;
     dcterms:identifier "AuthRequirements.md" ;
     dcterms:source "gitlab.savvifi.com/platform/studio-nextjs" .

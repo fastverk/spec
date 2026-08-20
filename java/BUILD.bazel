@@ -54,7 +54,7 @@ java_library(
     deps = JENA_DEPS,
 )
 
-# The graph-content gate runner: runs the SHACL shapes + the 4 framework
+# The graph-content gate runner: runs the SHACL shapes + the 5 framework
 # consistency gates against a Dataset. The shapes + consistency queries
 # ship bundled as classpath resources (/ontology/shapes.ttl,
 # /queries/consistency/*.rq); domain gates (contradictions) + the
@@ -71,6 +71,7 @@ java_library(
         "//rdf/queries/consistency:circular-deps.rq",
         "//rdf/queries/consistency:diagnostic-collisions.rq",
         "//rdf/queries/consistency:inverse-edges.rq",
+        "//rdf/queries/consistency:untyped-documents.rq",
     ],
     resource_strip_prefix = "rdf",
     deps = JENA_DEPS + ["@spec_maven//:org_apache_jena_jena_shacl"],

@@ -65,7 +65,7 @@ spec_corpus_gates(
 # rule derives rfc:emits from diagnostic-code mentions in rule text).
 
 # Full analytics + consistency query catalog (claims / domain / governance /
-# stats / structure / analysis + the 4 consistency gates).
+# stats / structure / analysis + the 5 consistency gates).
 filegroup(
     name = "queries",
     srcs = glob(["queries/**/*.rq"], exclude = ["queries/consistency/*.rq"]) + [
@@ -73,6 +73,7 @@ filegroup(
         "//rdf/queries/consistency:dangling-references.rq",
         "//rdf/queries/consistency:diagnostic-collisions.rq",
         "//rdf/queries/consistency:inverse-edges.rq",
+        "//rdf/queries/consistency:untyped-documents.rq",
     ],
 )
 

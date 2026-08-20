@@ -25,13 +25,17 @@
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix st:      <https://aion.savvi.io/corpus/studio#> .
 
-# ⚠ NOT typed rfc:Document. The framework's DocumentShape requires an rfcId
-# matching RFC-NNNN, and this is a product requirements document, not an RFC.
-# Minting a fake number to satisfy a shape would invent an identity that then
-# has to be maintained, so the source is recorded as plain provenance instead.
-# That the framework assumes RFC-numbered documents is a genericity gap worth
-# closing upstream — see the note in corpus/studio/BUILD.bazel.
-st:studio-authz
+# Typed rfc:Document under the rfc:PlainDocument profile (rdf/ontology/aion-rfc.ttl):
+# the rfcId is the identifier the source already carries, not a minted RFC
+# number — minting one to satisfy a shape would invent an identity that then has
+# to be maintained. No rfc:Sections yet: the importer reads claims, not
+# headings, and the plain profile does not require them. Emitting the document's
+# section structure, and so giving every claim a path back to its heading, is a
+# separate step.
+st:studio-authz a rfc:Document ;
+    rfc:documentProfile rfc:PlainDocument ;
+    rfc:rfcId "AuthRequirements.md" ;
+    rfc:title "Authentication & Authorization Requirements" ;
     rdfs:label "Authentication & Authorization Requirements" ;
     dcterms:identifier "AuthRequirements.md" ;
     dcterms:source "gitlab.savvifi.com/platform/studio-nextjs" .

@@ -1,0 +1,47 @@
+# Negative control for the untyped-documents gate, positive proof for the plain
+# branch of DocumentShape. Everything here conforms: a plain document with no
+# sections, an RFC-profile document with one, a plain document that happens to
+# have a section too, and an RFC document that states its (default) profile.
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix rfc:     <https://aion.savvi.io/ontology/rfc#> .
+@prefix fx:      <https://aion.savvi.io/fixture/documents#> .
+
+# The Studio shape: the id is the filename the source already carries. No
+# sections — the importer reads claims, not headings — and that is allowed.
+fx:sheet-a12 a rfc:Document ;
+    rfc:documentProfile rfc:PlainDocument ;
+    rfc:rfcId "Sheet-A12.xlsx" ;
+    rfc:title "Thermal derate schedule, sheet A12" ;
+    rdfs:label "Thermal derate schedule, sheet A12" ;
+    dcterms:source "dossier/annexes" .
+
+# An RFC under the default profile — no marker, an RFC-NNNN id, one section.
+fx:RFC-0001 a rfc:Document ;
+    rfc:rfcId "RFC-0001" ;
+    rfc:title "Scope" ;
+    rfc:status "stable" ;
+    rfc:hasSection fx:RFC-0001-s1 .
+fx:RFC-0001-s1 a rfc:Section ;
+    rfc:sectionNumber "1" ;
+    rfc:title "Purpose" .
+
+# A plain document MAY have sections; the profile only stops requiring them.
+fx:annex-b a rfc:Document ;
+    rfc:documentProfile rfc:PlainDocument ;
+    rfc:rfcId "annex-b" ;
+    rfc:title "Annex B — commissioning checklist" ;
+    rfc:hasSection fx:annex-b-s1 .
+fx:annex-b-s1 a rfc:Section ;
+    rfc:sectionNumber "B.1" ;
+    rfc:title "Pre-energization" .
+
+# The default, stated explicitly, is still the default.
+fx:RFC-0002 a rfc:Document ;
+    rfc:documentProfile rfc:RfcDocument ;
+    rfc:rfcId "RFC-0002" ;
+    rfc:title "Naming" ;
+    rfc:hasSection fx:RFC-0002-s1 .
+fx:RFC-0002-s1 a rfc:Section ;
+    rfc:sectionNumber "1" ;
+    rfc:title "Purpose" .

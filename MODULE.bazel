@@ -39,7 +39,7 @@ document — applied to the `bazel_dep`s, where it was missing.
 
 module(
     name = "spec",
-    version = "0.7.0",
+    version = "0.8.0",
 )
 
 # ── FRAMEWORK deps: the surface consumers actually resolve ────────────────────
