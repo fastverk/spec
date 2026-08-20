@@ -3,7 +3,7 @@
 # description: "Zero-row iff the authoring gates detect EXACTLY the defects planted in envelope-conflict.ttl. Fails if a gate stops detecting, or starts over-detecting."
 # severity: error
 # tier: 3
-# rationale: "The negative control (envelope-clean.ttl returning zero rows from every gate) proves the gates do not false-positive. It cannot prove they detect anything at all — a gate that always returns zero passes it trivially. This is the positive control, in the same zero-row idiom the rest of the suite uses: run each gate's body over the planted fixture, count, and emit a row if the count is not the expected one. Written as counted assertions rather than an emit_diff_test against a golden TSV so it carries no dependency on the SPARQL engine's TSV serialization. Expected counts are one row per DEFECT, not per subject, which is why two exceed the number of defect kinds: bad-unprovenanced carries both UNPROVENANCED-RUNG and UNNAMED-STALL, and conflict-unwitnessed carries UNWITNESSED, UNOWNED and UNRESOLVED. If you change a gate's body, this file must change with it — that coupling is the point."
+# rationale: "The negative control (envelope-clean.ttl returning zero rows from every gate) proves the gates do not false-positive. It cannot prove they detect anything at all — a gate that always returns zero passes it trivially. This is the positive control, in the same zero-row idiom the rest of the suite uses: run each gate's body over the planted fixture, count, and emit a row if the count is not the expected one. Written as counted assertions rather than an emit_diff_test against a golden TSV so it carries no dependency on the SPARQL engine's TSV serialization. Expected counts are one row per DEFECT, not per subject, which is why two exceed the number of defect kinds: bad-unprovenanced carries both UNPROVENANCED-RUNG and UNNAMED-STALL, and conflict-unwitnessed carries UNWITNESSED, UNOWNED and UNRESOLVED. If you change a gate's body, this file must change with it — that coupling is the point. tier-rung-coherence = 1: the one Derivational-below-R4 claim; the clean fixture's three legal tier/rung pairs must stay silent."
 # ---
 PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
 PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
@@ -224,6 +224,21 @@ WHERE {
       }
     }
     BIND("homonym-unregistered" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # tier-rung-coherence.rq must find exactly the one planted Derivational
+    # claim below R4 — and not the Structural-at-R2 claim, which is legal.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        ?claim a rfc:NormativeStatement ; rfc:tier rfc:Derivational ; au:rung ?rung .
+        FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+      }
+    }
+    BIND("tier-rung-coherence" AS ?check)
     BIND(1 AS ?expected)
     FILTER(?actual != ?expected)
   }

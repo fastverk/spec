@@ -125,6 +125,15 @@
         sh:datatype xsd:string ;
         sh:minCount 1 ;
         sh:maxCount 1
+    ] ;
+    # Optional: absent means UNTIERED, not Structural. sh:class rather than
+    # sh:in, so the allowed set lives only in the Lean inductive that emits
+    # rdf/ontology/tier.ttl — the same way sh:class :Modality leans on aion-rfc.ttl.
+    sh:property [
+        sh:path :tier ;
+        sh:class :Tier ;
+        sh:maxCount 1 ;
+        sh:message "rfc:tier, if present, is exactly one of rfc:Structural / rfc:Derivational / rfc:Implemented (rdf/ontology/tier.ttl, emitted from Spec.Corpus.Schema.Tier)."
     ] .
 
 :TermShape a sh:NodeShape ;

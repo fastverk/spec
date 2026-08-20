@@ -46,6 +46,8 @@ the fixture:
 | `envelope-unrecorded.rq` | 0 † | 0 |
 | `conflict-hygiene-strict.rq` | 4 | 0 |
 | `ladder-integrity.rq` | 4 | 0 |
+| `vacuous-invariant.rq` | 3 | 0 |
+| `tier-rung-coherence.rq` | 1 | 0 |
 
 **Measures** (reported, never fail):
 
@@ -70,8 +72,10 @@ Every gate is silent on the clean fixture, so none false-positives — but that
 direction alone is passed trivially by a gate that always returns zero. The
 positive control is `expect-detections.rq`, a zero-row test asserting each gate's
 detection **count** over the planted fixture (including that the deficit computes
-to exactly 27.0 MW). It returns **0 rows** over the conflict fixture and **5** over
-the clean one, so the assertions are demonstrably live.
+to exactly 27.0 MW). It returns **0 rows** over the conflict fixture and **7** over
+the clean one (one branch per gate count that is not met there; the
+`envelope-unrecorded` branch expects 0 and is silent on both), so the assertions
+are demonstrably live.
 
 The headline row is `empty-envelope.rq` on the conflict fixture:
 

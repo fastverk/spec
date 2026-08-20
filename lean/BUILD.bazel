@@ -1,5 +1,7 @@
-load("@rules_lean//lean:lean.bzl", "lean_test")
+load("@rules_lean//lean:lean.bzl", "lean_emit", "lean_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools:diff.bzl", "emit_diff_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -62,6 +64,7 @@ exports_files([
     "Spec/Corpus/Inference.lean",
     "Spec/Emit/TtlEmit.lean",
     "Spec/Emit/MdEmit.lean",
+    "Spec/Emit/TierVocab.lean",
     "Spec/Logic/Core.lean",
     "Spec/Logic/InferenceRulesProofs.lean",
     "Spec/Compaction/Projection.lean",
@@ -104,9 +107,48 @@ lean_test(
         "Spec/Corpus/Inference.lean",
         "Spec/Emit/TtlEmit.lean",
         "Spec/Emit/MdEmit.lean",
+        "Spec/Emit/TierVocab.lean",
         "Spec/Logic/Core.lean",
         "Spec/Logic/InferenceRulesProofs.lean",
         "Spec/FrameworkCheck.lean",
     ],
     entry = "Spec/FrameworkCheck.lean",
+)
+
+# ─── The ontology, emitted from Lean ─────────────────────────────────────────
+#
+# rfc:tier had no TTL form — Spec.Corpus.Schema.Tier was Lean-only, so it was
+# neither queryable nor drift-checkable (RFC-002 §6.1). This is the first piece
+# of the ontology this repo emits FROM Lean rather than hand-writes: the Tier
+# class, its three individuals and the rfc:tier property come out of the
+# inductive (Spec/Emit/TierVocab.lean proves its list of constructors is
+# exhaustive), and the committed rdf/ontology/tier.ttl is pinned to that output
+# byte for byte. Edit the Lean, `bazel run //lean:update_tier_ttl`, commit both.
+lean_emit(
+    name = "tier_ttl_generated",
+    srcs = [
+        "Spec/Corpus/Schema.lean",
+        "Spec/Emit/TtlEmit.lean",
+        "Spec/Emit/TierVocab.lean",
+    ],
+    entry = "Spec/Emit/TierVocab.lean",
+    out = "tier.ttl",
+)
+
+# The drift gate: the committed ontology file IS the Lean emit.
+emit_diff_test(
+    name = "tier_ttl_diff_test",
+    committed = "//rdf/ontology:tier.ttl",
+    generated = ":tier_ttl_generated",
+    update_target = "//lean:update_tier_ttl",
+)
+
+sh_binary(
+    name = "update_tier_ttl",
+    srcs = ["//tools:update_artifact.sh"],
+    args = [
+        "lean/tier.ttl",
+        "rdf/ontology/tier.ttl",
+    ],
+    data = [":tier_ttl_generated"],
 )

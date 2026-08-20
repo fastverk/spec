@@ -35,6 +35,8 @@
 #   vacuous-invariant.rq             3 rows (a pass over zero, an au:Examined over
 #                                            zero, and an outcome with no
 #                                            population at all)
+#   tier-rung-coherence.rq           1 row  (rfc:tier Derivational on a claim only
+#                                            R2 formalized)
 # MEASURES (reported, never fail the build):
 #   empty-envelope.rq                1 row  (deficit 27.0 MW, 4 disciplines)
 #   conflict-hygiene.rq              6 rows (adds the UNRESOLVED rows, which are a
@@ -45,7 +47,7 @@
 # Every gate returns 0 rows against fixtures/envelope-clean.ttl, so none
 # false-positives. That direction alone would be passed by a gate that always
 # returns zero, so the positive control is fixtures/expect-detections.rq, which
-# asserts these counts and itself returns 0 rows here and 5 against the clean
+# asserts these counts and itself returns 0 rows here and 7 against the clean
 # fixture. Both fixtures are SHACL-conformant against rdf/ontology/shapes.ttl.
 #
 # NOTE: every numeric value here is synthetic and every citation is illustrative.
@@ -212,6 +214,19 @@ fx:bad-proven-below-rung a rfc:NormativeStatement ;
     au:discipline fx:thermal ;
     rfc:provenBy "Spec.Grounding.WriteDoor.trades_compose_conserving" ;
     au:rung au:R2 ; au:promotedBy fx:p-001 ; au:stalledOn "no model of firmware revision effects" .
+
+# -- tier-rung-coherence positive control ---------------------------------------
+
+# DERIVATIONAL-BELOW-RUNG: a derivational proof grade on a claim only R2
+# formalized. rfc:tier grades how the PROOF is discharged; a claim not yet typed
+# into the Lean schema has no proof to grade. Inert for every other gate:
+# promoted, stalled, no provenBy, no bound, no quantity, no evaluation.
+fx:bad-derivational-below-rung a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "Cell temperature spread MUST stay within the OEM balancing tolerance during sustained discharge." ;
+    au:discipline fx:thermal ;
+    rfc:tier rfc:Derivational ;
+    au:rung au:R2 ; au:promotedBy fx:p-001 ; au:stalledOn "no typed model of cell temperature spread" .
 
 # -- the admitted conflict, plus conflict-hygiene positive controls ------------
 
