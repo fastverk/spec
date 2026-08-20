@@ -36,7 +36,17 @@ describe("ingest, over a corpus from outside this repository", () => {
     // ⚠ Not this repository's. If these ever match, the fixture has been
     // regenerated from the wrong corpus and every case below is testing the
     // flagship against itself.
-    expect(model.corpusVersion).not.toBe("corpus:1d1d6b782d4b0b1a");
+    //
+    // ⛔ Read the flagship's version rather than hard-coding it. The first
+    // version of this line pinned the literal `corpus:1d1d6b782d4b0b1a`, and it
+    // went stale within the day — the ontology moved and the payloads were
+    // re-emitted, so the assertion kept passing while no longer asserting the
+    // thing it names.
+    const flagship = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../../services/spec/readmodel/claims.json", import.meta.url)), "utf8"),
+    ) as { corpus_version?: string };
+    expect(typeof flagship.corpus_version).toBe("string");
+    expect(model.corpusVersion).not.toBe(flagship.corpus_version);
     expect(model.projects()).toEqual(["fixture"]);
   });
 

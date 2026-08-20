@@ -453,7 +453,16 @@ def main():
                 corpus_digest.update(f.encode())
                 corpus_digest.update(fh.read())
         loaded.append((name, g))
+        # ⛔ NAME THE FILES, not just the count. This script decides what a corpus
+        # IS by listing the directory, and two derivation-test overlays once
+        # landed in corpus/ampere/ — each saying in its own first line "NOT part
+        # of the committed corpus". A count of 8 instead of 6 is not something
+        # anyone notices; `fixtures-unrunged-party.ttl` scrolling past is.
+        # //tools/readmodel:corpus_is_the_corpus_test is the gate; this is so the
+        # person running the regeneration can see it too.
         print(f"loaded {name}: {len(srcs)} files, {len(g)} triples", file=sys.stderr)
+        for f in srcs:
+            print(f"    {f}", file=sys.stderr)
 
     version = "corpus:" + corpus_digest.hexdigest()[:16]
 

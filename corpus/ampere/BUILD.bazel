@@ -23,15 +23,36 @@ package(default_visibility = ["//visibility:public"])
 # ── The full corpus ─────────────────────────────────────────────────────────
 # Note the dep is //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the
 # authoring gates key on au: terms and would pass vacuously without them.
+# ⛔ ONE LIST, TWO READERS. The gates load this dataset; `//tools/readmodel:
+# corpus_is_the_corpus_test` compares it against `glob(["*.ttl"])` — everything
+# actually on disk — and fails if they differ. That comparison is the whole gate:
+# `tools/readmodel/emit_readmodel.py` decides what the corpus IS by listing the
+# directory, so a `.ttl` here that the dataset does not name is a file the console
+# serves and no gate ever ran over.
+AMPERE_CORPUS = [
+    "conflicts.ttl",
+    "corpus.ttl",
+    "disciplines.ttl",
+]
+
 rdf_dataset(
     name = "ampere",
-    srcs = [
-        "conflicts.ttl",
-        "corpus.ttl",
-        "disciplines.ttl",
-    ],
+    srcs = AMPERE_CORPUS,
     in_format = "turtle",
     deps = ["//rdf:authoring_vocab"],
+)
+
+# What the gates say the corpus is…
+filegroup(
+    name = "corpus_ttl",
+    srcs = AMPERE_CORPUS,
+)
+
+# …and what is actually in the directory. A glob, deliberately: the strays this
+# catches are by definition files nobody listed.
+filegroup(
+    name = "all_ttl",
+    srcs = glob(["*.ttl"]),
 )
 
 # The pre-existing structural suite: SHACL conformance plus the five consistency
@@ -99,7 +120,31 @@ sparql_query(
     out_format = "tsv",
 )
 
-exports_files(glob(["*.ttl"]))
+# ⛔ `*.ttl` HERE IS THE CORPUS, AND NOTHING ELSE IS.
+#
+# The two derivation-test overlays used to sit beside these files as
+# `fixtures-*.ttl`, and both say so in their own first line: "an overlay for the
+# derivation test, NOT part of the committed corpus." They were in the corpus
+# directory anyway, so every tool that asks the FILESYSTEM what the corpus is got
+# the wrong answer — and one does. `tools/readmodel/emit_readmodel.py` lists
+# `*.ttl` and loads what it finds.
+#
+# ⚠ THE TENSE MATTERS. Nothing shipped wrong: the committed payloads predate
+# these fixtures, so the console has never served them. What was armed is the
+# NEXT regeneration — a routine step after any TTL change — and it would have
+# been silent. Measured by running it:
+#
+#     INV-03   committed: state open,     outcome ""
+#              re-emitted: state RESOLVED, outcome "Narrow"
+#
+# plus a 65th claim (`mkt-quiet-hours`) carrying no `au:rung` — the exact defect
+# `ladder-integrity.rq` exists to catch — as an ordinary requirement, and its
+# witness row on INV-05. Nine rows across five of the eight payloads.
+#
+# The fixtures now live in `fixtures/`, and
+# `//tools/readmodel:corpus_is_the_corpus_test` fails if a `.ttl` ever appears
+# here that the gate dataset does not list.
+exports_files(glob(["*.ttl"]) + glob(["fixtures/*.ttl"]))
 
 # ── Fanout: the work orders the conflicts have been naming all along ─────────
 #
@@ -117,21 +162,14 @@ spec_workorders(
     name = "workorders",
     config = "fanout.json",
     dataset = ":ampere",
-    srcs = [
-        "conflicts.ttl",
-        "corpus.ttl",
-        "disciplines.ttl",
-    ],
+    srcs = AMPERE_CORPUS,
 )
 
 rdf_dataset(
     name = "ampere_inv03_resolved",
     srcs = [
-        "conflicts.ttl",
-        "corpus.ttl",
-        "disciplines.ttl",
-        "fixtures-inv03-resolution.ttl",
-    ],
+        "fixtures/inv03-resolution.ttl",
+    ] + AMPERE_CORPUS,
     in_format = "turtle",
     deps = ["//rdf:authoring_vocab"],
 )
@@ -140,23 +178,15 @@ spec_workorders(
     name = "workorders_inv03_resolved",
     config = "fanout.json",
     dataset = ":ampere_inv03_resolved",
-    srcs = [
-        "conflicts.ttl",
-        "corpus.ttl",
-        "disciplines.ttl",
-        "fixtures-inv03-resolution.ttl",
-    ],
+    srcs = ["fixtures/inv03-resolution.ttl"] + AMPERE_CORPUS,
 )
 
-# ── The fail-open control (see fixtures-unrunged-party.ttl) ─────────────────
+# ── The fail-open control (see fixtures/unrunged-party.ttl) ────────────────
 rdf_dataset(
     name = "ampere_unrunged",
     srcs = [
-        "conflicts.ttl",
-        "corpus.ttl",
-        "disciplines.ttl",
-        "fixtures-unrunged-party.ttl",
-    ],
+        "fixtures/unrunged-party.ttl",
+    ] + AMPERE_CORPUS,
     in_format = "turtle",
     deps = ["//rdf:authoring_vocab"],
 )
@@ -165,10 +195,5 @@ spec_workorders(
     name = "workorders_unrunged",
     config = "fanout.json",
     dataset = ":ampere_unrunged",
-    srcs = [
-        "conflicts.ttl",
-        "corpus.ttl",
-        "disciplines.ttl",
-        "fixtures-unrunged-party.ttl",
-    ],
+    srcs = ["fixtures/unrunged-party.ttl"] + AMPERE_CORPUS,
 )
