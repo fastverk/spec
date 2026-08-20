@@ -1,0 +1,33 @@
+"""The registry-consumer smoke — spec, resolved the way a consumer resolves it.
+
+This module exists to keep one promise: `bazel_dep(name = "spec", ...)` works
+from OUTSIDE this repository. Spec's own CI builds the working tree, which is
+exactly the position that could not see #58 (rules_shell dev_dependency —
+invisible to spec, fatal to every consumer) or #59 (`isolate = True` rejected
+by a consumer's Bazel before dev-scoping is even considered). Both shipped
+green and broke the first external corpus. This module is that corpus's
+position, held permanently: spec resolved FROM THE REGISTRY, its gate macros
+loaded across the repo boundary, its Jena toolchains registered transitively.
+
+⚠ The version below is the latest PUBLISHED release, deliberately NOT the
+working tree — a path_override here would reintroduce the exact blindness this
+module exists to remove. Bumping this pin is the last step of the release
+checklist: publish to tomato-bazel/bazel-registry, then bump, and the smoke
+proves the release actually resolves.
+
+The dep block mirrors the first real consumer verbatim. rules_rdf is loaded
+directly (rdf_dataset), so it needs a direct dep; rules_jena registers all four
+toolchains itself, non-dev — it is pinned here only so the Jena toolchain
+definitions resolve against the rules_rdf version they were written for
+(bzlmod is highest-version-wins, and a silent skew is the failure mode).
+"""
+
+module(
+    name = "spec_smoke_consumer",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "spec", version = "0.7.0")
+
+bazel_dep(name = "rules_rdf", version = "0.3.0")
+bazel_dep(name = "rules_jena", version = "0.3.2")

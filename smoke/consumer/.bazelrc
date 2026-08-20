@@ -1,0 +1,26 @@
+# The consumer's registries — the same pair, in the same order, as the first
+# real external corpus. Passing any --registry drops Bazel's built-in default,
+# so the BCR is listed explicitly, last: spec, rules_rdf, rules_jena and
+# rules_lean resolve from the tomato-bazel registry, everything else from the
+# BCR.
+#
+# registry.tbzl.dev is a Fastly-fronted view (max-age=300) of
+# tomato-bazel/bazel-registry@main. It is the endpoint consumers actually use,
+# which is why the smoke uses it too — but it means one known spurious-failure
+# mode: a CDN outage fails module resolution with a network error naming
+# registry.tbzl.dev. That is the CDN, not the release; rerun the job. (Bazel
+# only falls through to the next registry on a 404, not on a network error, so
+# listing the raw.githubusercontent mirror second would not absorb it.)
+common --registry=https://registry.tbzl.dev/
+common --registry=https://bcr.bazel.build/
+
+# Jena 5.2.0 is compiled for JDK 17+; hermetic remotejdk so the gates never
+# depend on whatever `java` the runner happens to have. Same pin, same reason,
+# as the first consumer.
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+build --java_language_version=21
+build --tool_java_language_version=21
+
+test --test_output=errors
+test --test_summary=terse

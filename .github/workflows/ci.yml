@@ -157,8 +157,35 @@ jobs:
       # Observed as a FLAKE: an identical config went green one run earlier.
       # One serial build populates the cache completely; everything after finds
       # it warm. Cheap, because the second build reuses the first's outputs.
+      # The tectonic bundle lives at $XDG_CACHE_HOME/Tectonic — which .bazelrc
+      # already points at /tmp/xdg-cache on Linux (writable inside the sandbox
+      # via the /tmp mount pair), so every action in a run shares one cache.
+      # What was missing is persistence ACROSS runs: each run re-downloaded the
+      # whole bundle from data1.fullyjustified.net, and on 2026-08-20 that CDN
+      # started answering a burst of runs with 429 Too Many Requests, failing
+      # main and every PR alike. Restore the newest previous bundle, top it up,
+      # and save under a fresh key EVEN IF THE JOB FAILS — a partial download
+      # saved is exactly how consecutive rate-limited runs converge to a full
+      # cache instead of starting from zero every time. (A constant key would
+      # freeze the first — possibly partial — save forever; per-run keys with a
+      # prefix restore give newest-wins.)
+      - name: restore the tectonic bundle cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/xdg-cache/Tectonic
+          key: tectonic-bundle-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            tectonic-bundle-${{ runner.os }}-
+
       - name: warm the tectonic cache
         run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
+
+      - name: save the tectonic bundle cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/xdg-cache/Tectonic
+          key: tectonic-bundle-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       # ⚠ These are EXPLICIT package lists, not //... — a new package is invisible
       # to the gate until it is named here, in both steps. //conformance/... is
@@ -186,6 +213,41 @@ jobs:
         if: steps.crates_token.outcome == 'success'
         run: |
           bazel $BAZEL_FLAGS test --keep_going --test_output=errors //services/...
+
+
+  # The half the gate job cannot see: spec resolved FROM THE REGISTRY, the way
+  # a consumer resolves it. The gate job builds the working tree, which is
+  # exactly the position that shipped #58 (rules_shell as dev_dependency —
+  # invisible in-repo, fatal to every consumer) and #59 (`isolate = True`
+  # rejected by a consumer's Bazel before dev-scoping is considered) green.
+  # This job holds the first external corpus's position permanently:
+  # smoke/consumer is its own Bazel module (root .bazelignore keeps it out of
+  # the working-tree build) pinning the latest PUBLISHED spec, and runs the
+  # full gate suite over spec's own negative-control fixture across the repo
+  # boundary.
+  #
+  #   * No setup-java: the smoke's .bazelrc pins hermetic remotejdk_21, same as
+  #     the real consumer. If this job ever says "Unable to locate a Java
+  #     Runtime", the smoke's .bazelrc lost its Java pins — do not fix it by
+  #     adding setup-java here, which would hide exactly that regression from
+  #     consumers who don't have one.
+  #   * Known spurious failure: a network error naming registry.tbzl.dev is the
+  #     Fastly CDN, not the release — rerun the job. (Bazel falls through to
+  #     the next registry only on 404, so a mirror second in line would not
+  #     absorb an outage.)
+  #   * On a release: publish to tomato-bazel/bazel-registry, THEN bump the pin
+  #     in smoke/consumer/MODULE.bazel. This job is what proves the tag +
+  #     registry entry actually resolve — the check that had to be done by hand
+  #     for v0.7.0.
+  consumer:
+    name: registry consumer smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: resolve the published spec from registry.tbzl.dev and run its gates
+        working-directory: smoke/consumer
+        run: bazel $BAZEL_FLAGS test //...
 
 
   # ⛔ The console is where the safety rules run for real, and it is the ONLY half
