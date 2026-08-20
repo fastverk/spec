@@ -8,6 +8,26 @@
 # Run via Fuseki's /rfcs/shacl endpoint or `pyshacl` against the loaded data.
 # =============================================================================
 
+# ── Documents ────────────────────────────────────────────────────────────────
+#
+# A Document is validated against a PROFILE. Two exist (rdf/ontology/aion-rfc.ttl):
+#
+#   rfc:RfcDocument   THE DEFAULT — an rfcId of the form RFC-NNNN and at least
+#                     one section. A Document with no rfc:documentProfile is
+#                     validated as one, so every existing corpus keeps exactly
+#                     the constraints it had.
+#   rfc:PlainDocument any stable identifier the source already carries (a
+#                     filename, a sheet number, a clause id); sections optional.
+#                     MUST be declared explicitly, and its rfcId MUST NOT look
+#                     like RFC-NNNN. The two branches are DISJOINT, so an RFC
+#                     cannot opt out of its section rule by adding the marker,
+#                     and a mistyped RFC number fails loudly instead of quietly
+#                     becoming a plain document.
+#
+# The core — exactly one whitespace-free rfcId, exactly one title, a status from
+# the closed list if present, a known profile if present — applies to both.
+# rdf/ontology/fixtures/ holds the controls: a plain and an RFC document that
+# conform, and four planted documents that must not.
 :DocumentShape a sh:NodeShape ;
     sh:targetClass :Document ;
     sh:property [
@@ -15,8 +35,8 @@
         sh:datatype xsd:string ;
         sh:minCount 1 ;
         sh:maxCount 1 ;
-        sh:pattern "^RFC-[0-9]{4}$" ;
-        sh:message "Document MUST carry exactly one rfcId of the form RFC-NNNN."
+        sh:pattern "^\\S+$" ;
+        sh:message "Document MUST carry exactly one stable rfcId: non-empty, no whitespace."
     ] ;
     sh:property [
         sh:path :title ;
@@ -32,10 +52,22 @@
         sh:message "Document status must be one of draft/experimental/stable/deprecated."
     ] ;
     sh:property [
-        sh:path :hasSection ;
-        sh:minCount 1 ;
-        sh:message "Document MUST contain at least one section."
-    ] .
+        sh:path :documentProfile ;
+        sh:in ( :RfcDocument :PlainDocument ) ;
+        sh:maxCount 1 ;
+        sh:message "rfc:documentProfile, if present, is rfc:RfcDocument or rfc:PlainDocument."
+    ] ;
+    sh:or ( :RfcDocumentProfileShape :PlainDocumentProfileShape ) ;
+    sh:message "Document satisfies neither profile: either its rfcId is of the form RFC-NNNN and it has at least one rfc:hasSection (rfc:RfcDocument, the default), or it declares rfc:documentProfile rfc:PlainDocument and its rfcId is not of the RFC-NNNN form." .
+
+# Not targeted — reached only through :DocumentShape's sh:or.
+:RfcDocumentProfileShape a sh:NodeShape ;
+    sh:property [ sh:path :rfcId ; sh:pattern "^RFC-[0-9]{4}$" ] ;
+    sh:property [ sh:path :hasSection ; sh:minCount 1 ] .
+
+:PlainDocumentProfileShape a sh:NodeShape ;
+    sh:property [ sh:path :documentProfile ; sh:hasValue :PlainDocument ] ;
+    sh:property [ sh:path :rfcId ; sh:not [ sh:pattern "^RFC-[0-9]{4}$" ] ] .
 
 :SectionShape a sh:NodeShape ;
     sh:targetClass :Section ;

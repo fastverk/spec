@@ -1,0 +1,38 @@
+# ---
+# title: "Untyped documents"
+# description: "Nodes carrying document identity or provenance (rfc:rfcId, rfc:title, rfc:hasSection, rfc:status, rfc:documentProfile, dcterms:identifier, dcterms:source, dcterms:title) but no rdf:type at all — a document the SHACL suite cannot see, because SHACL targets by class."
+# section: consistency
+# format: table
+# columns: [doc, signals]
+# show_if_empty: true
+# order: 50
+# ---
+# Studio's requirements document sat in its corpus as a bare provenance node —
+# rdfs:label + dcterms:identifier + dcterms:source, no rdf:type — with every
+# gate green, because sh:targetClass :Document never targeted it. A document
+# the shapes cannot see is a document nothing checks.
+#
+# Keyed on the ABSENCE of any rdf:type, deliberately not on "not a
+# rfc:Document", and deliberately not on the edge predicates (rfc:dependsOn,
+# rfc:references, …): a reasoner closure that propagates edges onto nodes
+# typed in another file (Aion's kg/inferred/) must not fire this.
+#
+# The controls live in rdf/ontology/fixtures/: the exact pre-fix Studio node
+# (expect_untyped_detected counts exactly one row) and the typed corpora
+# (documents_clean returns none).
+
+PREFIX rfc:     <https://aion.savvi.io/ontology/rfc#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+
+SELECT ?doc (GROUP_CONCAT(DISTINCT REPLACE(STR(?signal), "^.*[#/]", ""); separator=", ") AS ?signals)
+WHERE {
+  VALUES ?signal {
+    rfc:rfcId rfc:title rfc:hasSection rfc:status rfc:documentProfile
+    dcterms:identifier dcterms:source dcterms:title
+  }
+  ?doc ?signal ?o .
+  FILTER(isIRI(?doc))
+  FILTER NOT EXISTS { ?doc a ?type }
+}
+GROUP BY ?doc
+ORDER BY ?doc

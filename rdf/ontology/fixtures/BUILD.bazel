@@ -1,0 +1,87 @@
+load("@rules_java//java:defs.bzl", "java_test")
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query_test")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+
+package(default_visibility = ["//visibility:public"])
+
+# ── The controls for DocumentShape and the untyped-documents gate ────────────
+#
+# Following rdf/lint/authoring/fixtures and grounding/BUILD.bazel: a shape or a
+# gate that has never been shown to reject anything is an assertion, not a
+# check, and one that fires on a clean graph is a false-positive generator. So
+# both directions are wired, for the shape AND for the gate.
+#
+#   bazel test //rdf/ontology/fixtures/...
+
+JENA_DEPS = [
+    "@spec_maven//:org_apache_jena_jena_arq",
+    "@spec_maven//:org_apache_jena_jena_core",
+    "@spec_maven//:org_apache_jena_jena_base",
+    "@spec_maven//:org_apache_jena_jena_iri",
+    "@spec_maven//:org_slf4j_slf4j_simple",
+]
+
+# Negative control for the gate, positive proof for the shape's plain branch: a
+# typed rfc:PlainDocument with no sections and an RFC-profile document with
+# one, both conforming, and nothing untyped. The whole structural suite runs
+# over it — SHACL and all five consistency gates.
+rdf_dataset(
+    name = "documents",
+    srcs = ["plain-document.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:vocab"],
+)
+
+spec_corpus_gates(
+    name = "documents_clean",
+    dataset = ":documents",
+)
+
+# Positive control for the gate: the exact node Studio's corpus carried before
+# #50 — rdfs:label + dcterms:identifier + dcterms:source, no rdf:type. Zero-row
+# iff the gate's body, inlined, counts EXACTLY one. (The gate itself would fail
+# over this dataset; that is the point, and this asserts that it does.)
+rdf_dataset(
+    name = "untyped_document",
+    srcs = ["untyped-document.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:vocab"],
+)
+
+sparql_query_test(
+    name = "expect_untyped_detected",
+    dataset = ":untyped_document",
+    query = "expect-untyped.rq",
+)
+
+# Positive control for the shape: four planted documents, each breaking the
+# profile rule a different way, and the validator must name exactly those four
+# focus nodes. rules_rdf's rdf_validate_test is pass/fail with no report, so
+# this is a Jena java_test, the way grounding/AdversarialGateCheck.java is. It
+# prints the report once, which is where the sh:or message's placement under
+# Jena was settled rather than assumed.
+java_test(
+    name = "adversarial_shape",
+    srcs = ["AdversarialShapeCheck.java"],
+    args = [
+        "$(rootpath //rdf/ontology:shapes.ttl)",
+        "$(rootpath //rdf/ontology:aion-rfc.ttl)",
+        "$(rootpath plain-document.ttl)",
+        "$(rootpath document-profile-violations.ttl)",
+    ],
+    data = [
+        "document-profile-violations.ttl",
+        "plain-document.ttl",
+        "//rdf/ontology:aion-rfc.ttl",
+        "//rdf/ontology:shapes.ttl",
+    ],
+    main_class = "rdf.ontology.fixtures.AdversarialShapeCheck",
+    use_testrunner = False,
+    deps = JENA_DEPS + ["@spec_maven//:org_apache_jena_jena_shacl"],
+)
+
+exports_files(glob([
+    "*.ttl",
+    "*.rq",
+]))

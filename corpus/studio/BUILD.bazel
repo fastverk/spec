@@ -34,6 +34,12 @@ package(default_visibility = ["//visibility:public"])
 # corpus that cannot be regenerated would be stale within days. The one
 # previously internalized document here (corpus/nav-sec-2a4.ttl) was
 # hand-transcribed, which is exactly the thing that does not survive that.
+#
+# The source document is typed rfc:Document under the rfc:PlainDocument profile
+# (rdf/ontology/aion-rfc.ttl): its rfcId is the filename it already has, not a
+# minted RFC number, and the plain profile does not demand sections. Before #50
+# it sat untyped — a document the SHACL suite could not see — and the
+# untyped-documents gate now exists so that cannot quietly happen again.
 
 rdf_dataset(
     name = "studio",

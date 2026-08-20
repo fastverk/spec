@@ -34,7 +34,7 @@ rdf_dataset(
     deps = ["//rdf:authoring_vocab"],
 )
 
-# The pre-existing structural suite: SHACL conformance plus the four consistency
+# The pre-existing structural suite: SHACL conformance plus the five consistency
 # invariants. THE POINT OF RUNNING IT HERE is that it passes — the corpus is
 # clean under every check the spine had before RFC-002, and still contains two
 # empty feasible envelopes. modality-conflict.rq cannot see them because it

@@ -1,0 +1,14 @@
+# The exact node corpus/studio/corpus.ttl carried before #50, under a fixture
+# prefix: a source document recorded as plain provenance, with no rdf:type. The
+# SHACL suite never targeted it — sh:targetClass :Document sees only what is
+# typed — so every gate was green while a document went unchecked.
+#
+# The untyped-documents gate must count EXACTLY this one node: expect-untyped.rq.
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix fx:      <https://aion.savvi.io/fixture/documents#> .
+
+fx:studio-authz
+    rdfs:label "Authentication & Authorization Requirements" ;
+    dcterms:identifier "AuthRequirements.md" ;
+    dcterms:source "gitlab.savvifi.com/platform/studio-nextjs" .
