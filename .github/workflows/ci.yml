@@ -157,8 +157,35 @@ jobs:
       # Observed as a FLAKE: an identical config went green one run earlier.
       # One serial build populates the cache completely; everything after finds
       # it warm. Cheap, because the second build reuses the first's outputs.
+      # The tectonic bundle lives at $XDG_CACHE_HOME/Tectonic — which .bazelrc
+      # already points at /tmp/xdg-cache on Linux (writable inside the sandbox
+      # via the /tmp mount pair), so every action in a run shares one cache.
+      # What was missing is persistence ACROSS runs: each run re-downloaded the
+      # whole bundle from data1.fullyjustified.net, and on 2026-08-20 that CDN
+      # started answering a burst of runs with 429 Too Many Requests, failing
+      # main and every PR alike. Restore the newest previous bundle, top it up,
+      # and save under a fresh key EVEN IF THE JOB FAILS — a partial download
+      # saved is exactly how consecutive rate-limited runs converge to a full
+      # cache instead of starting from zero every time. (A constant key would
+      # freeze the first — possibly partial — save forever; per-run keys with a
+      # prefix restore give newest-wins.)
+      - name: restore the tectonic bundle cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /tmp/xdg-cache/Tectonic
+          key: tectonic-bundle-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            tectonic-bundle-${{ runner.os }}-
+
       - name: warm the tectonic cache
         run: bazel $BAZEL_FLAGS build --jobs=1 //deck/... //paper/... //impact/...
+
+      - name: save the tectonic bundle cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /tmp/xdg-cache/Tectonic
+          key: tectonic-bundle-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       # ⚠ These are EXPLICIT package lists, not //... — a new package is invisible
       # to the gate until it is named here, in both steps. //conformance/... is
