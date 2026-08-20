@@ -9,10 +9,6 @@
           {
             "check": "//thermal:derate_envelope_test",
             "source": "config"
-          },
-          {
-            "check": "acceptance is conditioned on the state-of-charge limits stated in the analysis as submitted",
-            "source": "https://ampere.example/corpus#ahj-soc-cap"
           }
         ],
         "as_of": "sha256:5297acc11c42511e",
@@ -231,10 +227,6 @@
           {
             "check": "//bid:capacity_commitment_test",
             "source": "config"
-          },
-          {
-            "check": "shall deliver its committed capacity during each performance assessment interval",
-            "source": "https://ampere.example/corpus#mkt-b-must-deliver"
           }
         ],
         "as_of": "sha256:5297acc11c42511e",

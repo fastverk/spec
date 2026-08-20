@@ -171,6 +171,42 @@ class UnrungedParty(unittest.TestCase):
                          "WORK_ORDER_STATE_HELD")
 
 
+class Acceptance(unittest.TestCase):
+    """`acceptance` holds checks a build system can run, or nothing.
+
+    Most rfc:evidence is prose that happens to cite a target — "//model:x,
+    climate provenance: DAYMET v4 1km" or "//model:y fails the build if the
+    volume exceeds this". Handing either to an agent under a field typed
+    DecidableCheck asserts that something is checkable because a label appeared
+    in a sentence about it. A claim whose evidence is prose contributes NO
+    check, which is the honest answer to "what would tell us this is done".
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.orders = by_id(load("workorders"))
+
+    def test_every_check_is_a_label_a_build_can_run(self):
+        seen = 0
+        for o in self.orders.values():
+            for a in o["order"]["acceptance"]:
+                seen += 1
+                self.assertTrue(a["check"].startswith("//"), a["check"])
+                parts = a["check"].split()
+                self.assertLessEqual(len(parts), 2, a["check"])
+                self.assertIn(":", parts[0], a["check"])
+        self.assertGreater(seen, 0, "no acceptance checks at all")
+
+    def test_prose_evidence_contributes_nothing(self):
+        # ampere's ahj-soc-cap carries "acceptance is conditioned on the
+        # state-of-charge limits stated in the analysis as submitted" — true,
+        # and not a check. It must not appear.
+        for o in self.orders.values():
+            for a in o["order"]["acceptance"]:
+                self.assertNotIn(" limits ", a["check"])
+                self.assertNotIn("provenance", a["check"])
+
+
 class Glossary(unittest.TestCase):
     """au:disjointQuantity is symmetric, and the packet must carry both ends.
 
