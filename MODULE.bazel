@@ -157,14 +157,19 @@ register_toolchains(
 bazel_dep(name = "rules_rdf", version = "0.3.0")
 bazel_dep(name = "rules_jena", version = "0.3.2")
 
+# sh_test (native sh_test was removed in Bazel 9) for //lean:audit_proofs_test
+# and rdf/lint/authoring's population_coverage_test. ⛔ This CANNOT be
+# dev-scoped: spec_authoring_gates Label()-references //rdf/lint/authoring,
+# whose BUILD file loads sh_test at the top, so every external consumer of the
+# authoring gates loads this package. Dev-scoping it was tried and measured by
+# the first external corpus: "No repository visible as '@rules_shell' from
+# repository '@@spec+'" — the macro was unusable outside this repo (#58).
+bazel_dep(name = "rules_shell", version = "0.6.1")
+
 # Paper toolchain: tectonic compiles the crystallization whitepaper
 # (//paper:crystallization, formalizing docs/rfc-001b) to PDF. rules_*
 # modules don't propagate use_repo, so the extension + toolchain are wired
 # here. Resolves from the same fastverk registry as rules_lean/rdf/jena.
-# sh_test for //lean:audit_proofs_test (the proof gate). Native sh_test was
-# removed in Bazel 9. Dev-scoped: consumers use spec's Lean SOURCES, never its
-# own gates.
-bazel_dep(name = "rules_shell", version = "0.6.1", dev_dependency = True)
 
 bazel_dep(name = "rules_tectonic", version = "0.2.0", dev_dependency = True)
 
@@ -311,12 +316,16 @@ register_toolchains(
     dev_dependency = True,
 )
 
-# crate_universe over the plugin's Cargo workspace. isolate = True keeps spec's
-# universe from colliding with a consumer's.
+# crate_universe over the plugin's Cargo workspace. dev_dependency already
+# keeps it out of every consumer's graph, which is the collision protection
+# isolate = True was believed to add. What isolate actually did was break
+# consumers: Bazel 9 rejects the keyword during module-file parsing — BEFORE
+# dev scoping is considered — so no external module graph computed without
+# --experimental_isolated_extension_usages, a flag a consumer cannot discover
+# from the error (#59). Measured by the first external corpus.
 crate = use_extension(
     "@rules_rust//crate_universe:extension.bzl",
     "crate",
-    isolate = True,
     dev_dependency = True,
 )
 crate.from_cargo(
