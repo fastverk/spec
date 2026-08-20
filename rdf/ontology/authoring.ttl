@@ -275,7 +275,21 @@ au:owner a owl:ObjectProperty ;
 au:blocksWorkOrder a owl:DatatypeProperty ;
     rdfs:domain au:Conflict ; rdfs:range xsd:string ;
     rdfs:label "blocks work order" ;
-    rdfs:comment "A work order held by this conflict. The board's sort key: a conflict matters in proportion to how much construction it stops." .
+    rdfs:comment "The id of a work order this conflict held (au:workOrderId, so the string finally resolves to a real derived artifact). The board's sort key: a conflict matters in proportion to how much construction it stops. ⚠ A RECORD, not a live hold — it is never retracted on resolution (ampere's INV-01 and INV-02 are adjudicated and still assert it). Whether a hold is LIVE is derived, three branches: the conflict has no au:resolvedBy at all; its resolution's au:outcome is au:Escalate, which by definition holds affected work orders; or its resolution is an au:Exempt waiver whose au:expires has passed, which the hygiene gate treats as unresolved again. Adjudication by au:Narrow, au:Prioritize or au:Refute releases the hold and the assertion stays as history. rdf/lint/authoring/dispatch-hold.rq is the executable form." .
+
+au:WorkOrder a owl:Class ;
+    rdfs:label "Work order" ;
+    rdfs:comment "The unit of fanout — RFC-002 §10's eight-field record, derived from the corpus at one bitemporal cursor, never authored. The schema of record is proto/spec/v1/workorder.proto and the derivation is //rdf/fanout; this class exists so a corpus can TYPE the orders its conflicts hold and a graph query can join au:blocksWorkOrder's string to a real object, not so orders are hand-written in Turtle. An order with a live hold cannot dispatch: HELD is a computed state, not a human's label." .
+
+au:workOrderId a owl:DatatypeProperty ;
+    rdfs:domain au:WorkOrder ; rdfs:range xsd:string ;
+    rdfs:label "work order id" ;
+    rdfs:comment "The stable id the fanout config assigned (WorkOrder.order_id on the wire) — the join key au:blocksWorkOrder's strings resolve through. Stable across re-derivation; a corpus change derives a new order at a new as_of under the SAME id, because the id names the thread of work, not one derivation of it." .
+
+au:ordersScope a owl:ObjectProperty ;
+    rdfs:domain au:WorkOrder ; rdfs:range au:Scope ;
+    rdfs:label "orders scope" ;
+    rdfs:comment "The au:Scope the order is cut at. One per order: an order wanting two scopes is two orders, or the scopes want an au:precedes edge — pairwise scope-disjointness between running orders is a dispatch precondition, and it is checked on this edge." .
 
 # -----------------------------------------------------------------------------
 # 7. Resolution — the decision is itself a formal, expiring object

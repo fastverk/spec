@@ -112,6 +112,28 @@ exports_files(glob([
     "*.rq",
 ]))
 
+# ── Dispatch-hold liveness, both directions ────────────────────────────────
+#
+# dispatch-hold.rq derives which au:blocksWorkOrder assertions are LIVE — the
+# ESCALATED branch is a rule that existed only as prose ("hold affected work
+# orders") until this fixture, and the released direction is what fails if the
+# query is ever "simplified" to any-blocksWorkOrder-is-held, which would hold
+# ampere's wo-041/wo-042 forever on adjudicated conflicts. Deliberately its
+# own minimal fixture, NOT wired through the gate suites: these conflicts
+# carry no witnesses or owners, so the hygiene gates would (correctly) fire.
+rdf_dataset(
+    name = "dispatch_holds_fixture",
+    srcs = ["dispatch-holds.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+sparql_query_test(
+    name = "expect_dispatch_holds",
+    dataset = ":dispatch_holds_fixture",
+    query = "expect-dispatch-holds.rq",
+)
+
 
 # Diagnostic view of the vacuous gate over the conflict fixture. The gate itself
 # is wired by spec_authoring_gates above (zero-row on :clean); this makes the

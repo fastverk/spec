@@ -27,11 +27,13 @@ set -uo pipefail
 inv=""
 adapter=""
 derivation=""
+workorder=""
 for f in "$@"; do
   case "$f" in
     *invariant.proto) inv="$f" ;;
     *grounding_adapter.proto) adapter="$f" ;;
     *derivation.proto) derivation="$f" ;;
+    *workorder.proto) workorder="$f" ;;
   esac
 done
 
@@ -102,6 +104,26 @@ if [ -n "$derivation" ]; then
     status=1
   else
     echo "ok    derivation.proto imports nothing"
+  fi
+fi
+# workorder.proto — the fanout plane. Same rule, same reason.
+#
+# ⛔ A work order names spec's OWN corpus objects (claims, conflicts,
+# quantities, scopes) by IRI, and hands an agent artifact PATHS — never file
+# contents, never a customer row. One import of grounding_adapter.proto and
+# DisplayExample is reachable from the packet every fanout agent receives,
+# which is the widest possible distribution of a customer's rows this plane
+# could arrange. The import graph is the review here exactly as everywhere
+# else in this file.
+if [ -n "$workorder" ]; then
+  wimports=$(grep -E '^import ' "$workorder" || true)
+  if [ -n "$wimports" ]; then
+    echo "FAIL  workorder.proto has imports. It names corpus objects by IRI and"
+    echo "      must not be able to reach a customer row. Found:"
+    printf '        %s\n' "$wimports"
+    status=1
+  else
+    echo "ok    workorder.proto imports nothing"
   fi
 fi
 exit "$status"

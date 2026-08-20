@@ -14,6 +14,7 @@ exports_files([
     "invariant.proto",
     "grounding_adapter.proto",
     "derivation.proto",
+    "workorder.proto",
 ])
 
 # ⛔ The data boundary, asserted rather than remembered.
@@ -34,11 +35,13 @@ sh_test(
         "$(rootpath invariant.proto)",
         "$(rootpath grounding_adapter.proto)",
         "$(rootpath derivation.proto)",
+        "$(rootpath workorder.proto)",
     ],
     data = [
         "derivation.proto",
         "grounding_adapter.proto",
         "invariant.proto",
+        "workorder.proto",
     ],
 )
 

@@ -1,0 +1,228 @@
+syntax = "proto3";
+
+package spec.v1;
+
+// ============================================================
+// The work order, as a wire type.
+//
+// RFC-002 §10: "An agent never receives 'the spec.' It receives a work
+// order" — eight fields, specified there as a prose record and mocked in
+// mocks/ux/chat/03-agent-fanout.md. This file is those eight fields as a
+// schema of record, plus the two fastverk/spec#45 adds: `budget` (whose
+// ENFORCEMENT is the platform's — see fastverk/fastverk#41 and issue #46;
+// spec's dispatcher hands the ceiling to CreateFanoutRunRequest.max_tokens
+// and trusts that plane's refusal) and `discipline`.
+//
+// ⛔ IMPORTS NOTHING — the same argument invariant.proto and derivation.proto
+// make, asserted by //proto/spec/v1:data_boundary_test. A work order names
+// spec's OWN corpus objects (claims, conflicts, quantities, scopes) by IRI;
+// it must never be able to reach a customer's rows, and the import graph is
+// the review.
+//
+// ⚠ A WorkOrder is DERIVED, never authored. Every field is computed from the
+// corpus at one bitemporal cursor (`as_of`) by the closure queries in
+// //rdf/fanout — a hand-edited order is indistinguishable from a derived one
+// on the wire, which is why the derivation is a build step whose output is
+// committed and diffed, not a service endpoint that answers "latest".
+//
+// ⚠ This file is the schema of record. `service Authoring` is declared here
+// because mocks/ux/panels.authoring.textproto's fanout panel already binds
+// spec.v1.Authoring/ListWorkOrders; whether it is ever served over gRPC is a
+// separate decision (derivation.proto's precedent). The HTTP projection in
+// services/spec/src/routes.rs is what serves today.
+// ============================================================
+
+// One obligation in the closure. RFC-002 §10 mechanism 2: "Only R4+ binds.
+// R0–R3 claims arrive explicitly marked non-binding" — so `binding` is ON THE
+// WIRE, not something a consumer infers from `rung`. A packet whose every
+// obligation has binding=false is a legal, honest artifact: both real corpora
+// (studio, and the first external consumer) derive exactly that today, and
+// the near-term value there is the context plus the HumanPrompt path, not a
+// pretense of bindingness.
+message Obligation {
+  // The claim's IRI in the corpus.
+  string claim = 1;
+  // The formalization rung at as_of: "R0".."R5" (au:Rung). R4 is the binding
+  // threshold — rdf/ontology/authoring.ttl §5.
+  string rung = 2;
+  // rung >= R4. Satisfaction evidence may only reference obligations where
+  // this is true (services/spec/src/mcp.rs states the same rule on the
+  // frontier tool).
+  bool binding = 3;
+  // The discipline the claim belongs to (au:discipline target IRI).
+  string discipline = 4;
+  // For a non-binding obligation: the named blocker holding it below R4
+  // (au:stalledOn), so the agent that cannot proceed without it knows what to
+  // name in its HumanPrompt. Empty for binding obligations.
+  string stalled_on = 5;
+}
+
+// One entry of the aligned glossary slice: the quantities the closure's
+// obligations constrain, with registered disjointness carried along — the
+// homonym an agent would otherwise merge (q-soc-bms vs q-soc-telemetered in
+// the RFC's worked example) arrives pre-split.
+message GlossaryEntry {
+  // The quantity's IRI (au:Quantity).
+  string quantity = 1;
+  // au:disjointQuantity assertions involving it — quantities that share a
+  // surface term with this one and are REGISTERED as different things.
+  repeated string disjoint_from = 2;
+}
+
+// A decidable acceptance check. The first external consumer already routes
+// dispatch through these — its conflicts name bazel test targets in the hold
+// slot — so the id here is a string a build system can run (a bazel label,
+// optionally "label test_name"), not a prose criterion.
+message DecidableCheck {
+  string check = 1;
+  // Where it came from: the claim IRI whose rfc:evidence named it, or
+  // "config" for checks the fanout config adds.
+  string source = 2;
+}
+
+// What the agent may write. RFC-002 §10 mechanism 4: artifact paths, plus
+// assertNS at R0 on the spec side — never promote, adjudicate, bindTerm or
+// declarePrecedence. §7.1 is honest that this is a code property enforced by
+// the door (services/spec/src/proposal.rs restricts agent principals to
+// assertNS at R0), not a theorem; RFC-002 §13 item 1 stays open.
+message Capability {
+  // Glob paths in the consumer repo the agent may write. Artifact-path
+  // enforcement is the platform's (TaskSpec.blast_packages in
+  // repos/plugin-agents fanout.proto); spec carries the paths so the
+  // dispatcher can hand them over and the disjointness gate can compare them.
+  repeated string artifact_paths = 1;
+  // The spec ops the capability covers. Today always exactly
+  // ["assertNS@R0"]; a list so the day capability-as-theorem lands the
+  // narrowing is a data change.
+  repeated string spec_ops = 2;
+}
+
+// The budget a dispatched order carries. Set at derivation, immutable after
+// dispatch (issue #46). Spec does not enforce it: the platform's admission
+// predicate does (fanout.proto CreateFanoutRunRequest.max_tokens), and the
+// ledger reconciles against the platform's own accounting.
+message Budget {
+  // Token ceiling for the whole order, all agents. 0 = no ceiling was set,
+  // stated rather than defaulted.
+  int64 max_tokens = 1;
+  // Probe ceiling per night for the order's grounding checks (RFC-004 §3.2's
+  // "non-negotiable" prerequisite). 0 = no ceiling was set.
+  int32 max_probes = 2;
+}
+
+// The work order. RFC-002 §10's eight fields, in its order, plus the two
+// #45 adds. Immutable once derived: a change in the corpus derives a NEW
+// order at a new as_of rather than mutating this one.
+message WorkOrder {
+  // Stable id, assigned by the fanout config (scope → id), so a conflict's
+  // au:blocksWorkOrder string finally resolves to a real artifact.
+  string order_id = 1;
+
+  // 1/8 scope: the au:Scope IRI the order is cut at.
+  string scope = 2;
+  // 2/8 obligations: lattice closure over scope, ALL disciplines — upward and
+  // downward over au:precedes. Binding and non-binding both arrive; see
+  // Obligation.binding.
+  repeated Obligation obligations = 3;
+  // 3/8 glossary: the aligned term slice for the closure's quantities.
+  repeated GlossaryEntry glossary = 4;
+  // 4/8 forbidden: paths the agent must not touch. From the fanout config —
+  // paths are a repo-layout fact, not a corpus fact, and pretending the
+  // corpus knows them would be invention.
+  repeated string forbidden = 5;
+  // 5/8 conflict_holds: MUST be empty to dispatch. The IRIs of LIVE conflicts
+  // whose parties intersect this order's closure at as_of. Live is derived,
+  // not stored: a conflict holds while it is unresolved, resolved by
+  // au:Escalate (which by definition holds affected work orders), or resolved
+  // by an au:Exempt waiver that has expired. A hold adjudicated by au:Narrow,
+  // au:Prioritize or au:Refute is history, not a hold — au:blocksWorkOrder
+  // records which orders a conflict HELD and is never retracted.
+  repeated string conflict_holds = 6;
+  // 6/8 acceptance: the decidable checks that define done.
+  repeated DecidableCheck acceptance = 7;
+  // 7/8 write_capability: artifact paths + assertNS at R0.
+  Capability write_capability = 8;
+  // 8/8 as_of: the corpus content hash the order was derived at. A bitemporal
+  // cursor, not "latest": every agent on the order reads the graph here.
+  string as_of = 9;
+
+  // #45's additions.
+  string discipline = 10;
+  Budget budget = 11;
+}
+
+// The dispatch gate's answer, as a value. mocks/ux/panels.authoring.textproto:
+// "an order with a non-empty conflict_holds cannot dispatch, so HELD is a
+// computed state and not a human's label." Nothing stores this; the read
+// model computes it from conflict_holds and the dispatch log at serve time.
+enum WorkOrderState {
+  WORK_ORDER_STATE_UNSPECIFIED = 0;
+  // conflict_holds empty, not dispatched.
+  WORK_ORDER_STATE_READY = 1;
+  // conflict_holds non-empty. The state carries which — see
+  // WorkOrderView.holds.
+  WORK_ORDER_STATE_HELD = 2;
+  // Dispatched, agents running.
+  WORK_ORDER_STATE_RUNNING = 3;
+  // A HumanPrompt is open against it — an agent stopped and named the missing
+  // claim rather than guessing (RFC-002 §10, "the good failure mode").
+  WORK_ORDER_STATE_PROMPT_OPEN = 4;
+  // All acceptance checks recorded green and the order closed.
+  WORK_ORDER_STATE_DONE = 5;
+}
+
+// One row of the fanout panel: the order plus everything computed about it.
+message WorkOrderView {
+  WorkOrder order = 1;
+  WorkOrderState state = 2;
+  // Agents currently on it (from the dispatch log). 0 unless RUNNING.
+  int32 agents = 3;
+}
+
+message ListWorkOrdersRequest {}
+
+message ListWorkOrdersResponse {
+  repeated WorkOrderView orders = 1;
+}
+
+message GetWorkOrderRequest {
+  string order_id = 1;
+}
+
+message DispatchWorkOrderRequest {
+  string order_id = 1;
+}
+
+// The dispatch door's verdict, as values rather than prose — GateStatus's
+// philosophy. A refusal appends nothing.
+enum DispatchVerdict {
+  DISPATCH_VERDICT_UNSPECIFIED = 0;
+  // Appended to the dispatch log; the order is RUNNING.
+  DISPATCH_VERDICT_DISPATCHED = 1;
+  // conflict_holds non-empty. RFC-002 §10 mechanism 3; not overridable at
+  // this door — resolving the conflict is the override.
+  DISPATCH_VERDICT_REFUSED_HELD = 2;
+  // Scope or write-path overlap with a RUNNING order — pairwise disjointness
+  // is a dispatch precondition (P7's "zero cross-scope writes").
+  DISPATCH_VERDICT_REFUSED_OVERLAP = 3;
+  // No such order at the read model's as_of.
+  DISPATCH_VERDICT_REFUSED_UNKNOWN = 4;
+  // Already running; dispatch is not idempotent re-arming.
+  DISPATCH_VERDICT_REFUSED_ALREADY_RUNNING = 5;
+}
+
+message DispatchWorkOrderResponse {
+  DispatchVerdict verdict = 1;
+  // For REFUSED_HELD: the live holds. For REFUSED_OVERLAP: the running
+  // order ids it collides with. Empty on DISPATCHED.
+  repeated string because = 2;
+}
+
+// Declared because the fanout panel binds spec.v1.Authoring/ListWorkOrders.
+// The HTTP projection (routes.rs) is what serves today; this block is the
+// canonical contract either way — derivation.proto's precedent.
+service Authoring {
+  rpc ListWorkOrders(ListWorkOrdersRequest) returns (ListWorkOrdersResponse);
+  rpc GetWorkOrder(GetWorkOrderRequest) returns (WorkOrderView);
+  rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
+}
