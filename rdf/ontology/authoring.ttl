@@ -393,7 +393,7 @@ au:Verdict a owl:Class ; rdfs:label "Admission Verdict" .
 au:Admitted a au:Verdict ; rdfs:label "admitted" ;
     rdfs:comment "May carry declared conflicts: admission and coherence are different questions, and a conflict is admitted as an object rather than blocking the write." .
 au:Rejected a au:Verdict ; rdfs:label "rejected" ;
-    rdfs:comment "A gate failed or capability was denied. Graph state is untouched and a witness is returned." .
+    rdfs:comment "An op is not well-formed against the closed vocabulary, or a gate failed. Graph state is untouched and a witness — the content address and the per-op report — is returned; nothing is appended to the log, so this verdict never appears in a record. NOT capability: a capability shortfall is au:Queued, because partial admission is normal (RFC-002 §5) and rejecting whole would make a mixed proposal fail for a reason the author cannot localize." .
 au:Queued   a au:Verdict ; rdfs:label "queued" ;
     rdfs:comment "Partly admitted; kernel-capability ops (au:precedes assertions) routed to review. One proposal can be split this way." .
 

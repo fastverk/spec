@@ -382,7 +382,13 @@ async fn list_proposals(State(s): State<HttpState>) -> ApiResult {
         json!({
             "proposals": pending.to_rows(tr, rr),
             "records": pending.records,
-            "write_enabled": log.enabled(),
+            // ⚠ FALSE here, always, and not because the log is unset: this
+            // plugin no longer appends. It still READS the log — that is what
+            // `records` above counts — so "can I see proposals" and "can I make
+            // one" are now different questions and answered separately.
+            "write_enabled": false,
+            "write_at": "the console: POST /api/proposal",
+            "log_readable": log.enabled(),
             // Named so the UI can say what adopting them requires rather than
             // implying they are already in force.
             "adopt_with": "tools/proposals/materialize.py",
@@ -397,10 +403,15 @@ readmodel_route!(get_conflict_witness, "witness");
 /// clean", which looks identical from a panel.
 async fn readmodel_status(State(s): State<HttpState>) -> ApiResult {
     let rm = s.readmodel.clone();
-    let enabled = s.log.enabled();
+    let readable = s.log.enabled();
     run(move || {
         let mut v = rm.status();
-        v["write_path_enabled"] = json!(enabled);
+        // Retired, not merely unconfigured. An operator reading `false` here
+        // should not go looking for the environment variable that would turn it
+        // back on — there isn't one.
+        v["write_path_enabled"] = json!(false);
+        v["write_path_retired"] = json!(true);
+        v["proposal_log_readable"] = json!(readable);
         v
     })
     .await
@@ -427,115 +438,57 @@ fn no_principal() -> ApiResult {
     )
 }
 
-/// `POST /proposal` — check every op and append the proposal to the log.
+/// Where the write path went, and what to use instead.
 ///
-/// The response deliberately does **not** contain an admission verdict or a content
-/// address. It contains the per-op structural report, the canonical bytes the
-/// address will be taken over, and the log offset. See `crate::proposal`.
-async fn submit_proposal(
-    State(s): State<HttpState>,
-    headers: HeaderMap,
-    Json(body): Json<Value>,
-) -> ApiResult {
-    submit(&s, &headers, body)
+/// ⛔ **410 Gone, not 404 and not 501.** The distinction is the whole message: the
+/// route existed, it worked, and it has been deliberately removed. A 404 would
+/// read as a deployment fault and send someone looking for a bug; a 501 would say
+/// this build cannot do it, which is a claim about capability rather than about a
+/// decision.
+///
+/// The decision: **one door.** Two doors that both append are two places the op
+/// vocabulary, the canonical bytes and — since the door started computing one —
+/// the content ADDRESS can disagree. They did. `from_flat` here coerced a form's
+/// `bound_value` string to an f64 and the console's `fromFlat` left it a string,
+/// so the same submission had two different canonical bodies and would now have
+/// two different permanent names. RFC-002 §9.1's equal-citizen gate is not
+/// satisfiable with two implementations of the pre-image.
+///
+/// What is left here is the READ side of the same log — the pending overlay, which
+/// several routes above serve through — and `verdict-preview`, which writes
+/// nothing and now returns the address the console would give the proposal.
+const WRITE_RETIRED: &str = concat!(
+    "this plugin's write path is retired: a proposal is admitted by the console, ",
+    "which is the one door that computes the content address (RFC-002 §4.1, §9.1). ",
+    "This route appended to $SPEC_PROPOSAL_LOG and minted no address."
+);
+
+fn write_retired(use_instead: &str) -> ApiResult {
+    (
+        StatusCode::GONE,
+        Json(json!({
+            "error": "E_WRITE_PATH_RETIRED",
+            "message": WRITE_RETIRED,
+            "use_instead": use_instead,
+            // The one thing this plugin still offers on the write side, so a
+            // caller has somewhere to go that is not "read the RFC".
+            "preview_here": "POST /proposal/verdict-preview",
+        })),
+    )
 }
 
-/// `POST /proposal/op` — the same thing, from a **flat** body carrying exactly one
-/// op, which is the only shape a declarative meridian `FormPanel` can submit.
-///
-/// This route is what makes a write affordance expressible with no browser code:
-/// the shell's `renderFormPanelInto` builds `{request_field: value}` from the
-/// descriptor's bindings and POSTs it, so `{parent, op: "assertNS", subject, …}`
-/// arrives here and `proposal::from_flat` lifts it to a one-op proposal. Every value
-/// is a string (it came from an `<input>`), and `from_flat` re-types only the fields
-/// it declares — see the coercion tables there.
-///
-/// Multi-op proposals with per-op accept/reject triage still need a richer surface.
-/// One-op proposals are most of them.
-async fn submit_op(
-    State(s): State<HttpState>,
-    headers: HeaderMap,
-    Json(flat): Json<Value>,
-) -> ApiResult {
-    match proposal::from_flat(&flat) {
-        Ok(body) => submit(&s, &headers, body),
-        Err(why) => (
-            StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "E_MALFORMED_FORM", "message": why })),
-        ),
-    }
+/// `POST /proposal` — **410 Gone**. See `write_retired`.
+async fn submit_proposal() -> ApiResult {
+    write_retired("POST /api/proposal on the console")
 }
 
-/// Shared by both write routes: authenticate, check, append.
+/// `POST /proposal/op` — **410 Gone**. See `write_retired`.
 ///
-/// One function, deliberately — RFC-002 §4 wants exactly one callsite that applies
-/// ops. The plugin cannot enforce that for the real door, but it can at least ensure
-/// its own two entry points cannot diverge in what they validate.
-fn submit(s: &HttpState, headers: &HeaderMap, body: Value) -> ApiResult {
-    let Some(who) = principal(headers) else {
-        return no_principal();
-    };
-    if !s.log.enabled() {
-        return (
-            StatusCode::SERVICE_UNAVAILABLE,
-            Json(json!({
-                "error": "E_WRITE_DISABLED",
-                "message": "$SPEC_PROPOSAL_LOG is unset; this instance is read-only",
-            })),
-        );
-    }
-    let checked = match proposal::check(&body, who) {
-        Ok(c) => c,
-        Err(why) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": "E_MALFORMED_PROPOSAL", "message": why })),
-            )
-        }
-    };
-    // A proposal with any rejected op is not appended at all. Partial admission is
-    // normal (§5) and applies to the OK/QUEUED split; an op that is not even
-    // well-formed is an authoring mistake, and half-writing it to an append-only log
-    // makes the mistake permanent.
-    if checked.rejected() > 0 {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(json!({
-                "error": "E_OP_REJECTED",
-                "message": format!("{} of {} ops are not well-formed; nothing was appended",
-                                   checked.rejected(), checked.verdicts.len()),
-                "ops": checked.report(),
-            })),
-        );
-    }
-    let record = json!({
-        "parent": checked.parent,
-        "author": checked.author.sub,
-        "author_email": checked.author.email,
-        "surface": checked.surface,
-        "canonical": checked.canonical,
-    });
-    match s.log.append(&record) {
-        Ok(offset) => (
-            StatusCode::ACCEPTED,
-            Json(json!({
-                "queued": true,
-                "log_offset": offset,
-                "admissible_ops": checked.admissible(),
-                "queued_ops": checked.queued(),
-                "ops": checked.report(),
-                "canonical": checked.canonical,
-                // Named, not omitted: a caller that expected an id should find out
-                // why there isn't one rather than read `null` as a bug.
-                "address": Value::Null,
-                "address_computed_by": "the door, in the build — this plugin has no hash primitive",
-            })),
-        ),
-        Err(why) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
-        ),
-    }
+/// The flat one-op lift that made a declarative meridian `FormPanel` able to write
+/// with no browser code now lives in `console/lib/proposal.ts::fromFlat`, behind
+/// `POST /api/proposal/op`. The affordance is unchanged; the door moved.
+async fn submit_op() -> ApiResult {
+    write_retired("POST /api/proposal/op on the console")
 }
 
 /// `POST /proposal/verdict-preview` — the structural check with nothing written.
@@ -573,11 +526,21 @@ async fn preview_proposal(
         StatusCode::OK,
         Json(json!({
             "well_formed": checked.rejected() == 0,
+            // What the door WOULD answer: typing and capability, decidable from
+            // the proposal alone. Not the gate set — see `limits`.
+            "verdict": checked.verdict(),
             "admissible_ops": checked.admissible(),
             "queued_ops": checked.queued(),
             "rejected_ops": checked.rejected(),
             "ops": checked.report(),
             "canonical": checked.canonical,
+            // ⛔ The NAME this proposal will have, before it is submitted.
+            // RFC-002 §9 step 6: "confirm:true is the only mutating call and
+            // carries a pid whose content hash the user already saw." This is
+            // where the user sees it. Null only when an op carries a value with
+            // no reproducible rendering, which is a rejection.
+            "address": checked.address,
+            "address_pre_image": checked.pre_image,
             // Context, not consequence: the infeasibilities that already exist as of
             // the last emit. If an op you are about to submit lands on one of these
             // quantities, that is worth seeing before you submit it.
@@ -586,7 +549,8 @@ async fn preview_proposal(
                 "structural only — op vocabulary, required fields, enumerated values, capability",
                 "does NOT evaluate the coherence gates; the empty-envelope check is a build-time SPARQL aggregate",
                 "does NOT verify `parent` names a real bitemporal read point",
-                "no content address — see `address_computed_by` on POST /proposal",
+                "the address is real and is the one the console will record; the VERDICT here is provisional — capability is read from the headers this request carried",
+                "writes nothing: this plugin's write path is retired (410), and the console is the door",
             ],
         })),
     )
@@ -792,15 +756,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_write_without_a_principal_is_refused() {
-        let addr = serve(&readmodel_fixture(), None).await;
-        let payload = r#"{"parent":"p","ops":[{"op":"retractNS","subject":"s","reason":"r"}]}"#;
-        let (status, body) = request(&addr, "POST", "/proposal", Some(("", payload))).await;
-        assert_eq!(status, 401, "{body}");
-        assert!(body.contains("E_NO_PRINCIPAL"), "{body}");
-    }
-
-    #[tokio::test]
     async fn preview_reports_the_op_split_and_states_its_limits() {
         let addr = serve(&readmodel_fixture(), None).await;
         let payload = concat!(
@@ -822,89 +777,111 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_write_is_refused_when_the_log_is_unset_and_appended_when_it_is_set() {
-        let payload = r#"{"parent":"p","ops":[{"op":"retractNS","subject":"s","reason":"r"}]}"#;
+    async fn both_write_routes_are_gone_and_say_where_the_door_is() {
+        // ⛔ The log is CONFIGURED and still nothing is written. The refusal is a
+        // decision about which door admits proposals, not a missing environment
+        // variable — an operator who set $SPEC_PROPOSAL_LOG and got a 503 would
+        // reasonably conclude the write path exists and is misconfigured.
+        let dir = std::env::temp_dir().join(format!("spec-gone-{}", std::process::id()));
+        let log = dir.join("proposals.jsonl");
+        let _ = std::fs::remove_dir_all(&dir);
+        let addr = serve(&readmodel_fixture(), Some(log.to_str().unwrap())).await;
         let hdr = "x-fastverk-user-sub: u-1\r\n";
 
+        let nested = r#"{"parent":"p","ops":[{"op":"retractNS","subject":"s","reason":"r"}]}"#;
+        let flat = r#"{"parent":"p","op":"retractNS","subject":"s","reason":"r"}"#;
+        for (route, payload) in [("/proposal", nested), ("/proposal/op", flat)] {
+            let (status, body) = request(&addr, "POST", route, Some((hdr, payload))).await;
+            assert_eq!(status, 410, "{route}: {body}");
+            let v: Value = serde_json::from_str(&body).expect(&body);
+            assert_eq!(v["error"], json!("E_WRITE_PATH_RETIRED"), "{body}");
+            // A refusal that does not say where to go instead is a dead end.
+            assert!(
+                v["use_instead"].as_str().is_some_and(|u| u.contains("console")),
+                "{body}"
+            );
+        }
+        assert!(!log.exists(), "a retired write path must not touch the log");
+
+        // ⚠ And with NO principal, still 410 — not 401. The route is gone for
+        // everyone; answering 401 first would suggest that credentials are what
+        // stands between the caller and a write.
+        let (status, body) = request(&addr, "POST", "/proposal", Some(("", nested))).await;
+        assert_eq!(status, 410, "{body}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn the_preview_names_the_proposal_before_it_is_submitted() {
         let addr = serve(&readmodel_fixture(), None).await;
-        let (status, body) = request(&addr, "POST", "/proposal", Some((hdr, payload))).await;
-        assert_eq!(status, 503, "{body}");
-        assert!(body.contains("E_WRITE_DISABLED"), "{body}");
+        let ops = r#"[{"op":"retractNS","subject":"s","reason":"r"}]"#;
+        let hdr = "x-fastverk-user-sub: u-1\r\nx-fastverk-user-email: a@b.c\r\n";
 
-        let dir = std::env::temp_dir().join(format!("spec-proposal-{}", std::process::id()));
-        let log = dir.join("proposals.jsonl");
-        let _ = std::fs::remove_dir_all(&dir);
-        let addr = serve(&readmodel_fixture(), Some(log.to_str().unwrap())).await;
-        let (status, body) = request(&addr, "POST", "/proposal", Some((hdr, payload))).await;
-        assert_eq!(status, 202, "{body}");
-        let v: Value = serde_json::from_str(&body).expect(&body);
-        assert_eq!(v["queued"], json!(true));
-        assert_eq!(v["address"], Value::Null, "no address may be minted here: {body}");
-        let written = std::fs::read_to_string(&log).unwrap();
-        assert_eq!(written.lines().count(), 1, "one line per proposal: {written}");
-        assert!(written.contains("\"author\":\"u-1\""), "{written}");
-        let _ = std::fs::remove_dir_all(&dir);
+        let preview = |surface: &'static str, intent: &'static str| {
+            let payload = format!(
+                r#"{{"parent":"p","surface":"{surface}","ops":{ops},"intent":"{intent}"}}"#
+            );
+            let addr = addr.clone();
+            async move {
+                let (status, body) =
+                    request(&addr, "POST", "/proposal/verdict-preview", Some((hdr, &payload))).await;
+                assert_eq!(status, 200, "{body}");
+                serde_json::from_str::<Value>(&body).expect(&body)
+            }
+        };
+
+        let click = preview("Meridian", "clicked it").await;
+        let chat = preview("Chat", "asked for it in words").await;
+
+        assert_eq!(click["verdict"], json!("Admitted"));
+        let address = click["address"].as_str().expect("an address");
+        assert!(address.starts_with("sha256:") && address.len() == 71, "{address}");
+        // RFC-002 §9 step 6: the hash the user sees before confirming. It is the
+        // real one — this is the same function the console records with.
+        assert_eq!(
+            address,
+            crate::proposal::content_address(
+                "u-1",
+                serde_json::from_str::<Value>(ops).unwrap().as_array().unwrap(),
+                "p"
+            )
+        );
+
+        // ⛔ §9.1 across two surfaces and two intent records: ONE name…
+        assert_eq!(chat["address"], click["address"]);
+        assert_eq!(chat["address_pre_image"], click["address_pre_image"]);
+        // …and two records. Provenance is kept; it just does not get a vote.
+        assert_ne!(chat["canonical"], click["canonical"]);
     }
 
     #[tokio::test]
-    async fn a_malformed_op_is_rejected_and_nothing_is_appended() {
-        let dir = std::env::temp_dir().join(format!("spec-reject-{}", std::process::id()));
-        let log = dir.join("proposals.jsonl");
-        let _ = std::fs::remove_dir_all(&dir);
-        let addr = serve(&readmodel_fixture(), Some(log.to_str().unwrap())).await;
+    async fn a_malformed_op_previews_as_rejected_and_unnamed_where_it_must_be() {
+        let addr = serve(&readmodel_fixture(), None).await;
+        let hdr = "x-fastverk-user-sub: u-1\r\n";
+
+        // Ill-formed, but nameable: the bytes canonicalize, so the author gets
+        // both the reason and the address to quote.
         let payload = r#"{"parent":"p","ops":[{"op":"promote","subject":"s","rung":"R9","evidence":"e"}]}"#;
-        let hdr = "x-fastverk-user-sub: u-1\r\n";
-        let (status, body) = request(&addr, "POST", "/proposal", Some((hdr, payload))).await;
-        assert_eq!(status, 422, "{body}");
-        assert!(body.contains("E_OP_REJECTED"), "{body}");
-        assert!(!log.exists(), "a rejected proposal must not touch the log");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[tokio::test]
-    async fn a_flat_form_submission_is_accepted_on_the_op_route() {
-        let dir = std::env::temp_dir().join(format!("spec-flat-{}", std::process::id()));
-        let log = dir.join("proposals.jsonl");
-        let _ = std::fs::remove_dir_all(&dir);
-        let addr = serve(&readmodel_fixture(), Some(log.to_str().unwrap())).await;
-        // Exactly what renderFormPanelInto POSTs: flat, and every value a string.
-        let payload = concat!(
-            r#"{"parent":"p","op":"assertNS","subject":"fire-soc-cap","#,
-            r#""text":"MUST NOT exceed 70 MW","discipline":"fire & life safety","#,
-            r#""rung":"R4","quantity":"q-sustained-discharge","bound_kind":"UpperBound","#,
-            r#""bound_value":"70","defeasible":"false","guard":""}"#
-        );
-        let hdr = "x-fastverk-user-sub: u-1\r\n";
-        let (status, body) = request(&addr, "POST", "/proposal/op", Some((hdr, payload))).await;
-        assert_eq!(status, 202, "{body}");
+        let (status, body) = request(&addr, "POST", "/proposal/verdict-preview", Some((hdr, payload))).await;
+        assert_eq!(status, 200, "{body}");
         let v: Value = serde_json::from_str(&body).expect(&body);
-        assert_eq!(v["admissible_ops"], json!(1));
-        // The canonical bytes must carry the COERCED types, not the form's strings —
-        // otherwise the content address would differ from the same op submitted as
-        // real JSON, and click- and API-authored changes would stop being identical.
-        let canon = v["canonical"].as_str().expect(&body);
-        assert!(canon.contains(r#""bound_value":70.0"#), "{canon}");
-        assert!(canon.contains(r#""defeasible":false"#), "{canon}");
-        assert!(!canon.contains("guard"), "a blank input must not be recorded: {canon}");
-        let _ = std::fs::remove_dir_all(&dir);
-    }
+        assert_eq!(v["verdict"], json!("Rejected"), "{body}");
+        assert_eq!(v["well_formed"], json!(false));
+        assert!(v["address"].is_string(), "{body}");
 
-    #[tokio::test]
-    async fn a_flat_submission_that_will_not_coerce_is_a_400() {
-        let dir = std::env::temp_dir().join(format!("spec-flatbad-{}", std::process::id()));
-        let log = dir.join("proposals.jsonl");
-        let _ = std::fs::remove_dir_all(&dir);
-        let addr = serve(&readmodel_fixture(), Some(log.to_str().unwrap())).await;
+        // Not nameable: a number with no reproducible rendering has no pre-image,
+        // so there is nothing to hash and the answer is null rather than a
+        // plausible-looking digest.
         let payload = concat!(
-            r#"{"parent":"p","op":"assertNS","subject":"s","text":"t","#,
-            r#""discipline":"d","rung":"R4","bound_value":"seventy"}"#
+            r#"{"parent":"p","ops":[{"op":"assertNS","subject":"s","text":"t","#,
+            r#""discipline":"d","rung":"R0","bound_value":1.5}]}"#
         );
-        let hdr = "x-fastverk-user-sub: u-1\r\n";
-        let (status, body) = request(&addr, "POST", "/proposal/op", Some((hdr, payload))).await;
-        assert_eq!(status, 400, "{body}");
-        assert!(body.contains("E_MALFORMED_FORM"), "{body}");
-        assert!(!log.exists(), "a malformed form must not touch the log");
-        let _ = std::fs::remove_dir_all(&dir);
+        let (status, body) = request(&addr, "POST", "/proposal/verdict-preview", Some((hdr, payload))).await;
+        assert_eq!(status, 200, "{body}");
+        let v: Value = serde_json::from_str(&body).expect(&body);
+        assert_eq!(v["verdict"], json!("Rejected"), "{body}");
+        assert_eq!(v["address"], Value::Null, "{body}");
+        assert!(body.contains("safe integer"), "{body}");
     }
 
     #[tokio::test]

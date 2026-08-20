@@ -28,6 +28,8 @@
  * insert and is documented in 0001_schema.sql: a gap means the door did its job,
  * never that a record was removed.
  */
+import { createHash } from "node:crypto";
+
 import pg from "pg";
 
 const url = process.env.DATABASE_URL?.trim();
@@ -71,9 +73,60 @@ async function must(expect, label, sql) {
   }
 }
 
-const PROPOSAL_LINE =
-  '{"author":"verify","author_email":"verify@invalid","canonical":"{}",' +
-  '"parent":"corpus:verify","surface":"Meridian"}';
+// ── the record this file proposes, built the way the door builds one ─────────
+//
+// Written out rather than imported: this script runs on a laptop and in
+// migrate.yml with nothing installed but `pg`, and console/lib/address.ts is
+// TypeScript. Building the bytes by hand is also the point — it is a THIRD
+// construction of the pre-image, so a change to the rule that nobody mirrored
+// here fails against the real database rather than agreeing with itself.
+const OPS = '[{"op":"retractNS","reason":"verify","subject":"verify"}]';
+const AUTHOR = "verify";
+const PARENT = "corpus:verify";
+
+// ⛔ Keys sorted, as canonicalJson emits them. `surface` and `intent` are in the
+// stored bytes and NOT in the pre-image — RFC-002 §4.1: the door does not see
+// provenance, so the same change from two surfaces has one address.
+const CANONICAL =
+  `{"author":"${AUTHOR}","intent":null,"ops":${OPS},"parent":"${PARENT}","surface":"Meridian"}`;
+const PRE_IMAGE = `{"author":"${AUTHOR}","ops":${OPS},"parent":"${PARENT}"}`;
+const ADDRESS = "sha256:" + createHash("sha256").update(PRE_IMAGE, "utf8").digest("hex");
+
+const line = (over = {}) => {
+  const rec = {
+    address: ADDRESS,
+    author: AUTHOR,
+    author_email: "verify@invalid",
+    canonical: CANONICAL,
+    parent: PARENT,
+    surface: "Meridian",
+    verdict: "Admitted",
+    ...over,
+  };
+  // Keys sorted, no whitespace — the same shape the log carries.
+  return JSON.stringify(rec, Object.keys(rec).sort());
+};
+
+const PROPOSAL_LINE = line();
+
+/** The door's append, as the app calls it. */
+const appendProposal = (over = {}) => {
+  const o = { line: line(over), parent: PARENT, author: AUTHOR, email: "verify@invalid",
+              surface: "Meridian", canonical: CANONICAL, address: ADDRESS, verdict: "Admitted", ...over };
+  const sql = (v) => (v === null ? "NULL" : `'${v}'`);
+  return `SELECT spec.append_proposal(${sql(o.line)}, ${sql(o.parent)}, ${sql(o.author)},
+     ${sql(o.email)}, ${sql(o.surface)}, ${sql(o.canonical)}, ${sql(o.address)}, ${sql(o.verdict)})`;
+};
+
+/** A hand-written INSERT — the path that routes around the function. */
+const insert = (cols) => {
+  const c = { line: PROPOSAL_LINE, parent: PARENT, author: AUTHOR, author_email: "verify@invalid",
+              surface: "Meridian", canonical: CANONICAL, address: ADDRESS, verdict: "Admitted", ...cols };
+  const v = (x) => (x === null ? "NULL" : `'${x}'`);
+  return `INSERT INTO spec.proposal_log (line, parent, author, author_email, surface, canonical, address, verdict)
+     VALUES (${v(c.line)}, ${v(c.parent)}, ${v(c.author)}, ${v(c.author_email)},
+             ${v(c.surface)}, ${v(c.canonical)}, ${v(c.address)}, ${v(c.verdict)})`;
+};
 
 const evalLine = (outcome, population) =>
   `{"author":"verify@invalid","claim":"verify","implementation":"verify",` +
@@ -88,9 +141,7 @@ try {
   await client.query("BEGIN");
 
   console.log("\nthe log accepts an append:");
-  await must("accept", "a well-formed proposal",
-    `SELECT spec.append_proposal('${PROPOSAL_LINE}', 'corpus:verify', 'verify',
-       'verify@invalid', 'Meridian', '{}')`);
+  await must("accept", "a well-formed proposal", appendProposal());
 
   console.log("\n② a proposal is not the corpus — the log never forgets:");
   await must("refuse", "UPDATE", "UPDATE spec.proposal_log SET parent = 'tampered'");
@@ -100,15 +151,43 @@ try {
   await must("refuse", "TRUNCATE", "TRUNCATE spec.proposal_log");
 
   console.log("\n⑤ nothing is attributed to nobody:");
-  await must("refuse", "an author of only whitespace",
-    `INSERT INTO spec.proposal_log (line, parent, author, author_email, surface, canonical)
-     VALUES ('${PROPOSAL_LINE}', 'corpus:verify', '   ', '', 'Meridian', '{}')`);
-  await must("refuse", "no read point",
-    `INSERT INTO spec.proposal_log (line, parent, author, author_email, surface, canonical)
-     VALUES ('${PROPOSAL_LINE}', '', 'verify', '', 'Meridian', '{}')`);
+  await must("refuse", "an author of only whitespace", insert({ author: "   " }));
+  await must("refuse", "no read point", insert({ parent: "" }));
   await must("refuse", "a decomposition that disagrees with its own line",
-    `INSERT INTO spec.proposal_log (line, parent, author, author_email, surface, canonical)
-     VALUES ('${PROPOSAL_LINE}', 'corpus:DIFFERENT', 'verify', 'verify@invalid', 'Meridian', '{}')`);
+    insert({ parent: "corpus:DIFFERENT" }));
+
+  console.log("\nthe door: a proposal has a name, and the decision that let it in:");
+  // ⛔ The address is the one field a record cannot be given later. RFC-002 §5's
+  // `Proposal.id`, over {author, ops, parent} — NOT over the stored bytes, which
+  // also carry the surface. §9.1: a click and a chat that author the same change
+  // are one proposal with two provenance records.
+  await must("refuse", "an address that disagrees with its own line",
+    insert({ address: "sha256:" + "0".repeat(64) }));
+  await must("refuse", "a verdict that disagrees with its own line",
+    insert({ verdict: "Queued" }));
+  await must("refuse", "an address that is not a sha256 content address",
+    insert({ line: line({ address: "deadbeef" }), address: "deadbeef" }));
+  // Case matters: an upper-case digest names the same bytes with a different
+  // string, and two spellings of one address is what pinning the spelling avoids.
+  await must("refuse", "an UPPER-CASE digest",
+    insert({ line: line({ address: ADDRESS.toUpperCase().replace("SHA256", "sha256") }),
+             address: ADDRESS.toUpperCase().replace("SHA256", "sha256") }));
+  // ⛔ `Rejected` is not a value this table can hold, because a rejected proposal
+  // is never appended at all. Partial admission (Queued) is; refusal is not.
+  await must("refuse", "a Rejected verdict — a refused proposal is not appended",
+    insert({ line: line({ verdict: "Rejected" }), verdict: "Rejected" }));
+  await must("refuse", "a verdict outside au:Verdict",
+    insert({ line: line({ verdict: "Probably" }), verdict: "Probably" }));
+  // Half a door is not a door.
+  await must("refuse", "an address with no verdict",
+    insert({ line: line({ verdict: undefined }), verdict: null }));
+  await must("refuse", "the door called with no address at all",
+    appendProposal({ line: line({ address: undefined }), address: null }));
+  // ⛔ ONE OVERLOAD. 0004 dropped the six-argument form; if it came back, a caller
+  // could append a record with no address by picking the older signature.
+  await must("refuse", "the retired six-argument append_proposal",
+    `SELECT spec.append_proposal('${PROPOSAL_LINE}', '${PARENT}', '${AUTHOR}',
+       'verify@invalid', 'Meridian', '${CANONICAL}')`);
 
   console.log("\n③ zero is an exception, never a pass:");
   await must("accept", "Vacuous over 0 records", appendEval("Vacuous", 0));
@@ -122,6 +201,22 @@ try {
   await must("refuse", "Passes with no population at all", appendEval("Passes", "null"));
   await must("refuse", "a negative population", appendEval("Passes", -1));
   await must("refuse", "an outcome outside the closed vocabulary", appendEval("Probably", 5));
+
+  console.log("\n④ a machine reports, never judges:");
+  // RFC-004a §4. The same refusal as console/lib/evaluation.ts and
+  // services/spec/src/evaluation.rs, at the one layer a hand-written INSERT
+  // cannot route around.
+  const machineEval = (outcome, population) =>
+    `INSERT INTO spec.evaluation_log (line, claim, project, implementation, outcome,
+       population, query_fingerprint, author, detail)
+     VALUES ('{"author":"machine:verify","claim":"verify","implementation":"verify","outcome":"${outcome}","population":${population}}',
+             'verify', 'verify', 'verify', '${outcome}', ${population}, '', 'machine:verify', '')`;
+  await must("accept", "a machine reporting Examined over 1412", machineEval("Examined", 1412));
+  await must("accept", "a machine reporting Vacuous over 0", machineEval("Vacuous", 0));
+  await must("refuse", "a machine judging Passes", machineEval("Passes", 88));
+  await must("refuse", "a machine judging Fails", machineEval("Fails", 88));
+  // The control: the same judgement from a person is exactly what the log is for.
+  await must("accept", "a PERSON judging Passes over 88", appendEval("Passes", 88));
 
   console.log("\nthe line-terminator domain:");
   await must("refuse", "a line carrying U+2028",

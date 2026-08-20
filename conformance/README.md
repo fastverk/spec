@@ -20,12 +20,27 @@ exactly the way the two implementations are.
 | file | rule | executed by |
 |---|---|---|
 | `evaluation_cases.json` | zero is an exception, never a pass; a machine reports, never judges | `services/spec/src/evaluation.rs`, `console/lib/evaluation.ts` |
-| `overlay_cases.json` | pending means *differs from the corpus*; adoption is measured against the corpus | `services/spec/src/overlay.rs`, `console/lib/overlay.ts` |
+| `overlay_cases.json` | pending means *differs from the corpus*; adoption is measured against the corpus; a record the door REJECTED is never replayed | `services/spec/src/overlay.rs`, `console/lib/overlay.ts` |
+| `address_cases.json` | the content address is `sha256` over `{author, ops, parent}` — and over nothing else | `console/lib/address.ts`, `services/spec/src/proposal.rs`, **and `check_conformance.py` itself** |
+| `decomposition_cases.json` | what counts as a term in a requirement's prose | `tools/import/decompose.py`, `console/lib/decompose.ts` |
 
-Both carry cases in **both directions**. A check only ever shown to accept is an
-assertion, so every file asserts what must be refused *and* what must not be —
-`Vacuous` over zero records is fine, `Examined` over zero records is not, and a
-suite that only proved the first would pass while the refusal was deleted.
+`address_cases.json` is the one file where a disagreement does not produce an
+error anywhere. Two implementations that canonicalize differently do not fail —
+they mint two permanent NAMES for one proposal, and the first symptom is a replay
+that finds nothing years later. So it pins the **pre-image bytes** as well as the
+digest (a digest that differs tells you only *that* they disagree; the bytes tell
+you *where*), it is executed by three canonicalizers rather than two — the
+checker builds the bytes itself in stdlib Python and hashes them with `hashlib`,
+consulting neither implementation — and its `same_address` / `different_address`
+groups carry RFC-002 §9.1 as data: the same change from three surfaces is one
+name, and the read point, the author and the ORDER of the ops each are not.
+
+Every file carries cases in **both directions**. A check only ever shown to
+accept is an assertion, so each asserts what must be refused *and* what must not
+be — `Vacuous` over zero records is fine, `Examined` over zero records is not, and
+a suite that only proved the first would pass while the refusal was deleted. The
+address file's version of that is `different_address`: without it a constant
+function would satisfy every `same_address` group.
 
 ## `check_conformance.py` — why a third thing checks the other two
 

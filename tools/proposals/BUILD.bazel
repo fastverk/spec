@@ -1,3 +1,5 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 package(default_visibility = ["//visibility:public"])
 
 # The promotion tool: reads the append-only logs and writes
@@ -13,4 +15,29 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "materialize.py",
     "check_materialized.sh",
+    "replay.py",
 ])
+
+# ⛔ `spec replay <address>` — RFC-002 §12's P1 gate, over a FIXTURE log.
+#
+# Not over //logs/proposals.jsonl, which is empty until the first promotion: a
+# test that ran over it would pass by examining nothing, which is the defect
+# //rdf/lint/authoring:vacuous-invariant.rq exists to catch, in a test instead of
+# in a corpus. The fixture PLANTS two defects and fails if either goes
+# undetected — a record the door refused (which must not be promoted) and a
+# record whose stored address is not the address of its own body.
+#
+# ⚠ The `data` list is the load-bearing part. Under `bazel test` the script sees
+# exactly what is staged here; a file omitted either crashes the test or, worse,
+# makes a check quietly pass over nothing.
+sh_test(
+    name = "replay_test",
+    size = "small",
+    srcs = ["replay_test.sh"],
+    data = [
+        "fixtures/replay-log-lying.jsonl",
+        "fixtures/replay-log.jsonl",
+        "materialize.py",
+        "replay.py",
+    ],
+)

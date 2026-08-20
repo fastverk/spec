@@ -65,6 +65,9 @@ exports_files([
     "Spec/Emit/TtlEmit.lean",
     "Spec/Emit/MdEmit.lean",
     "Spec/Emit/TierVocab.lean",
+    "Spec/Authoring/Op.lean",
+    "Spec/Authoring/Proposal.lean",
+    "Spec/Authoring/Door.lean",
     "Spec/Logic/Core.lean",
     "Spec/Logic/InferenceRulesProofs.lean",
     "Spec/Compaction/Projection.lean",
@@ -108,11 +111,45 @@ lean_test(
         "Spec/Emit/TtlEmit.lean",
         "Spec/Emit/MdEmit.lean",
         "Spec/Emit/TierVocab.lean",
+        "Spec/Authoring/Op.lean",
+        "Spec/Authoring/Proposal.lean",
+        "Spec/Authoring/Door.lean",
         "Spec/Logic/Core.lean",
         "Spec/Logic/InferenceRulesProofs.lean",
         "Spec/FrameworkCheck.lean",
     ],
     entry = "Spec/FrameworkCheck.lean",
+)
+
+# ─── The door ────────────────────────────────────────────────────────────────
+#
+# RFC-002 §4.1's central claim, in the one form that cannot be lost to review
+# drift: *"there is no `admit` overload that can see who wrote it."* `admit`
+# takes `{parent, ops}`, so the equal-citizen property (§9.1 — a click and a chat
+# that author the same change are one proposal) is a consequence of the signature
+# rather than a convention.
+#
+# Its own target as well as being in :spec_framework_test, because these are the
+# proofs somebody will want to run alone while changing the door:
+#
+#   bazel test //lean:authoring_test
+#
+# ⚠ `lean_test` DOES NOT CHECK PROOFS on its own — see the note on
+# :audit_proofs_test above. These files carry `set_option warningAsError true`
+# like every other source here, and that audit is what keeps them carrying it.
+lean_test(
+    name = "authoring_test",
+    # ⚠ DEPENDENCY ORDER, not alphabetical. `lean_test` compiles `srcs` in the
+    # order given and each module needs its imports' `.olean` to exist already;
+    # sorted-by-name gives "object file Spec/Authoring/Proposal.olean … does not
+    # exist", which reads like a missing file rather than a wrong order. Same
+    # reason :spec_framework_test lists Universe before Predicates.
+    srcs = [
+        "Spec/Authoring/Op.lean",
+        "Spec/Authoring/Proposal.lean",
+        "Spec/Authoring/Door.lean",
+    ],
+    entry = "Spec/Authoring/Door.lean",
 )
 
 # ─── The ontology, emitted from Lean ─────────────────────────────────────────

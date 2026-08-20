@@ -91,6 +91,19 @@ impl Pending {
             let Ok(rec) = serde_json::from_str::<Value>(line) else {
                 continue;
             };
+            // ⛔ The one verdict this reader ACTS on. A rejected proposal is never
+            // appended — the door answers 422 and writes nothing — so a record
+            // carrying this cannot have come from the door. It can only come from
+            // a hand-edited log or a restored file, which is precisely the case
+            // recording the verdict exists to survive: a decision nothing
+            // downstream honours is decoration.
+            //
+            // ⚠ ABSENT is not Rejected. Every record written before the door
+            // computed a verdict has none, and treating those as refusals would
+            // blank the overlay for the whole history.
+            if rec.get("verdict").and_then(Value::as_str) == Some("Rejected") {
+                continue;
+            }
             let author = rec
                 .get("author_email")
                 .and_then(Value::as_str)
@@ -374,15 +387,24 @@ mod tests {
     use super::*;
 
     fn log_line(ops: Value) -> String {
+        log_line_with(ops, None)
+    }
+
+    /// `verdict` is `None` for a record written before the door computed one —
+    /// which is what most of the fixtures are, and must keep working.
+    fn log_line_with(ops: Value, verdict: Option<&str>) -> String {
         let canonical = serde_json::to_string(&json!({
             "parent": "p0", "surface": "Meridian", "ops": ops
         }))
         .unwrap();
-        serde_json::to_string(&json!({
+        let mut rec = json!({
             "parent": "p0", "author": "u-1", "author_email": "a@b.c",
             "surface": "Meridian", "canonical": canonical,
-        }))
-        .unwrap()
+        });
+        if let Some(v) = verdict {
+            rec["verdict"] = json!(v);
+        }
+        serde_json::to_string(&rec).unwrap()
     }
 
     /// ⛔ `name` must be unique per test. This helper keyed the directory on
@@ -429,7 +451,10 @@ mod tests {
             for entry in c["log"].as_array().expect("log array") {
                 match entry.get("malformed").and_then(Value::as_str) {
                     Some(raw) => lines.push(raw.to_string()),
-                    None => lines.push(log_line(entry["ops"].clone())),
+                    None => lines.push(log_line_with(
+                        entry["ops"].clone(),
+                        entry.get("verdict").and_then(Value::as_str),
+                    )),
                 }
             }
             let p = pending_from(name, &lines);

@@ -12,6 +12,7 @@ import Spec.Corpus.Inference
 import Spec.Emit.TtlEmit
 import Spec.Emit.MdEmit
 import Spec.Emit.TierVocab
+import Spec.Authoring.Door
 import Spec.Logic.Core
 import Spec.Logic.InferenceRulesProofs
 -- ⛔ MUST stay. `lean_test` DOES NOT CHECK PROOFS on its own: a `sorry` is a

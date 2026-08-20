@@ -57,15 +57,39 @@ Expected output:
   + 0001_schema.sql
   + 0002_append_only.sql
   + 0003_grants.sql
+  + 0004_the_door.sql
 
-applied 3 migration(s)
+applied 4 migration(s)
 ```
 
-That creates the two tables, the append-only triggers, three roles, and the
-grants. Run it twice and it says `nothing to apply — the schema is current`. If
-you edit a migration after it has been applied it refuses, with both hashes,
-rather than silently leaving you with a different database than the file
-describes.
+That creates the two tables, the append-only triggers, three roles, the grants,
+and the door's two columns. Run it twice and it says `nothing to apply — the
+schema is current`. If you edit a migration after it has been applied it refuses,
+with both hashes, rather than silently leaving you with a different database than
+the file describes.
+
+⚠ **`0004` is the first migration that is not purely additive.** It drops the
+six-argument `spec.append_proposal` and replaces it with an eight-argument one
+carrying the content address and the verdict, so that exactly one overload
+exists — two would let a caller append a record with no address by picking the
+older signature. Consequences worth knowing before you run it:
+
+- **Deploy the console and the migration together.** A console built before #44
+  calls the six-argument form and will get `function … does not exist` (SQLSTATE
+  42883) after the migration; one built after #44 calls the eight-argument form
+  and gets the same error before it. There is no window where both work, which is
+  deliberate — the alternative is a window where a proposal is appended with no
+  name and nothing says so.
+- **Rows written earlier keep their nulls.** `address` and `verdict` are nullable
+  for exactly those rows; `the_door_wrote_both_or_neither` makes that a whole
+  state rather than a per-column accident, and the function refuses to create a
+  new one. They are still nameable — `tools/proposals/replay.py` recomputes every
+  address from the record's own bytes.
+- `0004` also adds the `a_machine_reports_never_judges` CHECK to
+  `evaluation_log`, which #48 filed as a follow-up. If it fails to apply, the log
+  already holds a `Passes` or `Fails` from a `machine:` author — the door refuses
+  one, so that would mean a hand-written INSERT, and it is worth finding out
+  whose before forcing the constraint.
 
 ### ⛔ Create the app role with SQL, NOT in the Neon console
 

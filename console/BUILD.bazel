@@ -17,6 +17,12 @@ package(default_visibility = ["//visibility:public"])
 filegroup(
     name = "conformance_inputs",
     srcs = [
+        # ⛔ The content address's TypeScript half. Its ADDRESS_PREFIX is compared
+        # against conformance/address_cases.json, which the checker also
+        # re-derives from scratch — an address that two implementations spell
+        # differently is two permanent names for one proposal, and nothing else
+        # in CI would notice.
+        "lib/address.ts",
         "db/bootstrap.sql",
         # The console's half of the decomposition rule. Its MAX_TERM_WORDS is
         # compared against conformance/decomposition_cases.json — never against

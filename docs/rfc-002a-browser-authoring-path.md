@@ -271,6 +271,19 @@ taken over, plus `"address": null` and `"address_computed_by"`. **A fabricated
 address is strictly worse than an absent one:** it would be indistinguishable from a
 real one at every downstream callsite.
 
+> ⚠ **Overtaken by #44, and the way it was wrong is worth keeping.** The
+> reasoning above is sound and the conclusion — refuse to mint a fake — was
+> right. The premise decayed. "Cannot acquire one without re-pinning the crate
+> universe" turned out to be one line in `Cargo.toml` and a `cargo update -p`:
+> eight small pure-Rust crates, no C, no build script that runs a compiler. It was
+> true when it was written, in the sense that there was no reason to pay for it
+> yet; what it became was a standing reason not to build the door, quoted in three
+> files. The door is now the **console's**, `services/spec`'s write path answers
+> 410, and this crate computes the address for `verdict-preview` so an author can
+> see the name before submitting. The lesson is not "we were too cautious" — it is
+> that a cost estimate recorded as a constraint needs re-measuring when someone
+> starts planning around it.
+
 The canonicalizer is written out rather than delegated to `serde_json::to_string`,
 whose key order depends on whether `preserve_order` is enabled somewhere in the
 dependency graph — a build-configuration detail that must not be able to change a
@@ -279,7 +292,8 @@ content address.
 Likewise `verdict-preview` returns its own `limits` array: structural only, does not
 evaluate the coherence gates, does not verify `parent` names a real read point, no
 address. A route with that name that quietly under-delivers is worse than one that
-states its scope.
+states its scope. (Since #44 it *does* return the address, and the limits array
+says so and says what it still does not check.)
 
 This is the write-side reading of the same decision the read model encodes: **the
 build adjudicates, the plugin queues.** The first draft of this document said "P1
@@ -374,7 +388,7 @@ evidence and building blind.
 | `botnoc/.../spec.js` | parses as an ES module; exports resolve. **Not rendered in a browser.** |
 | `mocks/ux/panels.authoring-form.textproto` | internally consistent. **Never compiled** — needs the version bump |
 | The Bazel wiring from RFC-002 P0 | **still never exercised.** Issue #19 |
-| `Door.admit`, the content address, the gate verdict | **do not exist.** RFC-002 P1, and correctly not attempted here |
+| `Door.admit`, the content address, the gate verdict | **did not exist** when this was written; RFC-002 P1, and correctly not attempted here. #44 landed the first two — the door and the address, in the console, with the Lean model at `//lean:authoring_test` — and left the gate verdict where it belongs, in the build |
 
 The distinction that line-by-line table exists to preserve: "the compiler accepted
 it and the tests pass" and "it ran in production" are different claims, and in a

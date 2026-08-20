@@ -56,6 +56,16 @@ def read_log(path: pathlib.Path, project: str):
 
     A record whose canonical body will not parse is SKIPPED. The log is
     append-only and one bad line must not hide the good ones written after it.
+
+    ⛔ A record whose `verdict` is `Rejected` is DROPPED, loudly. The door
+    answers 422 and appends nothing, so such a record cannot have come from it —
+    only from a hand-edited log or a restored file. This is the same arrangement
+    as the vacuous drop below: the refusal exists in three independent places
+    (the door, the overlay, and here) because each of the others can be
+    bypassed, and promotion is the one that writes the corpus the gates run over.
+
+    ⚠ ABSENT is not Rejected. Every record written before the door computed a
+    verdict has none, and treating those as refusals would empty the corpus.
     """
     ops = []
     if not path.exists():
@@ -75,6 +85,13 @@ def read_log(path: pathlib.Path, project: str):
             rec = json.loads(line)
             body = json.loads(rec["canonical"])
         except Exception:
+            continue
+        if rec.get("verdict") == "Rejected":
+            print(
+                f"  DROPPED {rec.get('address', '<unaddressed>')}: the door refused this "
+                f"proposal, so it was never appended — this record did not come from it",
+                file=sys.stderr,
+            )
             continue
         author = rec.get("author_email") or rec.get("author") or ""
         for op in body.get("ops", []):

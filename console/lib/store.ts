@@ -112,19 +112,30 @@ export async function evaluationRecords(): Promise<EvaluationRow[]> {
   return parse(readLines(evaluationPath() || proposalPath().replace(/\.jsonl$/, "-evaluations.jsonl")));
 }
 
+/**
+ * ⚠ `address` and `verdict` are the door's outputs (migration 0004), and the
+ * table CHECKs that both match the line — so they are passed as columns AND
+ * carried in `line`, and the two cannot disagree. A record written before 0004
+ * has neither; the columns are nullable for exactly those rows and for nothing
+ * else, and `tools/proposals/replay.py` can still name such a record because the
+ * address is recomputable from its canonical bytes.
+ */
 export async function appendProposal(record: {
-  parent: string;
+  address: string;
   author: string;
   author_email: string;
-  surface: string;
   canonical: string;
+  parent: string;
+  surface: string;
+  verdict: string;
 }, line: string): Promise<Appended> {
   if (backend() === "neon") {
     const q = await sql();
     const rows = (await q`
       SELECT seq FROM spec.append_proposal(
         ${line}, ${record.parent}, ${record.author},
-        ${record.author_email}, ${record.surface}, ${record.canonical})
+        ${record.author_email}, ${record.surface}, ${record.canonical},
+        ${record.address}, ${record.verdict})
     `) as { seq: string | number }[];
     return { seq: Number(rows[0]?.seq ?? 0) };
   }

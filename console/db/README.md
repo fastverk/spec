@@ -88,7 +88,45 @@ schedule.
 ## What `log_seq` is, and is not
 
 It replaces the JSONL byte offset in the 202 response. It is a server-assigned
-handle, monotone within one log. It is **not** a content address: this console
-has no hash primitive, and the address is computed by the door in the build. A
-fabricated address is strictly worse than an absent one, so `address` stays
-`null` with its reason named beside it.
+handle, monotone within one log. It is **not** a content address.
+
+~~this console has no hash primitive, and the address is computed by the door in
+the build. A fabricated address is strictly worse than an absent one, so
+`address` stays `null` with its reason named beside it.~~ **Since #44 there is a
+door and it is here**, so the 202 carries a real `address` alongside `log_seq`,
+and migration `0004` gives the table a column for it. The two are different kinds
+of thing and both are worth having:
+
+| | `log_seq` | `address` |
+|---|---|---|
+| assigned by | the database | the proposal's own bytes |
+| unique | yes, within one log | **no, deliberately** |
+| survives an export/reimport | no | yes |
+| answers | "did my write land, and in what order" | "which proposal is this" |
+
+⛔ **Not unique, and the index is not either.** Two identical proposals from one
+author against one read point have the same address BY CONSTRUCTION — that is
+what content addressing means — and both belong in the log. A unique index would
+turn "I clicked twice" into a 500 and, worse, would turn a second author's
+independent agreement into an error. `0001` refuses to make `line` unique for the
+same reason. Deduplication is a read-side question; later wins.
+
+## The door's two columns
+
+`address` and `verdict` (`0004`), both derived from the line and both unable to
+lie about it — the same arrangement as `decomposition_matches_the_line` in
+`0001`. They are nullable for exactly one reason: rows written before that
+migration have neither. `the_door_wrote_both_or_neither` makes "pre-door" a whole
+state rather than a per-column accident, and `spec.append_proposal` raises if
+either is missing, so the null state can be read and never created.
+
+A pre-door row is still nameable: `tools/proposals/replay.py` recomputes every
+address from the record's own `canonical` bytes and never reads the column —
+which is also how it catches a record whose stored address is not the address of
+its own body, and refuses to replay the log at all when it finds one.
+
+`verdict` is `Admitted` or `Queued`. **Never `Rejected`**: a refused proposal is
+not appended, so the value cannot legitimately occur — and `console/lib/overlay.ts`,
+`services/spec/src/overlay.rs` and `tools/proposals/materialize.py` each refuse to
+replay a record carrying it, because a decision nothing downstream honours is
+decoration.

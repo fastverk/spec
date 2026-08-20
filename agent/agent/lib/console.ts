@@ -2,10 +2,18 @@
  * The console is the only way to the log, and the agent has no other door.
  *
  * ⛔ THE AGENT HOLDS NO DATABASE CREDENTIAL AND CANNOT BE GIVEN ONE. Every write
- * goes through `POST /api/proposal/op`, the same route the browser posts to, so
- * every check that route performs — the closed op vocabulary, the capability
- * table, the parent read point, the canonical bytes, the append-only table
- * itself — applies to the agent unchanged and without being reimplemented.
+ * goes through `POST /api/proposal/op` — the same route the browser posts to,
+ * reaching the same `lib/door.ts` — so every check that door performs applies to
+ * the agent unchanged and without being reimplemented: the closed op vocabulary,
+ * the capability table, the canonical bytes, the content address, and the
+ * append-only table itself.
+ *
+ * ⚠ `parent` is NOT among them, and this list used to say it was. The door
+ * requires a `parent` and records it; it does not verify that the string names a
+ * real bitemporal read point — RFC-002 §7.1 has said so under "cannot, today"
+ * since P0, and §13 files it as open. It matters more now than it did: the read
+ * point is part of the content address, so two agents that spell the same read
+ * point differently produce two proposals rather than one.
  *
  * The alternative, giving the agent its own connection, would mean an LLM
  * holding INSERT on a log with no DELETE, and every one of those checks living
@@ -58,6 +66,12 @@ export async function overlay(): Promise<Overlay> {
  * There is no agent principal anywhere in this design — `proposal.ts` rejects
  * every agent op that is not `assertNS` at R0, and rather than route around that
  * rule this agent never needs it.
+ *
+ * The 202 carries `address` — the proposal's content address — and `verdict`.
+ * ⚠ The address does NOT see `surface`, so an op an agent drafted and the same
+ * op a person typed have the SAME name and differ only in the provenance record
+ * beside it. That is RFC-002 §9.1 working as intended and not a collision: what
+ * an agent produced is answered by the log's `surface` column, never by the id.
  */
 export async function submitOp(
   op: string,

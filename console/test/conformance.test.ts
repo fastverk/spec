@@ -36,7 +36,7 @@ type EvalCase = {
 type OverlayCase = {
   name: string;
   apply: "terms" | "requirements" | "proposals";
-  log: Array<{ ops?: unknown[]; malformed?: string }>;
+  log: Array<{ ops?: unknown[]; malformed?: string; verdict?: string }>;
   corpus: { terms?: Row[]; requirements?: Row[] };
   expect: {
     records?: number;
@@ -91,13 +91,17 @@ describe("conformance/overlay_cases.json", () => {
   const cases: OverlayCase[] = doc.cases;
 
   // Mirrors the Rust test helper: `canonical` is the proposal body as a STRING.
-  const logLine = (ops: unknown) =>
+  //
+  // `verdict` is omitted unless a case names one — which is what a record written
+  // before the door computed one looks like, and most of the fixtures are that.
+  const logLine = (ops: unknown, verdict?: string) =>
     JSON.stringify({
       parent: "p0",
       author: "u-1",
       author_email: "a@b.c",
       surface: "Meridian",
       canonical: JSON.stringify({ parent: "p0", surface: "Meridian", ops }),
+      ...(verdict === undefined ? {} : { verdict }),
     });
 
   it("has at least the cases the Rust suite has", () => {
@@ -107,7 +111,7 @@ describe("conformance/overlay_cases.json", () => {
   for (const c of cases) {
     it(c.name, () => {
       const lines = c.log.map((e) =>
-        e.malformed !== undefined ? e.malformed : logLine(e.ops),
+        e.malformed !== undefined ? e.malformed : logLine(e.ops, e.verdict),
       );
       const p = Pending.fromLines(lines);
 
