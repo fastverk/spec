@@ -14,6 +14,16 @@ package(default_visibility = ["//visibility:public"])
 #
 # ⚠ This file becomes dead when the console is extracted to its own repo. That is
 # the correct time to delete it, not before.
+# The console's route -> field table, for //tools/readmodel:check_wiring_test.
+# It is the fourth description of the same mapping and the one a consumer's
+# payloads are checked against; nothing compared it until #52.
+exports_files(["lib/readmodel.ts"])
+
+alias(
+    name = "readmodel.ts",
+    actual = "lib/readmodel.ts",
+)
+
 filegroup(
     name = "conformance_inputs",
     srcs = [

@@ -17,15 +17,37 @@
  * different corpora would silently disagree. And a failed GET leaves the previous
  * value in place, so a write can name a read point the author is no longer
  * looking at.
+ *
+ * ## `@readmodel/` — the seam a second tenant needs
+ *
+ * The eight imports below used to name `../../services/spec/readmodel/*.json`
+ * directly, which is this repository's own corpus and the only one a console
+ * could ever show. An external consumer's corpus **cannot be committed here**
+ * (#52's data boundary), so a per-tenant deployment points `SPEC_READMODEL_DIR`
+ * at its own payloads and `next.config.mjs` resolves `@readmodel/` there.
+ *
+ * ⚠ STILL STATIC IMPORTS, still resolved at build. The seam moves WHERE the
+ * payloads come from and changes nothing about when: a page still cannot render
+ * a `corpus_version` other than the one it shipped with. Reading them at runtime
+ * from a directory would reintroduce the portal's bug with extra steps.
+ *
+ * ⚠ The alias lives in `next.config.mjs` and NOT in `tsconfig.json`'s `paths`.
+ * Next installs `JsConfigPathsPlugin` into webpack's resolver, and it taps
+ * `described-resolve`, which runs BEFORE `resolve.alias` — so a `paths` entry
+ * silently wins and the override does nothing. Measured, not inferred: the first
+ * attempt built cleanly against the wrong corpus and said nothing. `tsc` resolves
+ * these through `types/readmodel.d.ts` instead.
  */
-import claimsJson from "../../services/spec/readmodel/claims.json";
-import conflictsJson from "../../services/spec/readmodel/conflicts.json";
-import disciplinesJson from "../../services/spec/readmodel/disciplines.json";
-import envelopesJson from "../../services/spec/readmodel/envelopes.json";
-import frontierJson from "../../services/spec/readmodel/frontier.json";
-import requirementsJson from "../../services/spec/readmodel/requirements.json";
-import termsJson from "../../services/spec/readmodel/terms.json";
-import witnessJson from "../../services/spec/readmodel/witness.json";
+import claimsJson from "@readmodel/claims.json";
+import conflictsJson from "@readmodel/conflicts.json";
+import disciplinesJson from "@readmodel/disciplines.json";
+import envelopesJson from "@readmodel/envelopes.json";
+import frontierJson from "@readmodel/frontier.json";
+import requirementsJson from "@readmodel/requirements.json";
+import termsJson from "@readmodel/terms.json";
+import witnessJson from "@readmodel/witness.json";
+
+import { ROUTES, ingest, type Payloads, type RouteName } from "./readmodel";
 
 import type { Row } from "./overlay";
 
@@ -54,72 +76,36 @@ export type Term = Row & {
   project: string;
 };
 
-/**
- * ⚠ Each payload's rows live under a field whose name is NOT always the route
- * name — `frontier` carries `stalls`, `witness` carries `parties`. The portal
- * guessed with `rowsOf`, "the first array that is not unreachable_repos", which
- * depends on JSON key insertion order and would have returned `corpus_version`
- * had that field been emitted first. The server has published an explicit
- * route→field table since the beginning (readmodel.rs:49-58); this is it.
- */
-const PAYLOADS = {
-  claims: [claimsJson, "claims"],
-  conflicts: [conflictsJson, "conflicts"],
-  disciplines: [disciplinesJson, "disciplines"],
-  envelopes: [envelopesJson, "envelopes"],
-  frontier: [frontierJson, "stalls"],
-  requirements: [requirementsJson, "requirements"],
-  terms: [termsJson, "terms"],
-  witness: [witnessJson, "parties"],
-} as const satisfies Record<string, readonly [unknown, string]>;
+const PAYLOADS: Payloads = {
+  claims: claimsJson,
+  conflicts: conflictsJson,
+  disciplines: disciplinesJson,
+  envelopes: envelopesJson,
+  frontier: frontierJson,
+  requirements: requirementsJson,
+  terms: termsJson,
+  witness: witnessJson,
+};
 
-export type RouteName = keyof typeof PAYLOADS;
-export const ROUTES = Object.keys(PAYLOADS) as RouteName[];
+/**
+ * ⛔ At MODULE SCOPE, on purpose. Every refusal in `ingest` is a build failure:
+ * a console that started and only then found its payloads span two corpora would
+ * already have shown somebody a read point that is a lie, and let them author a
+ * proposal against it.
+ */
+const MODEL = ingest(PAYLOADS);
+
+export { ROUTES };
+export type { RouteName };
 
 /** The rows of one route, as a fresh copy the caller may overlay in place. */
-export function rowsOf(route: RouteName): Row[] {
-  const [payload, field] = PAYLOADS[route];
-  const rows = (payload as Record<string, unknown>)[field];
-  if (!Array.isArray(rows)) {
-    // The route→field table and the payload disagree, which is a build defect,
-    // not a runtime condition.
-    throw new Error(`readmodel: ${route}.json has no \`${field}\` array`);
-  }
-  return (rows as Row[]).map((r) => ({ ...r }));
-}
+export const rowsOf = (route: RouteName): Row[] => MODEL.rowsOf(route) as Row[];
 
 export const requirements = () => rowsOf("requirements") as Requirement[];
 export const terms = () => rowsOf("terms") as Term[];
 
-/**
- * The read point every proposal must name, frozen at build time.
- *
- * Payloads from two corpora in one bundle means the read point is a lie whichever
- * one you pick, so that fails the BUILD rather than a request.
- */
-function frozenReadPoint(): string {
-  const seen = [
-    ...new Set(
-      Object.values(PAYLOADS).map(
-        ([p]) => (p as { corpus_version?: string }).corpus_version ?? "",
-      ),
-    ),
-  ];
-  if (seen.length !== 1) {
-    throw new Error(`read model spans ${seen.length} corpora: ${seen.join(", ")}`);
-  }
-  const only = seen[0];
-  if (!only) throw new Error("read model carries no corpus_version");
-  return only;
-}
-
-export const CORPUS_VERSION = frozenReadPoint();
+/** The read point every proposal must name, frozen at build time. */
+export const CORPUS_VERSION = MODEL.corpusVersion;
 
 /** Every project named in the corpus, in a stable order. */
-export function projects(): string[] {
-  const seen = new Set<string>();
-  for (const r of rowsOf("requirements")) {
-    if (typeof r["project"] === "string") seen.add(r["project"]);
-  }
-  return [...seen].sort();
-}
+export const projects = (): string[] => MODEL.projects();

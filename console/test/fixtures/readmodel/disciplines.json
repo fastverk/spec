@@ -1,0 +1,50 @@
+{
+  "disciplines": [
+    {
+      "discipline": "market microstructure / tariff",
+      "steward": "principal-market",
+      "claim_count": 2,
+      "typed_count": 1,
+      "non_defeasible_count": 0,
+      "dark_count": 0,
+      "dark_pct": 0.0,
+      "typed_pct": 50.0,
+      "project": "fixture"
+    },
+    {
+      "discipline": "thermal / electrochemistry",
+      "steward": "principal-thermal",
+      "claim_count": 2,
+      "typed_count": 1,
+      "non_defeasible_count": 1,
+      "dark_count": 1,
+      "dark_pct": 50.0,
+      "typed_pct": 50.0,
+      "project": "fixture"
+    },
+    {
+      "discipline": "fire & life safety",
+      "steward": "principal-ahj",
+      "claim_count": 1,
+      "typed_count": 1,
+      "non_defeasible_count": 1,
+      "dark_count": 0,
+      "dark_pct": 0.0,
+      "typed_pct": 100.0,
+      "project": "fixture"
+    },
+    {
+      "discipline": "insurance / warranty",
+      "steward": "principal-asset-mgr",
+      "claim_count": 1,
+      "typed_count": 1,
+      "non_defeasible_count": 0,
+      "dark_count": 0,
+      "dark_pct": 0.0,
+      "typed_pct": 100.0,
+      "project": "fixture"
+    }
+  ],
+  "corpus_version": "corpus:73b24f9938dc48f4",
+  "unreachable_repos": []
+}

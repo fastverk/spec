@@ -334,7 +334,11 @@ Two consequences worth stating rather than discovering:
   there in a rolled-back transaction.
 - The npm package that carries the read model and fixtures across the repo
   boundary is not built; the console reads both by relative path, from one file
-  each, so extraction is a two-line change.
+  each, so extraction is a two-line change. ⚠ Since #52's first PR the read model
+  is behind the `@readmodel/` alias rather than a relative path —
+  `SPEC_READMODEL_DIR` points a per-tenant deployment at payloads emitted from
+  its own corpus. That is the seam that makes a second tenant possible **without**
+  the package; it is not the package.
 - ~~**Two live write paths.** `services/spec` can still append to a file. Both are
   "the" log; neither sees the other. Retiring spec's write path is a config
   change — `SPEC_PROPOSAL_LOG` unset already answers 503 with a stated reason —
@@ -357,6 +361,17 @@ Two consequences worth stating rather than discovering:
 - The Rust conformance tests are **written but not compiled**. The private crates
   401 in this environment and `protoc` is absent, which is the same hole CI has.
 - The OAuth flow has since been run end to end against the live deployment by a
-  `savvifi.com` account. What is still unverified is the **refusal**: no sign-in
+  `savvifi.com` account. ~~What is still unverified is the **refusal**: no sign-in
   has been attempted from outside the hosted domain, so `GOOGLE_ALLOWED_DOMAIN`
-  is proved to admit and not yet proved to reject.
+  is proved to admit and not yet proved to reject.~~ **The RULE is proved to
+  reject as of #52's first PR** — `checkClaims` was lifted out of `exchangeCode`
+  (which talks to Google's token endpoint first, and was why nothing could reach
+  the rule) and `console/test/google.test.ts` runs every branch, including the
+  case the module header exists for: a consumer Google account carrying
+  `ada@savvifi.com` as an alternate address and **no `hd`**, which `email` alone
+  would have admitted. The unset allow-list is proved to throw rather than admit
+  everybody.
+
+  ⚠ **The deployment is still proved only to admit.** No sign-in has been
+  attempted from outside a hosted domain against a live console. Those are two
+  claims and only one of them changed.

@@ -1,0 +1,58 @@
+{
+  "parties": [
+    {
+      "conflict_id": "conflict-envelope",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
+      "claim_id": "cap-must-deliver",
+      "discipline": "market microstructure / tariff",
+      "modality": "MUST",
+      "bound_kind": "LowerBound",
+      "bound_value": 55.0,
+      "guard": "",
+      "defeasible": "true",
+      "project": "fixture"
+    },
+    {
+      "conflict_id": "conflict-envelope",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
+      "claim_id": "warranty-throughput",
+      "discipline": "insurance / warranty",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 55.0,
+      "guard": "",
+      "defeasible": "true",
+      "project": "fixture"
+    },
+    {
+      "conflict_id": "conflict-envelope",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
+      "claim_id": "ahj-soc-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 70.0,
+      "guard": "ambient_c >= 40",
+      "defeasible": "false",
+      "project": "fixture"
+    },
+    {
+      "conflict_id": "conflict-envelope",
+      "quantity": "q-sustained-discharge",
+      "unit": "MW",
+      "claim_id": "oem-derate",
+      "discipline": "thermal / electrochemistry",
+      "modality": "MUST_NOT",
+      "bound_kind": "UpperBound",
+      "bound_value": 78.0,
+      "guard": "ambient_c >= 45",
+      "defeasible": "false",
+      "project": "fixture"
+    }
+  ],
+  "corpus_version": "corpus:73b24f9938dc48f4",
+  "unreachable_repos": []
+}

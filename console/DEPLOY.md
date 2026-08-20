@@ -203,6 +203,7 @@ Set these for **Production** and **Preview**:
 | `GOOGLE_CLIENT_SECRET` | from step 2 |
 | `GOOGLE_REDIRECT_URI` | `https://<your-domain>/api/auth/callback` |
 | `GOOGLE_ALLOWED_DOMAIN` | `savvifi.com` |
+| `SPEC_READMODEL_DIR` | *(unset — this repository's corpus)*. A per-consumer deployment sets it; see `docs/consumer-onboarding.md` |
 | `SESSION_SECRET` | `openssl rand -hex 32` |
 
 Optional:

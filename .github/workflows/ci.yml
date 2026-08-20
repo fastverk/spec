@@ -336,6 +336,39 @@ jobs:
         working-directory: console
         run: pnpm exec next build
 
+      # ⛔ THE SEAM #52 EXISTS FOR, exercised — and it must be a REAL build.
+      #
+      # An external consumer's corpus cannot be committed here, so its console is
+      # a deployment pointed at payloads emitted from its own repository. That is
+      # one line of bundler config, and the first version of it did NOTHING: a
+      # `paths` entry in tsconfig.json shadowed the alias, so the build succeeded,
+      # printed no warning, and baked in THIS repository's corpus_version while
+      # pointed at another corpus. A unit test over the config object would not
+      # have caught it; only building and reading what landed does.
+      #
+      # So: build against test/fixtures/readmodel (a real emitter run over
+      # rdf/lint/authoring/fixtures/envelope-clean.ttl — see its README) and
+      # assert BOTH directions. The fixture's version must be in the bundle and
+      # the flagship's must not; asserting only the first would pass on a bundle
+      # that somehow contained both.
+      - name: build against a read model from another corpus
+        working-directory: console
+        env:
+          SPEC_READMODEL_DIR: test/fixtures/readmodel
+        run: |
+          rm -rf .next
+          pnpm exec next build
+          flagship=$(grep -rho "corpus:[0-9a-f]\{16\}" ../services/spec/readmodel/claims.json)
+          fixture=$(grep -rho "corpus:[0-9a-f]\{16\}" test/fixtures/readmodel/claims.json)
+          echo "flagship=$flagship  fixture=$fixture"
+          grep -rq "$fixture" .next/server \
+            || { echo "::error::the foreign read model did not reach the bundle"; exit 1; }
+          if grep -rq "$flagship" .next/server; then
+            echo "::error::the flagship corpus_version is still in a bundle built against another corpus"
+            exit 1
+          fi
+          echo "the seam holds: the bundle carries $fixture and not $flagship"
+
   # ── Push the gate image ────────────────────────────────────────────────────
   #
   # ⛔ NEVER ON pull_request. The `if` below gates on push-to-main and manual

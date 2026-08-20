@@ -1,0 +1,14 @@
+{
+  "stalls": [
+    {
+      "claim_id": "pending-efficiency",
+      "rung": "R2",
+      "discipline": "thermal / electrochemistry",
+      "stalled_on": "no model of firmware revision effects on the derate curve",
+      "dependent_count": 0,
+      "project": "fixture"
+    }
+  ],
+  "corpus_version": "corpus:73b24f9938dc48f4",
+  "unreachable_repos": []
+}
