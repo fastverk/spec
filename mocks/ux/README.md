@@ -82,7 +82,7 @@ consequence, and the UI's job is to keep the overhead to the three points above.
 | `Door.admit`, the content address, the gate verdict | **does not exist** — the core of the RFC, and deliberately not attempted in an environment that cannot build Lean |
 | Per-op review of a multi-op proposal (accept 3 of 5) | **does not exist** — the routes carry the verdict split; the review surface is adhoc work |
 | MCP **write** tools (`spec__preview_proposal`, …) | **does not exist** — tool names in the transcripts are proposed. The three *read* tools do exist |
-| Work orders, obligation closure, dispatch gating | **does not exist** |
+| Work orders, obligation closure, dispatch gating | **exists** since #45 — derived by `//rdf/fanout` over any corpus, served at `GET /workorders`, dispatched (or refused) at `POST /workorder/dispatch`, and rendered by the `workorders` panel promoted out of this directory. `spec__list_work_orders` is a real MCP tool. What is still mocked in transcript 03: the write tools it calls (`spec__dispatch`, `spec__preview_proposal`) and the HumanPrompt round trip, which needs the platform's `agents` CRD |
 | Declarative write descriptors in the **shipped** bundle | **written, checked, not compiled** — `panels.authoring-form.textproto` needs `meridian_schemas` bumped past `FormPanel` in `spec/MODULE.bazel`. **RFC-002 §3.3's claim that no write descriptor exists was wrong** |
 
 One correction worth reading, because the *shape* of the error recurs: RFC-002 §3.3
