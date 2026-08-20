@@ -9,7 +9,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mint-machine-token": "node tools/mint-machine-token.mjs"
   },
   "dependencies": {
     "@emotion/react": "^11.11.0",

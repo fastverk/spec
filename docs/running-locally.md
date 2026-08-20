@@ -60,6 +60,24 @@ prevent. Migrations are CI's job (`.github/workflows/migrate.yml`), not a laptop
 grant, and the only cleanup for a test record is dropping the schema. Use the
 JSONL backend to try things.
 
+**As a machine** — the credential a consumer's CI would hold (RFC-004a §4):
+
+```sh
+export SPEC_MACHINE_TOKEN_SECRET=$(openssl rand -hex 32)   # set BEFORE pnpm dev; must differ from SESSION_SECRET
+TOKEN=$(node tools/mint-machine-token.mjs --implementation studio-nextjs)
+curl -s -X POST localhost:5175/api/evaluation \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
+  -d '{"claim":"auth-24","implementation":"studio-nextjs","outcome":"Examined","population":1412}'
+# 202 {"recorded":true,…,"author":"machine:studio-nextjs"}
+tail -1 /tmp/spec-proposals-evaluations.jsonl
+```
+
+The same token against `/api/proposal/op` is a 401: it is accepted by the
+evaluation route and nowhere else. `SPEC_AUTHOR` is not consulted while an
+`Authorization` header is present — a presented credential is judged, never
+ignored. `/api/health` reports `machine_credentials.configured` so a deployment
+that forgot the secret reads as one.
+
 ### What to look at
 
 | | |
@@ -212,9 +230,9 @@ reasoning.
 Most of the safety machinery runs on stdlib Python:
 
 ```sh
-python3 conformance/check_conformance.py     # 254 checks
+python3 conformance/check_conformance.py     # 295 checks
 python3 tools/readmodel/check_wiring.py      # 194 checks
-cd console && pnpm test && pnpm typecheck    # 73 vitest cases
+cd console && pnpm test && pnpm typecheck    # 108 vitest cases
 ```
 
 The SPARQL gates need Bazel (`bazel test //rdf/...`), but they also run under

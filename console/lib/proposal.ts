@@ -8,6 +8,7 @@
  * proposal cannot name its own author.
  */
 import { canonicalJson } from "./canonical";
+import { MACHINE_PREFIX } from "./evaluation";
 
 export type Capability = "Author" | "Kernel";
 
@@ -136,6 +137,15 @@ export function checkOp(op: unknown, who: Principal): { verdict: Verdict; reason
   if (kind === "openConflict") {
     const n = Array.isArray(o["parties"]) ? (o["parties"] as unknown[]).length : 0;
     if (n < 2) return bad(`\`openConflict\` needs at least 2 parties; got ${n}`);
+  }
+
+  // ⛔ A machine may not author. RFC-004a §4: a machine principal reports what
+  // it measured (POST /api/evaluation) and may not author, amend or withdraw a
+  // requirement. The evaluation route is the only place a `machine:` principal
+  // is ever minted, and it never reaches this door — this is the second lock,
+  // for the day something wires one through.
+  if (who.sub.startsWith(MACHINE_PREFIX)) {
+    return bad(`machine principals may not author; \`${kind}\` is out of capability`);
   }
 
   if (who.agent) {

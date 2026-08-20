@@ -29,6 +29,14 @@
  * Zero is an exception, never a result. `Vacuous` is the honest recording of "it
  * ran and examined nothing"; `CannotBeGrounded` is "it could not run at all".
  * Both legitimately carry a population of zero. Neither is a pass.
+ *
+ * ## A machine reports, never judges
+ *
+ * A machine principal — `author` prefixed `machine:`, minted only by the
+ * evaluation route from a credential (RFC-004a §4) — may report `Examined`,
+ * `Vacuous` or `CannotBeGrounded`, and may not report `Passes` or `Fails`. A
+ * count says how many records a check would examine; whether the claim holds
+ * over them is a judgment, and a `SELECT count(*)` did not make one.
  */
 
 /**
@@ -59,6 +67,32 @@ export const OUTCOMES = ["Passes", "Fails", "Examined", "Vacuous", "CannotBeGrou
  * were records to look at".
  */
 export const POSITIVE = ["Passes", "Fails", "Examined"] as const;
+
+/**
+ * Outcomes that are a JUDGMENT rather than a measurement. A count says how many
+ * records a check would examine; whether the claim holds over them is a
+ * different question, and a machine that ran `SELECT count(*)` did not answer
+ * it.
+ *
+ * ⛔ A machine principal (`author` prefixed `MACHINE_PREFIX`) may report
+ * `Examined`, `Vacuous` or `CannotBeGrounded` and may not report either of
+ * these. This is the evaluation-side half of RFC-004a §4's boundary: a machine
+ * reports what it measured and may not author, amend, withdraw — or judge — a
+ * requirement. `Examined` is deliberately NOT here: it is the one outcome a
+ * machine exists to report.
+ *
+ * ⚠ Asserted against the Rust constant and the fixtures by
+ * `conformance/check_conformance.py`, like OUTCOMES and POSITIVE.
+ */
+export const JUDGMENTS = ["Passes", "Fails"] as const;
+
+/**
+ * The author prefix that marks a machine principal (RFC-004a §4). Only
+ * `lib/auth/machine.ts` ever produces it, and a person's email cannot start
+ * with it, so keying the rule on the string is keying it on the credential —
+ * the same way agent capability is keyed on the `agent:` sub prefix.
+ */
+export const MACHINE_PREFIX = "machine:";
 
 export type Outcome = (typeof OUTCOMES)[number];
 
@@ -116,6 +150,18 @@ export function checkEvaluation(body: unknown, author: string): Checked {
     return {
       ok: false,
       message: `\`${outcome}\` is not an au:Outcome (expected one of ${OUTCOMES.join(", ")})`,
+    };
+  }
+
+  // ⛔ A machine reports, never judges. Before the population rules, so a
+  // machine's `Examined` over zero still hears "Vacuous": this rule adds a
+  // refusal and removes none.
+  if (author.startsWith(MACHINE_PREFIX) && (JUDGMENTS as readonly string[]).includes(outcome)) {
+    return {
+      ok: false,
+      message:
+        `\`${outcome}\` is a judgment, and a machine reports what it measured — record Examined ` +
+        "with the population and let a person decide whether the claim holds",
     };
   }
 

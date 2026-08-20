@@ -187,6 +187,8 @@ Optional:
 |---|---|
 | `GROUNDING_ADAPTER_URL` | the project's adapter. Unset ⇒ Grounding says no adapter is answering |
 | `SPEC_KERNEL_SUBS` | CSV of `google:<id>` subs holding kernel capability. Empty means nobody |
+| `SPEC_MACHINE_TOKEN_SECRET` | `openssl rand -hex 32`, **different from `SESSION_SECRET`**. Lets a consumer's CI post counts under a machine credential — "Machine credentials" below. Unset ⇒ every bearer token is refused |
+| `SPEC_MACHINE_TOKEN_REVOKED` | CSV of `jti`s to refuse. Revokes one machine token by name without rotating the secret |
 
 ⚠ **`GOOGLE_REDIRECT_URI` is per-environment.** A preview deployment has a
 different hostname, so either add its URL to the Google client too, or accept
@@ -200,6 +202,69 @@ configured, but it should not be there to be refused.
 Deploy.
 
 ---
+
+### Machine credentials
+
+A consumer project's CI has no session cookie. It posts counts under a
+**machine credential** instead — a token accepted only by `POST /api/evaluation`,
+naming the implementation it was issued for, and useless for anything else
+(RFC-004a §4). Each is an HS256 JWT signed with `SPEC_MACHINE_TOKEN_SECRET`.
+
+**Mint one** on a laptop, with the secret pulled from the deployment — never from
+a route, because a route that mints is a route that can be asked to:
+
+```sh
+cd console
+vercel env pull .env.production.local --environment production     # or paste the secret
+SPEC_MACHINE_TOKEN_SECRET="$(grep '^SPEC_MACHINE_TOKEN_SECRET=' .env.production.local | cut -d= -f2- | tr -d '"')" \
+  node tools/mint-machine-token.mjs --implementation studio-nextjs --days 90
+# stderr: {"sub":"machine:studio-nextjs","jti":"…","exp":…,"expires":"…"}   ← RECORD THE jti
+# stdout: the token                                                          ← the consumer's secret
+```
+
+Hand the token to the consumer out of band. On GitLab, a masked + protected
+CI/CD variable `SPEC_EVALUATION_TOKEN`; on GitHub, a repository secret. Keep
+the `jti` beside the implementation name somewhere you will find it again. The
+consumer's side is `tools/evaluation/README.md`.
+
+**Revoke one** — add its `jti` to `SPEC_MACHINE_TOKEN_REVOKED` (CSV), redeploy.
+Every other consumer's token keeps working.
+
+**Rotate the secret** — change `SPEC_MACHINE_TOKEN_SECRET`, redeploy, re-mint
+for every consumer, redistribute. Every outstanding token dies at once; with
+one consumer that is a two-minute window, and it is the honest price of a
+symmetric secret.
+
+**Prove it**, once, against production — with the consumer's real count, not a
+placeholder, because the log is permanent:
+
+```sh
+curl -sS -X POST https://<your-domain>/api/evaluation \
+  -H "authorization: Bearer $SPEC_EVALUATION_TOKEN" -H 'content-type: application/json' \
+  -d '{"claim":"auth-24","implementation":"studio-nextjs","outcome":"Examined","population":1412,"project":"studio","query_fingerprint":"sha256:b05e76b22a0cc44b"}'
+# 202 {"recorded":true,…,"author":"machine:studio-nextjs"}
+
+curl -sS -X POST https://<your-domain>/api/proposal/op \
+  -H "authorization: Bearer $SPEC_EVALUATION_TOKEN" -H 'content-type: application/json' \
+  -d '{"parent":"corpus:x","op":"assertNS","subject":"x","text":"x","discipline":"x","rung":"R0"}'
+# 401 E_NO_PRINCIPAL — at the op door the credential is not a principal at all
+
+curl -sS https://<your-domain>/api/health | grep -o '"machine_credentials":{[^}]*}'
+# {"configured":true,"revoked":0}
+```
+
+and, with the SELECT-only credential:
+
+```sql
+SELECT seq, written_at, claim, implementation, outcome, population, query_fingerprint, author
+  FROM spec.evaluation_log WHERE author LIKE 'machine:%' ORDER BY seq DESC LIMIT 5;
+SELECT count(*) FROM spec.proposal_log WHERE author LIKE 'machine:%';   -- 0, always
+```
+
+⛔ **Never reuse `SESSION_SECRET`.** The code treats an equal value as
+unconfigured and refuses every bearer token, because a session secret that can
+mint a machine token collapses the boundary between a person who may author and
+a machine that may only report.
 
 ## 4. Check it
 

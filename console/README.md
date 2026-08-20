@@ -21,7 +21,8 @@ regenerate first: the eight payloads are **imported** from
 `NODE_ENV=production` and the dev identity shim refuses to run in production —
 deliberately, because a local convenience that survives into a deployment is an
 authentication bypass with a friendly name. In production, identity comes from
-WorkOS AuthKit instead.
+Google OAuth, restricted to one Workspace domain (`GOOGLE_ALLOWED_DOMAIN`) —
+see `DEPLOY.md`.
 
 ⚠ Unset `SPEC_PROPOSAL_LOG` and the console is **read-only**, and says so in
 every pane rather than letting the buttons appear to work.
@@ -36,6 +37,9 @@ every pane rather than letting the buttons appear to work.
 | `SPEC_AUTHOR` | local dev identity. Unset ⇒ writes are refused, never attributed to nobody |
 | `GROUNDING_ADAPTER_URL` | the project's grounding adapter. Unset ⇒ the Grounding pane says no adapter is answering |
 | `SPEC_KERNEL_SUBS` | CSV of subs holding kernel capability. Empty means **nobody** — it fails closed |
+| `SPEC_AGENT_SUBS` | CSV of subs treated as agents (`assertNS` at R0 only). A sub prefixed `agent:` is one regardless |
+| `SPEC_MACHINE_TOKEN_SECRET` | signs machine credentials for `POST /api/evaluation` — a consumer CI's way in, and its only one. `openssl rand -hex 32`, **never `SESSION_SECRET`**. Unset ⇒ every bearer token is refused |
+| `SPEC_MACHINE_TOKEN_REVOKED` | CSV of `jti`s to refuse — revokes one machine token by name |
 
 ## What you can do in it
 
@@ -75,6 +79,22 @@ curl -X POST localhost:5175/api/evaluation -H 'content-type: application/json' \
 `Examined` over zero is refused too — it is the same lie in a quieter voice.
 Then open Requirements, search `auth-24`, and it reads **Examines nothing**.
 
+A consumer's CI records the same kind of thing under a **machine credential**,
+which this route accepts and no other does (RFC-004a §4):
+
+```sh
+export SPEC_MACHINE_TOKEN_SECRET=$(openssl rand -hex 32)   # before pnpm dev; must differ from SESSION_SECRET
+TOKEN=$(node tools/mint-machine-token.mjs --implementation studio-nextjs)
+curl -X POST localhost:5175/api/evaluation -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: application/json' \
+  -d '{"claim":"auth-24","implementation":"studio-nextjs","outcome":"Examined","population":1412}'
+# 202 — author machine:studio-nextjs
+```
+
+Change `Examined` to `Passes` and it is a 422: a machine reports, never judges.
+Replay the token against `/api/proposal/op` and it is a 401: a machine may not
+author. The consumer's half is `tools/evaluation/`.
+
 ## Promotion
 
 The console never edits the corpus. Adopt what is waiting:
@@ -92,7 +112,10 @@ the same command either way.
 ## Layout
 
 ```
-lib/evaluation.ts   the vacuous refusal      ← conformance/evaluation_cases.json
+lib/evaluation.ts   the vacuous refusal, and "a machine reports, never judges"
+                                             ← conformance/evaluation_cases.json
+lib/auth/machine.ts the machine credential — accepted by /api/evaluation and nowhere else
+tools/              mint-machine-token.mjs, run on a laptop with the secret
 lib/overlay.ts      pending + adoption       ← conformance/overlay_cases.json
 lib/evaluated.ts    measurements, and stateOf (the display half of the refusal)
 lib/proposal.ts     the closed op vocabulary, 17 constructors
