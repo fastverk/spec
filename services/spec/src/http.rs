@@ -52,6 +52,7 @@ use crate::json as spec_json;
 use crate::evaluation::{self, Evaluated};
 use crate::overlay::Pending;
 use crate::proposal::{self, Principal, ProposalLog};
+use crate::workorder::{self, Running};
 use crate::proto::SpecLang;
 use crate::readmodel::ReadModel;
 use crate::routes::describe_web_routes;
@@ -66,6 +67,11 @@ pub struct HttpState {
     pub log: Arc<ProposalLog>,
     /// Measurements, not judgements — see `crate::evaluation`.
     pub evaluations: Arc<ProposalLog>,
+    /// Dispatches: neither judgement nor measurement, but an authorization to
+    /// write. A THIRD log, for the reason `main.rs` gives for the second —
+    /// replaying "who decided this", "what did it measure" and "who was
+    /// allowed to write where" from one file would make them one question.
+    pub dispatches: Arc<ProposalLog>,
     pub panels: Option<Arc<Vec<u8>>>,
 }
 
@@ -116,6 +122,8 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/proposals", get(list_proposals))
         .route("/evaluations", get(list_evaluations))
         .route("/evaluation", post(submit_evaluation))
+        .route("/workorders", get(list_work_orders))
+        .route("/workorder/dispatch", post(dispatch_work_order))
         .route("/readmodel", get(readmodel_status))
         .route("/proposal", post(submit_proposal))
         .route("/proposal/verdict-preview", post(preview_proposal))
@@ -356,6 +364,130 @@ async fn submit_evaluation(
                 "claim": ev.claim,
                 "outcome": ev.outcome,
                 "population": ev.population,
+            })),
+        ),
+        Err(why) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": "E_LOG_APPEND", "message": why })),
+        ),
+    }
+}
+
+/// `GET /workorders` — the derived orders, with the dispatch gate's answer.
+///
+/// The payload's `state` was computed at derivation from `conflict_holds`
+/// alone, because the build cannot see the dispatch log. RUNNING is overlaid
+/// here — the same shape as `Evaluated::apply` next door, corpus first, log on
+/// top.
+async fn list_work_orders(State(s): State<HttpState>) -> ApiResult {
+    let rm = s.readmodel.clone();
+    let dispatches = s.dispatches.clone();
+    run(move || {
+        let mut payload = rm.route("workorders");
+        let running = Running::read(dispatches.path());
+        if let Some(rows) = payload.get_mut("orders").and_then(Value::as_array_mut) {
+            for row in rows.iter_mut() {
+                let Some(id) = row.get("order_id").and_then(Value::as_str).map(str::to_string)
+                else {
+                    continue;
+                };
+                if running.is_running(&id) {
+                    let agents = running.agents(&id);
+                    row["state_code"] = json!(workorder::STATE_RUNNING);
+                    row["state"] = json!(format!("RUNNING · {agents} agents"));
+                    row["agents"] = json!(agents);
+                }
+            }
+        }
+        payload["dispatch_enabled"] = json!(dispatches.enabled());
+        payload
+    })
+    .await
+}
+
+/// `POST /workorder/dispatch` — authorize agents to build against one order.
+///
+/// ⛔ Refuses before appending, and the refusals are not overridable here:
+/// a held order dispatches when its conflict is adjudicated, which is a
+/// different act with its own record. See `crate::workorder`.
+async fn dispatch_work_order(
+    State(s): State<HttpState>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else {
+        return no_principal();
+    };
+    // An agent may not dispatch. `proposal::check_op` restricts an agent to
+    // assertNS at R0; dispatch authorizes writes to a path set, so an agent
+    // that could dispatch could widen its own scope by choosing a better
+    // order — the containment RFC-002 §10 mechanism 4 describes.
+    if who.agent {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "E_AGENT_MAY_NOT_DISPATCH",
+                "message": "an agent principal may not dispatch work orders — dispatch \
+                            authorizes writes to a path set, and an agent that could choose \
+                            its own order could widen its own scope",
+            })),
+        );
+    }
+    if !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({
+                "error": "E_WRITE_DISABLED",
+                "message": "$SPEC_DISPATCH_LOG is unset; this instance authorizes no dispatches",
+            })),
+        );
+    }
+    let order_id = body
+        .get("order_id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim()
+        .to_string();
+    if order_id.is_empty() {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({
+                "error": "E_MALFORMED",
+                "message": "`order_id` is required — a dispatch names one order",
+            })),
+        );
+    }
+    let agents = body.get("agents").and_then(Value::as_i64).unwrap_or(0);
+
+    let payload = s.readmodel.route("workorders");
+    let orders = workorder::orders(&payload);
+    let running = Running::read(s.dispatches.path());
+    let verdict = workorder::check(&order_id, &orders, &running);
+    if !verdict.is_dispatched() {
+        // 409: the request is well-formed and the state refuses it. Not 422 —
+        // nothing about the body is wrong, and a caller retrying after the
+        // conflict is adjudicated will succeed with the same bytes.
+        return (StatusCode::CONFLICT, Json(verdict.to_json()));
+    }
+    let order = &orders[&order_id];
+    let as_of = payload
+        .get("orders")
+        .and_then(Value::as_array)
+        .and_then(|rows| rows.iter().find(|r| r["order_id"] == order_id.as_str()))
+        .and_then(|r| r.pointer("/order/as_of"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    let rec = workorder::record(order, &as_of, &who.email, agents);
+    match s.dispatches.append(&rec) {
+        Ok(offset) => (
+            StatusCode::ACCEPTED,
+            Json(json!({
+                "verdict": workorder::DISPATCHED,
+                "order_id": order_id,
+                "as_of": as_of,
+                "agents": agents,
+                "log_offset": offset,
             })),
         ),
         Err(why) => (
@@ -673,6 +805,16 @@ mod tests {
     /// is to exercise the ROUTE TABLE and the handler signatures, which is exactly
     /// what nothing else in this repo does.
     async fn serve(readmodel_dir: &str, log: Option<&str>) -> String {
+        serve_with(readmodel_dir, log, None).await
+    }
+
+    /// The same, plus a dispatch log — its own parameter rather than a third
+    /// positional on every existing call site.
+    async fn serve_with(
+        readmodel_dir: &str,
+        log: Option<&str>,
+        dispatch_log: Option<&str>,
+    ) -> String {
         let backend = Arc::new(crate::SpecBackend::from_env());
         // Constructed directly, never through the env: these tests run in parallel
         // threads of one process, so `set_var` here would race every other test.
@@ -683,12 +825,14 @@ mod tests {
         let log = Arc::new(ProposalLog::new(log.map(std::path::PathBuf::from)));
         // Disabled here on purpose: the tests that care construct their own.
         let evaluations = Arc::new(ProposalLog::new(None));
+        let dispatches = Arc::new(ProposalLog::new(dispatch_log.map(std::path::PathBuf::from)));
         let app = router(
             HttpState {
                 backend,
                 readmodel,
                 log,
                 evaluations,
+                dispatches,
                 panels: None,
             },
             None,
@@ -923,4 +1067,180 @@ mod tests {
             .collect();
         assert!(names.contains(&AUTHORING_SERVICE), "{body}");
     }
+
+    // ── Fanout: the dispatch door over HTTP (#45) ───────────────────────────
+    //
+    // `workorder.rs` proves the gate's logic against payloads it builds
+    // itself; these prove the ROUTE — that the door is reachable, that it
+    // reads the committed payload, that a refusal appends nothing, and that
+    // the two principal rules hold at the edge where a caller actually is.
+
+    /// A readmodel dir carrying one READY and one HELD order, so the dispatch
+    /// path can be exercised without depending on how ampere happens to be
+    /// adjudicated today.
+    fn workorders_fixture(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("spec-wo-{}-{tag}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("workorders.json"),
+            serde_json::to_vec_pretty(&json!({
+                "orders": [
+                    {
+                        "order_id": "wo-ready",
+                        "scope": "s-ready",
+                        "obligation_count": 3,
+                        "state": "READY",
+                        "state_code": "WORK_ORDER_STATE_READY",
+                        "agents": 0,
+                        "order": {
+                            "order_id": "wo-ready",
+                            "scope": "s-ready",
+                            "as_of": "sha256:0000000000000001",
+                            "conflict_holds": [],
+                            "write_capability": { "artifact_paths": ["src/ready/**"] }
+                        }
+                    },
+                    {
+                        "order_id": "wo-held",
+                        "scope": "s-held",
+                        "obligation_count": 5,
+                        "state": "HELD · INV-03",
+                        "state_code": "WORK_ORDER_STATE_HELD",
+                        "agents": 0,
+                        "order": {
+                            "order_id": "wo-held",
+                            "scope": "s-held",
+                            "as_of": "sha256:0000000000000001",
+                            "conflict_holds": ["INV-03"],
+                            "write_capability": { "artifact_paths": ["src/held/**"] }
+                        }
+                    }
+                ],
+                "unreachable_repos": []
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        dir
+    }
+
+    async fn dispatch(addr: &str, sub: &str, body: Value) -> (u16, Value) {
+        let payload = body.to_string();
+        let hdr = format!(
+            "x-fastverk-user-sub: {sub}\r\nx-fastverk-user-email: d.okafor@example.com\r\n"
+        );
+        let (status, raw) = request(
+            addr,
+            "POST",
+            "/workorder/dispatch",
+            Some((hdr.as_str(), payload.as_str())),
+        )
+        .await;
+        (status, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+
+    async fn get_json(addr: &str, path: &str) -> Value {
+        let (status, raw) = request(addr, "GET", path, None).await;
+        assert_eq!(status, 200, "GET {path} -> {status}: {raw}");
+        serde_json::from_str(&raw).expect(&raw)
+    }
+
+    #[tokio::test]
+    async fn workorders_answers_with_its_rows_field() {
+        let dir = workorders_fixture("list");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let body = get_json(&addr, "/workorders").await;
+        let rows = body["orders"].as_array().expect("rows_field `orders`");
+        assert_eq!(rows.len(), 2);
+        assert_eq!(body["dispatch_enabled"], json!(false));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_dispatch_without_a_principal_is_refused() {
+        let dir = workorders_fixture("noprincipal");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let payload = json!({ "order_id": "wo-ready" }).to_string();
+        let (status, _raw) =
+            request(&addr, "POST", "/workorder/dispatch", Some(("", payload.as_str()))).await;
+        assert_eq!(status, 401);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn an_agent_may_not_dispatch() {
+        let dir = workorders_fixture("agent");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_with(dir.to_str().unwrap(), None, log.to_str()).await;
+        let (status, body) = dispatch(&addr, "agent:a-7714", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 403, "{body}");
+        assert_eq!(body["error"], "E_AGENT_MAY_NOT_DISPATCH");
+        // And nothing was written.
+        assert!(!log.exists() || std::fs::read_to_string(&log).unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_held_order_is_refused_and_nothing_is_appended() {
+        let dir = workorders_fixture("held");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_with(dir.to_str().unwrap(), None, log.to_str()).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-held"})).await;
+        assert_eq!(status, 409, "{body}");
+        assert_eq!(body["verdict"], "DISPATCH_VERDICT_REFUSED_HELD");
+        assert_eq!(body["because"], json!(["INV-03"]));
+        assert!(!log.exists() || std::fs::read_to_string(&log).unwrap().is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn a_ready_order_dispatches_once_and_then_reads_running() {
+        let dir = workorders_fixture("ready");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_with(dir.to_str().unwrap(), None, log.to_str()).await;
+
+        let (status, body) =
+            dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready", "agents": 2})).await;
+        assert_eq!(status, 202, "{body}");
+        assert_eq!(body["verdict"], "DISPATCH_VERDICT_DISPATCHED");
+        assert_eq!(body["as_of"], "sha256:0000000000000001");
+
+        // The record names who authorized it and at which cursor.
+        let written = std::fs::read_to_string(&log).unwrap();
+        let rec: Value = serde_json::from_str(written.lines().next().unwrap()).unwrap();
+        assert_eq!(rec["order_id"], "wo-ready");
+        assert_eq!(rec["author"], "d.okafor@example.com");
+        assert_eq!(rec["agents"], 2);
+
+        // The list route overlays RUNNING from the log — the state the build
+        // could not compute, because the build cannot see dispatches.
+        let listed = get_json(&addr, "/workorders").await;
+        let ready = listed["orders"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|r| r["order_id"] == "wo-ready")
+            .unwrap()
+            .clone();
+        assert_eq!(ready["state_code"], "WORK_ORDER_STATE_RUNNING");
+        assert_eq!(ready["state"], "RUNNING · 2 agents");
+
+        // And it will not re-arm.
+        let (status, body) =
+            dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 409, "{body}");
+        assert_eq!(body["verdict"], "DISPATCH_VERDICT_REFUSED_ALREADY_RUNNING");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn dispatch_is_disabled_when_the_log_is_unset() {
+        let dir = workorders_fixture("nolog");
+        let addr = serve(dir.to_str().unwrap(), None).await;
+        let (status, body) = dispatch(&addr, "google:d.okafor", json!({"order_id": "wo-ready"})).await;
+        assert_eq!(status, 503, "{body}");
+        assert_eq!(body["error"], "E_WRITE_DISABLED");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
 }

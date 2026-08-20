@@ -48,6 +48,10 @@ pub const AUTHORING_READS: &[(&str, &str, &str)] = &[
     ("ListTerms", "GET", "terms"),
     ("ListProposals", "GET", "proposals"),
     ("ListEvaluations", "GET", "evaluations"),
+    // The fanout surface. `mocks/ux/panels.authoring.textproto` has bound this
+    // (service, method) pair since the mock was written; #45 is where it stops
+    // resolving to nothing.
+    ("ListWorkOrders", "GET", "workorders"),
 ];
 
 /// The authoring write path. Declared unconditionally, even when
@@ -68,6 +72,9 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // impossible. A measurement is not a judgement (see `evaluation.rs`), so it
     // gets its own method rather than riding the op vocabulary.
     ("SubmitEvaluation", "POST", "evaluation"),
+    // Dispatch is neither a judgement nor a measurement: it authorizes writes.
+    // Its own method, its own log — `crate::workorder`.
+    ("DispatchWorkOrder", "POST", "workorder/dispatch"),
 ];
 
 /// The full `web_routes` array for `/describe`.
