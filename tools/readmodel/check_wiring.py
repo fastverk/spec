@@ -15,9 +15,11 @@ is a place a rename can be forgotten:
      …and services/spec/ui/panels.binpb    the compiled bundle
   7. mocks/ux/panels.authoring-form.textproto  the declarative WRITE descriptors,
      whose submit bindings must name real fields and a real POST route
-  8. rdf/readmodel/*.rq                    the eight queries themselves, shared
+  8. the payloads' `corpus_version`        the read point every proposal names as
+     its parent — recomputed here from the corpus itself; see §2a
+  9. rdf/readmodel/*.rq                    the eight queries themselves, shared
      by the rdflib emitter and the build's ARQ path — see §1a
-  9. console/lib/readmodel.ts              the console's PAYLOAD_FIELDS table —
+ 10. console/lib/readmodel.ts              the console's PAYLOAD_FIELDS table —
      the one a CONSUMER's payloads are validated against (#52). It was the fourth
      copy of the route -> field mapping and the only one nothing compared, which
      mattered the moment a payload set could arrive from another repository:
@@ -34,6 +36,7 @@ Exits non-zero on any disagreement. Needs nothing but the standard library, whic
 is the point: it runs in CI, in a pre-commit hook, or on a laptop with no Bazel, no
 Lean toolchain, and no crate registry access.
 """
+import hashlib
 import json
 import os
 import re
@@ -184,6 +187,65 @@ check("Q_CONFLICTS" not in emitter,
       f"wearing the same route's name")
 check(f'default="{QUERY_DIR}"' in emitter,
       f"{EMITTER}: no --queries default pointing at {QUERY_DIR}")
+
+# ── 2a. the read point describes the corpus it claims to ─────────────────────
+#
+# ⛔ THE ONE PART OF A PAYLOAD NOTHING ELSE CHECKS.
+#
+# `//tools/readmodel:engine_agreement_test` compares the committed payloads' ROWS
+# against the same routes derived under ARQ, so a stale row fails it — measured,
+# not assumed: changing one predicate in corpus/studio/corpus.ttl without
+# re-emitting turns that test red.
+#
+# It compares rows and NOT `corpus_version`, because the two paths compute the
+# read point differently on purpose (emit_readmodel.py folds each file's PATH
+# into the digest; assemble.py hashes content only, so a consumer building from
+# an execroot and from a checkout names one read point). That leaves exactly one
+# hole, and it is the one that has actually happened: #66 changed
+# rdf/ontology/authoring.ttl and left the payloads' corpus_version behind. No row
+# moved, so nothing said anything.
+#
+# The read point is what every proposal names as its `parent`. A stale one means
+# authors are submitting against a corpus state that never existed.
+#
+# ⚠ Recomputed HERE, in stdlib, rather than by running the emitter: the emitter
+# needs rdflib and no CI job installs it.
+_ONTOLOGY = ["rdf/ontology/aion-rfc.ttl", "rdf/ontology/authoring.ttl",
+             "rdf/ontology/tier.ttl"]
+_CORPORA = ["ampere", "studio"]
+
+_digest = hashlib.sha256()
+_read_point_inputs = 0
+for _project in _CORPORA:
+    _dir = os.path.join(ROOT, "corpus", _project)
+    _srcs = list(_ONTOLOGY) + sorted(
+        f"corpus/{_project}/{fn}" for fn in os.listdir(_dir) if fn.endswith(".ttl")
+    )
+    for _f in _srcs:
+        with open(os.path.join(ROOT, _f), "rb") as _fh:
+            # Path AND bytes, in emit_readmodel.py's own order — this must be the
+            # same arithmetic or it is a different number, not a check.
+            _digest.update(_f.encode())
+            _digest.update(_fh.read())
+            _read_point_inputs += 1
+_expected_read_point = "corpus:" + _digest.hexdigest()[:16]
+
+check(_read_point_inputs == len(_CORPORA) * len(_ONTOLOGY) + 7,
+      f"read point: hashed {_read_point_inputs} files, expected "
+      f"{len(_CORPORA) * len(_ONTOLOGY) + 7} — the corpus changed shape, so this "
+      f"count is a tripwire that wants a deliberate bump")
+
+for _path, (_rows, _m) in emit_by_path.items():
+    _rel = f"{READMODEL_DIR}/{_path}.json"
+    if not os.path.isfile(os.path.join(ROOT, _rel)):
+        continue
+    _got = json.loads(read(_rel)).get("corpus_version")
+    check(_got == _expected_read_point,
+          f"{_rel}: corpus_version is {_got}, but the corpus it describes digests to "
+          f"{_expected_read_point}. The payloads are STALE — re-run "
+          f"`python3 tools/readmodel/emit_readmodel.py`. Every proposal names this "
+          f"as its parent, so a stale one attributes writes to a corpus state that "
+          f"never existed.")
 
 # ── 4a. the console's PAYLOAD_FIELDS table ────────────────────────────────────
 #
@@ -560,6 +622,6 @@ if failures:
     for f in failures:
         print(f"  * {f}", file=sys.stderr)
     sys.exit(1)
-print(f"OK — {checks} checks passed across 8 descriptions of the authoring plane")
+print(f"OK — {checks} checks passed across 9 descriptions of the authoring plane")
 print(f"     routes: {', '.join(sorted(emit_by_path))}")
 print(f"     panels: {', '.join(p[0] for p in panels)}")
