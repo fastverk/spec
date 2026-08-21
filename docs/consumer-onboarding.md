@@ -171,11 +171,14 @@ pip install 'rdflib>=7,<8'
 python3 emit_readmodel.py --out readmodel --corpus myproject=corpus/
 ```
 
-It is what spec's own committed payloads are still emitted with, and
-`//tools/readmodel:engine_agreement_test` compares the two engines row for row
-over spec's corpora, so the divergence is measured rather than assumed. Prefer
-the macro: it needs no Python environment, and it is the path that will not be
-retired.
+It is what spec's own committed payloads are still emitted with, and they are
+gated in both halves: `//tools/readmodel:engine_agreement_test` compares the two
+engines row for row over spec's corpora, and `check_wiring.py` §2a recomputes the
+read point from the corpus itself. So the divergence is measured rather than
+assumed, and a stale payload fails rather than sits.
+
+Prefer the macro: it needs no Python environment, it runs the engine that decides
+the gates, and it is the path that will not be retired.
 
 ### 3.3 The console deployment
 

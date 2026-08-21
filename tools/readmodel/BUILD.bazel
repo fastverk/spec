@@ -46,6 +46,15 @@ sh_test(
         # check would CRASH rather than skip, which is the loud half of the two
         # failure modes and the one to keep.
         "//rdf/readmodel:queries",
+        # ⛔ The corpus and the ontology themselves. §2a recomputes the read point
+        # from these — the digest every proposal names as its `parent` — so
+        # unstaged, that check would crash rather than skip. Loud is the half to
+        # keep.
+        "//corpus/ampere:all_ttl",
+        "//corpus/studio:all_ttl",
+        "//rdf/ontology:aion-rfc.ttl",
+        "//rdf/ontology:authoring.ttl",
+        "//rdf/ontology:tier.ttl",
         "//mocks/ux:panels.authoring-form.textproto",
         "//services/spec:src",
         "//services/spec/readmodel:payloads",

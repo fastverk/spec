@@ -63,10 +63,14 @@ export type ReadModel = {
 
 const fail = (why: string): never => {
   throw new Error(
-    // ⚠ Not "and gated in CI". Re-emitting needs rdflib, which neither the
-    // console job nor the Bazel gate job installs, so the payloads' FRESHNESS is
-    // checked by nothing — only their shape, by check_wiring.py. Claiming a gate
-    // that does not exist is how the next person stops looking.
+    // ⚠ THIS COMMENT USED TO SAY THE PAYLOADS' FRESHNESS WAS "checked by
+    // nothing". That was true when it was written and is no longer: the ROWS are
+    // gated by //tools/readmodel:engine_agreement_test, which derives the same
+    // routes under ARQ and compares row for row (measured — changing one
+    // predicate without re-emitting turns it red), and the READ POINT is gated by
+    // check_wiring.py §2a, which recomputes the digest from the corpus itself.
+    // A stale claim about a gate ages in the direction that makes people stop
+    // looking, so it is corrected rather than left as a safe-sounding warning.
     `read model: ${why}. This is a BUILD defect — the payloads are emitted by ` +
       `tools/readmodel/emit_readmodel.py; see docs/consumer-onboarding.md if they ` +
       `came from a consumer's own build.`,
