@@ -110,6 +110,55 @@ changes `emit_readmodel.py`; it removes its claim to be the only implementation
 and puts it behind a dated note. It is the read model, not a gate, and it is not
 on the path an agent asks about.
 
+> ### ⚠ What happened when the read model was finally run under the engine of record
+>
+> **The last sentence above was the reasonable call and it was load-bearing in
+> the wrong direction.** "It is the read model, not a gate" is true and it is
+> exactly why nobody looked — and spec#52 made it matter anyway, because a
+> CONSUMER's console is built from these payloads, so "not a gate" became "not
+> checked, and shown to people".
+>
+> `rdf/readmodel/` now holds the same eight questions as `.rq` files, and
+> `spec_readmodel` runs them under ARQ. The first time they were put to the
+> engine of record, one answered differently:
+>
+> | route | rdflib | ARQ |
+> |---|---|---|
+> | `envelopes` over `corpus/ampere` | **2 rows** | **0 rows** |
+>
+> The read-model copy was written in the flat form this repository has already
+> documented twice as broken — `empty-envelope.rq`'s header explains it at
+> length, and `envelope-unrecorded.rq`'s opens with "⛔ THIS GATE RETURNED ZERO
+> ROWS FOR EVERY INPUT, AND READ AS PASSING":
+>
+> ```sparql
+> BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
+> ...
+> HAVING (MAX(?lo) > MIN(?hi))
+> ```
+>
+> **The third instance of a defect found twice, surviving in the one place that
+> ran a different engine.** Both gates were fixed; the read model was not,
+> because rdflib evaluates the unbound sentinel as "leave it unbound" and the
+> query works there. It is now the gate's own three-subselect form, so the
+> console panel and the gate measure are the same question asked the same way
+> rather than two formulations that happened to agree under one engine.
+>
+> `//tools/readmodel:engine_agreement_test` compares both engines row for row
+> over spec's two corpora — same `.rq` files, same shapers, so a difference is
+> the engine and nothing else. They now agree on every comparable pair. Two more
+> disagreements surfaced getting there and neither was an engine's fault: ARQ
+> writes booleans BARE in TSV (`false`, not `"false"^^xsd:boolean`), so a decoder
+> that drops to `str` yields `bool("false") == True`; and `GROUP_CONCAT`'s order
+> is unspecified in SPARQL 1.1, so the payload now sorts it rather than
+> inheriting whichever engine ran.
+>
+> ⚠ **The rdflib path still exists** and still emits what is committed under
+> `services/spec/readmodel/`. What changed is that it is no longer the only
+> implementation and no longer unchecked. Switching spec's own payloads to the
+> ARQ path is the next step and is deliberately not taken in the same change as
+> the finding.
+
 ## 4. `EXAMINED_NOTHING`, and why the count is derived rather than written
 
 A zero-row gate over an empty candidate set returns zero rows and reads as PASS.

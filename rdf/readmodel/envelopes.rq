@@ -1,0 +1,66 @@
+# ---
+# title: "Empty envelopes: quantities whose greatest lower bound exceeds their least upper bound"
+# description: "The `envelopes` rows of the envelopes read-model route."
+# severity: info
+# tier: 3
+# rationale: "RFC-002 §7's decidable fragment — linear bounds over typed quantities. ⛔ THE FORM OF THIS QUERY IS LOAD-BEARING. It was written as BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo) with a deliberately-unbound ?unbound, which rdflib evaluates as `leave ?lo unbound` and ARQ — the engine of record — treats as an evaluation error, so the whole route returned ZERO ROWS under the engine that decides every gate. Measured, not inferred: 2 rows under rdflib, 0 under ARQ, over the same ampere corpus. It now uses the three-subselect form of rdf/lint/authoring/empty-envelope.rq, which is portable and is what the gate itself runs, so the console panel and the gate measure are the same question asked the same way rather than two formulations that happened to agree under one engine."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?quantity ?unit ?greatestLower ?leastUpper
+       (?greatestLower - ?leastUpper AS ?deficit)
+       ?disciplines ?recorded
+WHERE {
+  # Greatest lower bound asserted on the quantity, across all disciplines.
+  {
+    SELECT ?quantity (MAX(?v) AS ?greatestLower)
+    WHERE {
+      ?claim a rfc:NormativeStatement ; au:constrains ?quantity ; au:hasBound ?bound .
+      ?bound au:boundKind au:LowerBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # Least upper bound.
+  {
+    SELECT ?quantity (MIN(?v) AS ?leastUpper)
+    WHERE {
+      ?claim a rfc:NormativeStatement ; au:constrains ?quantity ; au:hasBound ?bound .
+      ?bound au:boundKind au:UpperBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # How many distinct disciplines assert a bound here — a 1-discipline conflict
+  # is an authoring slip; an n-discipline one is the finding this exists for.
+  {
+    SELECT ?quantity (COUNT(DISTINCT ?discipline) AS ?disciplines)
+    WHERE {
+      ?claim a rfc:NormativeStatement ; au:constrains ?quantity ;
+             au:hasBound ?bound ; au:discipline ?discipline .
+    }
+    GROUP BY ?quantity
+  }
+  # Whether a conflict has already been RAISED against this quantity. An
+  # infeasibility with no au:Conflict naming it is what envelope-unrecorded.rq
+  # gates on, so the panel shows the gate's subject and not just its verdict.
+  {
+    SELECT ?quantity (COUNT(DISTINCT ?conflict) AS ?recorded)
+    WHERE {
+      # ⛔ ?quantity BOUND OUTSIDE the OPTIONAL. With only the OPTIONAL, a
+      # quantity nobody has raised a conflict against binds ?quantity nowhere,
+      # so it produces NO row here and the join drops it from the route —
+      # silently hiding exactly the UNRECORDED infeasibilities that
+      # envelope-unrecorded.rq exists to find. That gate has already been
+      # through this once: RFC-005 §1 records it "returning zero rows for every
+      # input and reading as passing".
+      ?quantity a au:Quantity .
+      OPTIONAL { ?conflict a au:Conflict ; au:onQuantity ?quantity }
+    }
+    GROUP BY ?quantity
+  }
+  ?quantity a au:Quantity .
+  OPTIONAL { ?quantity au:unit ?unit }
+  FILTER(?greatestLower > ?leastUpper)
+}
+ORDER BY DESC(?deficit)

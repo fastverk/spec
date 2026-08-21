@@ -1,4 +1,4 @@
-load("@rules_python//python:defs.bzl", "py_test")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -41,6 +41,11 @@ sh_test(
         # skipping, which is the loud half of the two failure modes this list's
         # comment in //conformance describes. Keep it that way.
         "//console:readmodel.ts",
+        # ⛔ The eight query files. §1a checks one exists per route, because the
+        # ARQ path cannot run a route whose .rq is missing — and unstaged, that
+        # check would CRASH rather than skip, which is the loud half of the two
+        # failure modes and the one to keep.
+        "//rdf/readmodel:queries",
         "//mocks/ux:panels.authoring-form.textproto",
         "//services/spec:src",
         "//services/spec/readmodel:payloads",
@@ -74,5 +79,100 @@ py_test(
         "//corpus/ampere:corpus_ttl",
         "//corpus/studio:all_ttl",
         "//corpus/studio:corpus_ttl",
+    ],
+)
+
+# ⛔ The read model, computed by the BUILD under the engine of record.
+#
+# `rdf/readmodel/readmodel.bzl`'s spec_readmodel macro runs the eight .rq files
+# through sparql_query (ARQ — the same binary every gate runs) and hands the TSVs
+# here. This target joins and shapes; it asks the graph nothing, so there is no
+# second engine to drift from the gates. That is RFC-005 §3③'s retirement of the
+# rdflib path, for the half a consumer runs.
+#
+# ⚠ `shape.py` is a dep of BOTH this and emit_readmodel.py. While both paths
+# exist, a difference between their payloads must be attributable to the ENGINE
+# and to nothing else.
+py_binary(
+    name = "assemble",
+    srcs = [
+        "assemble.py",
+        "shape.py",
+    ],
+    main = "assemble.py",
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "emit_readmodel.py",
+    "shape.py",
+])
+
+# ⛔ DOES THE ENGINE OF RECORD AGREE WITH WHAT THE CONSOLE SHOWS?
+#
+# Nothing had ever asked. RFC-005 makes ARQ the engine that decides gates and
+# files the rdflib read-model path as "retired, not reconciled"; spec#52 makes
+# it a consumer's problem, because a consumer's console is built from whichever
+# one it runs. The first time these eight questions were put to ARQ, one of them
+# answered differently — the `envelopes` route returned 2 rows under rdflib and
+# 0 under ARQ, because it was written in the flat BIND(IF(...))+HAVING form that
+# empty-envelope.rq and envelope-unrecorded.rq each document at length as broken.
+# The third instance of a defect this repo had already found twice, surviving in
+# the one place nobody ran the engine of record.
+#
+# Same .rq files, same shapers (shape.py), two engines. So a failure here is
+# about the ENGINES and nothing else — and the failure output names the route,
+# the row and the field, because that is the thing worth reading.
+#
+# ⚠ This compares spec's own two corpora. It does not prove ARQ and rdflib agree
+# in general; it proves they agree on the questions this read model asks, over
+# the corpora it asks them about.
+py_test(
+    name = "engine_agreement_test",
+    size = "small",
+    srcs = ["engine_agreement_test.py"],
+    args = [
+        "claims=claims=$(rootpath //corpus/ampere:readmodel/claims.json)=$(rootpath //services/spec/readmodel:claims.json)=ampere",
+        "conflicts=conflicts=$(rootpath //corpus/ampere:readmodel/conflicts.json)=$(rootpath //services/spec/readmodel:conflicts.json)=ampere",
+        "disciplines=disciplines=$(rootpath //corpus/ampere:readmodel/disciplines.json)=$(rootpath //services/spec/readmodel:disciplines.json)=ampere",
+        "envelopes=envelopes=$(rootpath //corpus/ampere:readmodel/envelopes.json)=$(rootpath //services/spec/readmodel:envelopes.json)=ampere",
+        "frontier=stalls=$(rootpath //corpus/ampere:readmodel/frontier.json)=$(rootpath //services/spec/readmodel:frontier.json)=ampere",
+        "requirements=requirements=$(rootpath //corpus/ampere:readmodel/requirements.json)=$(rootpath //services/spec/readmodel:requirements.json)=ampere",
+        "terms=terms=$(rootpath //corpus/ampere:readmodel/terms.json)=$(rootpath //services/spec/readmodel:terms.json)=ampere",
+        "witness=parties=$(rootpath //corpus/ampere:readmodel/witness.json)=$(rootpath //services/spec/readmodel:witness.json)=ampere",
+        "claims=claims=$(rootpath //corpus/studio:readmodel/claims.json)=$(rootpath //services/spec/readmodel:claims.json)=studio",
+        "conflicts=conflicts=$(rootpath //corpus/studio:readmodel/conflicts.json)=$(rootpath //services/spec/readmodel:conflicts.json)=studio",
+        "disciplines=disciplines=$(rootpath //corpus/studio:readmodel/disciplines.json)=$(rootpath //services/spec/readmodel:disciplines.json)=studio",
+        "envelopes=envelopes=$(rootpath //corpus/studio:readmodel/envelopes.json)=$(rootpath //services/spec/readmodel:envelopes.json)=studio",
+        "frontier=stalls=$(rootpath //corpus/studio:readmodel/frontier.json)=$(rootpath //services/spec/readmodel:frontier.json)=studio",
+        "requirements=requirements=$(rootpath //corpus/studio:readmodel/requirements.json)=$(rootpath //services/spec/readmodel:requirements.json)=studio",
+        "terms=terms=$(rootpath //corpus/studio:readmodel/terms.json)=$(rootpath //services/spec/readmodel:terms.json)=studio",
+        "witness=parties=$(rootpath //corpus/studio:readmodel/witness.json)=$(rootpath //services/spec/readmodel:witness.json)=studio",
+    ],
+    data = [
+        "//corpus/ampere:readmodel/claims.json",
+        "//corpus/ampere:readmodel/conflicts.json",
+        "//corpus/ampere:readmodel/disciplines.json",
+        "//corpus/ampere:readmodel/envelopes.json",
+        "//corpus/ampere:readmodel/frontier.json",
+        "//corpus/ampere:readmodel/requirements.json",
+        "//corpus/ampere:readmodel/terms.json",
+        "//corpus/ampere:readmodel/witness.json",
+        "//corpus/studio:readmodel/claims.json",
+        "//corpus/studio:readmodel/conflicts.json",
+        "//corpus/studio:readmodel/disciplines.json",
+        "//corpus/studio:readmodel/envelopes.json",
+        "//corpus/studio:readmodel/frontier.json",
+        "//corpus/studio:readmodel/requirements.json",
+        "//corpus/studio:readmodel/terms.json",
+        "//corpus/studio:readmodel/witness.json",
+        "//services/spec/readmodel:claims.json",
+        "//services/spec/readmodel:conflicts.json",
+        "//services/spec/readmodel:disciplines.json",
+        "//services/spec/readmodel:envelopes.json",
+        "//services/spec/readmodel:frontier.json",
+        "//services/spec/readmodel:requirements.json",
+        "//services/spec/readmodel:terms.json",
+        "//services/spec/readmodel:witness.json",
     ],
 )

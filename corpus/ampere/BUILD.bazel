@@ -157,6 +157,7 @@ exports_files(glob(["*.ttl"]) + glob(["fixtures/*.ttl"]))
 # derives wo-042 READY. //tools/fanout:ampere_fanout_test pins both
 # directions.
 load("//rdf/fanout:fanout.bzl", "spec_workorders")
+load("//rdf/readmodel:readmodel.bzl", "spec_readmodel")
 
 spec_workorders(
     name = "workorders",
@@ -196,4 +197,16 @@ spec_workorders(
     config = "fanout.json",
     dataset = ":ampere_unrunged",
     srcs = ["fixtures/unrunged-party.ttl"] + AMPERE_CORPUS,
+)
+
+# ⛔ The read model, under the ENGINE OF RECORD — the ARQ/rdflib comparison #52
+# asks for, as a target rather than as a claim. `tools/readmodel/emit_readmodel.py`
+# answers these same eight questions under rdflib and its output is what is
+# committed under services/spec/readmodel/; this derives them under ARQ, and
+# //tools/readmodel:engine_agreement_test compares the two row for row.
+spec_readmodel(
+    name = "readmodel",
+    dataset = ":ampere",
+    project = "ampere",
+    srcs = AMPERE_CORPUS,
 )

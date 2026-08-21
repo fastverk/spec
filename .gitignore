@@ -1,4 +1,13 @@
 /bazel-*
+# ⛔ AND IN EVERY NESTED MODULE. The leading slash above anchors to the repo
+# root, so Bazel's convenience symlinks under smoke/consumer/ were not matched
+# and four of them were committed — each pointing at ONE machine's output base
+# (/Users/<someone>/Library/Caches/bazel/...). Anybody who runs the consumer
+# smoke re-points them and finds the tree dirty in files they did not touch.
+bazel-bin
+bazel-out
+bazel-testlogs
+bazel-consumer
 /MODULE.bazel.lock
 
 # Rust plugin (services/spec) cargo build artifacts. Cargo.lock IS tracked

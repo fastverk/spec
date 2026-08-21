@@ -2,6 +2,7 @@ load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
 load("@rules_rdf//sparql:defs.bzl", "sparql_query")
 load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
 load("//rdf:gates.bzl", "spec_corpus_gates")
+load("//rdf/readmodel:readmodel.bzl", "spec_readmodel")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
@@ -149,4 +150,13 @@ sh_test(
         "//logs:proposals.jsonl",
         "//tools/proposals:materialize.py",
     ],
+)
+
+# The same eight questions under the engine of record — see the note on
+# //corpus/ampere:readmodel.
+spec_readmodel(
+    name = "readmodel",
+    dataset = ":studio",
+    project = "studio",
+    srcs = STUDIO_CORPUS,
 )

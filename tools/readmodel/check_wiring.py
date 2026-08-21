@@ -15,7 +15,9 @@ is a place a rename can be forgotten:
      …and services/spec/ui/panels.binpb    the compiled bundle
   7. mocks/ux/panels.authoring-form.textproto  the declarative WRITE descriptors,
      whose submit bindings must name real fields and a real POST route
-  8. console/lib/readmodel.ts              the console's PAYLOAD_FIELDS table —
+  8. rdf/readmodel/*.rq                    the eight queries themselves, shared
+     by the rdflib emitter and the build's ARQ path — see §1a
+  9. console/lib/readmodel.ts              the console's PAYLOAD_FIELDS table —
      the one a CONSUMER's payloads are validated against (#52). It was the fourth
      copy of the route -> field mapping and the only one nothing compared, which
      mattered the moment a payload set could arrive from another repository:
@@ -72,9 +74,16 @@ def read(rel):
 
 # ── 1. the emitter's route table ──────────────────────────────────────────────
 # Parsed rather than imported, so this script does not need rdflib installed.
+#
+# ⚠ The tuple lost its `Q_<NAME>` element when the queries moved OUT of this file
+# into rdf/readmodel/*.rq, shared with the Bazel path that runs them under the
+# engine of record. This regex matched the old five-element shape and CRASHED on
+# the new one — which is the correct half of the two failure modes: a read with
+# no guard crashes; a read behind an exists() would have skipped silently. Left
+# unguarded on purpose.
 emitter = read(EMITTER)
 emit_routes = re.findall(
-    r'\(\s*"([a-z_]+)",\s*"([a-z_]+)",\s*"(\w+)",\s*Q_\w+,\s*shape_\w+\s*\)', emitter
+    r'\(\s*"([a-z_]+)",\s*"([a-z_]+)",\s*"(\w+)",\s*shape_\w+\s*\)', emitter
 )
 # A bare count is not redundant with the per-route checks below: those assert
 # that whatever routes exist agree everywhere, and would stay green if a route
@@ -149,6 +158,32 @@ check(
     f"{RS_READMODEL}: ROUTES {dict(rs_routes)} != emitter {{path: rows_field}} "
     f"{ {p: rows for p, (rows, _) in emit_by_path.items()} }",
 )
+
+# ── 1a. every route's query file, shared by both engines ──────────────────────
+#
+# ⛔ The eight questions used to be Python string constants inside the emitter,
+# which meant the engine-of-record path (ARQ, via //rdf/readmodel:readmodel.bzl)
+# and the rdflib path could ask DIFFERENT questions while both calling themselves
+# the read model. They did: the `envelopes` query was written with a
+# deliberately-unbound sentinel that rdflib treats as "leave it unbound" and ARQ
+# treats as an evaluation error, so that route returned 2 rows one way and 0 the
+# other — the third instance of a defect this repo had already fixed in two
+# gates (see rdf/readmodel/envelopes.rq's rationale and RFC-005 §3③).
+#
+# Sharing the FILE is what makes //tools/readmodel:engine_agreement_test a
+# statement about the engines. This asserts the file exists for every route and
+# that the emitter still reads them rather than reverting to constants.
+QUERY_DIR = "rdf/readmodel"
+for path, _rows, _method in emit_routes:
+    rq = f"{QUERY_DIR}/{path}.rq"
+    check(os.path.isfile(os.path.join(ROOT, rq)),
+          f"{rq}: missing — the route has no query file, so the ARQ path cannot run it")
+check("Q_CONFLICTS" not in emitter,
+      f"{EMITTER}: a Q_* query constant is back. The queries live in {QUERY_DIR}/ and "
+      f"are shared with the build's ARQ path; a constant here is a second question "
+      f"wearing the same route's name")
+check(f'default="{QUERY_DIR}"' in emitter,
+      f"{EMITTER}: no --queries default pointing at {QUERY_DIR}")
 
 # ── 4a. the console's PAYLOAD_FIELDS table ────────────────────────────────────
 #
@@ -525,6 +560,6 @@ if failures:
     for f in failures:
         print(f"  * {f}", file=sys.stderr)
     sys.exit(1)
-print(f"OK — {checks} checks passed across 7 descriptions of the authoring plane")
+print(f"OK — {checks} checks passed across 8 descriptions of the authoring plane")
 print(f"     routes: {', '.join(sorted(emit_by_path))}")
 print(f"     panels: {', '.join(p[0] for p in panels)}")

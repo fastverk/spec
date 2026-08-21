@@ -2,6 +2,8 @@ load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
 load("@rules_rdf//sparql:defs.bzl", "sparql_query", "sparql_query_test")
 load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
 load("//rdf:gates.bzl", "spec_corpus_gates")
+load("@rules_python//python:defs.bzl", "py_test")
+load("//rdf/readmodel:readmodel.bzl", "spec_readmodel")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -106,6 +108,40 @@ sparql_query_test(
 # The silent direction now lives in expect-detections.rq as
 # "envelope-unrecorded-silent-when-documented", so both directions are wired for
 # every gate in the suite.
+
+# ⛔ AND THE READ MODEL'S OWN COPY OF THE SAME QUESTION, under the same engine.
+#
+# The console's `envelopes` route asked this in the flat
+# BIND(IF(...))+HAVING(MAX>MIN) form that empty-envelope.rq and
+# envelope-unrecorded.rq each document at length as broken under ARQ. It survived
+# there because `tools/readmodel/emit_readmodel.py` runs **rdflib**, where the
+# form happens to work — so the third instance of a defect this repo had already
+# found twice sat in the one place nobody ran the engine of record. Measured: 2
+# rows under rdflib, 0 under ARQ, over the same corpus.
+#
+# This is that route's positive control, on the fixture built for the gate: the
+# infeasibility is real and NO au:Conflict names it, so the payload must carry
+# exactly one envelope with `recorded` false. It also pins the half of the
+# rewrite that is easiest to get wrong — the `recorded` sub-select must bind
+# ?quantity OUTSIDE its OPTIONAL, or an unrecorded envelope produces no row at
+# all and vanishes from the very panel that exists to show it.
+spec_readmodel(
+    name = "undocumented_readmodel",
+    dataset = ":undocumented_fixture",
+    project = "fixture",
+    srcs = ["envelope-undocumented.ttl"],
+)
+
+py_test(
+    name = "undocumented_readmodel_test",
+    size = "small",
+    srcs = ["undocumented_readmodel_test.py"],
+    # ⚠ The OUTPUT FILE's label, not the genrule's. `$(rootpath)` resolves only
+    # against a declared prerequisite, and naming the rule stages all eight
+    # payloads while resolving none of them individually.
+    args = ["$(rootpath :undocumented_readmodel/envelopes.json)"],
+    data = [":undocumented_readmodel/envelopes.json"],
+)
 
 exports_files(glob([
     "*.ttl",
