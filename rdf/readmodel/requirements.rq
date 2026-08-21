@@ -1,0 +1,31 @@
+# ---
+# title: "Requirements as the console lists them, with evaluation state"
+# description: "The `requirements` rows of the requirements read-model route."
+# severity: info
+# tier: 3
+# rationale: "The console's main table. `population` and `outcome` arrive from the evaluation log rather than the corpus, so the shaper leaves them as the never-evaluated sentinel here."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?claim ?predicate ?discipline ?modality ?rung ?stall ?impl ?population ?outcome
+WHERE {
+  ?claim a rfc:NormativeStatement .
+  OPTIONAL { ?claim rfc:predicate ?predicate }
+  OPTIONAL { ?claim au:discipline ?d . ?d rdfs:label ?discipline }
+  OPTIONAL { ?claim rfc:modality ?modality }
+  OPTIONAL { ?claim au:rung ?rung }
+  OPTIONAL { ?claim au:stalledOn ?stall }
+  # LEFT JOIN, deliberately. A requirement with no evaluation must still appear —
+  # it is the single largest category and the one worth seeing. An inner join
+  # would show only the evaluated ones and make the table look healthy by
+  # hiding everything nothing has ever checked.
+  OPTIONAL {
+    ?claim au:evaluatedBy ?e .
+    OPTIONAL { ?e au:implementation ?impl }
+    OPTIONAL { ?e au:population ?population }
+    OPTIONAL { ?e au:outcomeOf ?outcome }
+  }
+}
+ORDER BY ?claim ?impl

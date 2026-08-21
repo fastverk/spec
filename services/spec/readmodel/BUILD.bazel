@@ -7,6 +7,10 @@ filegroup(
     srcs = glob(["*.json"]),
 )
 
+# Individually addressable, for //tools/readmodel:engine_agreement_test — which
+# compares each one against the same route derived under the engine of record.
+exports_files(glob(["*.json"]))
+
 # ⛔ THE DISPATCH GATE'S ONLY INPUT IS A COMMITTED FILE.
 #
 # workorders.json is what the door reads to learn which orders exist, what

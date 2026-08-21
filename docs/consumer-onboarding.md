@@ -121,24 +121,61 @@ measured.
 
 ### 3.2 The read model
 
-The console renders eight payloads. The consumer emits them from its own corpus:
+The console renders eight payloads. **Derive them in your own build**, from the
+same corpus your gates run over:
+
+```starlark
+load("@spec//rdf/readmodel:readmodel.bzl", "spec_readmodel")
+
+spec_readmodel(
+    name = "readmodel",
+    dataset = ":corpus",         # the SAME dataset the gates use
+    project = "myproject",       # the value every row carries
+    srcs = MY_CORPUS,            # the dataset's own srcs — see the ⚠ below
+)
+```
+
+`bazel build //:readmodel` writes `readmodel/{claims,conflicts,disciplines,
+envelopes,frontier,requirements,terms,witness}.json`. Point
+`SPEC_READMODEL_DIR` at that directory (§3.3) and the console builds against it.
+
+**This runs the engine of record.** The eight questions execute under ARQ via
+`sparql_query` — the same binary every gate runs — so the numbers in the console
+and the numbers that decide the gates come from one engine. That was not true
+before, and it was not a theoretical concern:
+
+> The `envelopes` route was written in a form that returns rows under rdflib and
+> **zero rows under ARQ for every input**. A consumer's empty-envelopes panel
+> would have read "no infeasibilities" for a corpus full of them. See RFC-005
+> §3③ — it is the third instance of a defect this repository had already found
+> and fixed twice, in gates, and it survived in the read model precisely because
+> the read model ran a different engine.
+
+⚠ **`srcs` must be exactly the dataset's own srcs.** Nothing ties them together —
+a macro cannot read a target's providers — and `srcs` is what the `corpus_version`
+digest is taken over. Listing fewer files than the dataset contains yields a read
+point that does not describe what was queried. Keep one list and pass it to both,
+the way `corpus/ampere/BUILD.bazel` keeps `AMPERE_CORPUS`.
+
+⚠ **`deps` must include `@spec//rdf:authoring_vocab`** — same rule as the gates.
+Without the `au:` terms every pattern matches nothing and all eight payloads emit
+empty, which is a vacuous pass wearing a green build.
+
+#### The script, if you cannot run the build
+
+`tools/readmodel/emit_readmodel.py` asks the same eight questions — it reads the
+same `.rq` files — under **rdflib**:
 
 ```sh
 pip install 'rdflib>=7,<8'
 python3 emit_readmodel.py --out readmodel --corpus myproject=corpus/
 ```
 
-`emit_readmodel.py` comes from the spec module. It needs the ontology TTLs too —
-pass them with `--ontology` if the consumer's checkout does not have them beside
-the corpus.
-
-⚠ **It runs under rdflib, and rdflib is not the engine of record.** RFC-005 names
-the Bazel `sparql_query_test` path (ARQ) as the engine that decides gates, and
-this emitter as "the one to retire, not reconcile" — it is the read model, not a
-gate. What that means for a consumer, stated plainly: **the numbers in the
-console are computed by a different engine from the numbers in the gates**, and
-the gates are the ones that decide. If they ever disagree, the gate is right.
-Closing that is not this document's job and is not done.
+It is what spec's own committed payloads are still emitted with, and
+`//tools/readmodel:engine_agreement_test` compares the two engines row for row
+over spec's corpora, so the divergence is measured rather than assumed. Prefer
+the macro: it needs no Python environment, and it is the path that will not be
+retired.
 
 ### 3.3 The console deployment
 
@@ -187,7 +224,11 @@ than reading it here.
 - **No npm package for the read model.** RFC-003 §10 names it; the console still
   imports payloads by path. `SPEC_READMODEL_DIR` is the seam that makes a
   per-tenant build possible without one — it is not the packaged handoff.
-- **The emitter is rdflib, the gates are ARQ.** §3.2 above.
+- ~~**The emitter is rdflib, the gates are ARQ.**~~ Closed for the consumer path:
+  `spec_readmodel` runs the engine of record (§3.2). Still open for **spec's
+  own** committed payloads, which are emitted by the rdflib script — the two are
+  compared row for row by `//tools/readmodel:engine_agreement_test` and currently
+  agree, and switching spec over is the next step rather than this one.
 - **No provisioning automation.** Every console is a Vercel project, a Neon
   database, a set of secrets and a migration run, done by hand.
 - **The domain gate's refusal is proved as a RULE, not as a deployment.**

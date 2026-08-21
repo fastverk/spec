@@ -1,0 +1,21 @@
+# The authoring read model's eight graph questions, as queries any corpus can run.
+#
+# ⛔ These are the SAME questions `tools/readmodel/emit_readmodel.py` asks — they
+# were extracted from it, not rewritten — but they run under the ENGINE OF RECORD
+# here (ARQ, via sparql_query) rather than under rdflib. RFC-005 §3③ names the
+# rdflib path as "the one to retire, not reconcile", and #52's scope says it
+# plainly: a consumer's emitter must run the engine of record or its payloads
+# carry the divergence RFC-005 documents.
+#
+# `rdf/readmodel/readmodel.bzl`'s spec_readmodel macro wires all eight over a
+# dataset and hands the TSVs to //tools/readmodel:assemble. Exported because a
+# consumer's BUILD references them by label — the same reason //rdf/fanout and
+# //rdf/lint/authoring export theirs.
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.rq"]))
+
+filegroup(
+    name = "queries",
+    srcs = glob(["*.rq"]),
+)

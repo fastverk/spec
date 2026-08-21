@@ -1,0 +1,22 @@
+# ---
+# title: "The frontier: every stalled claim with the blocker it names"
+# description: "The `stalls` rows of the frontier read-model route."
+# severity: info
+# tier: 3
+# rationale: "RFC-002's ladder — a claim stalls with a NAMED blocker (au:stalledOn), never silently. Ordered by how many claims wait on the same blocker, which is what makes this a work queue rather than a list."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?claim ?rung ?discipline ?stalledOn
+       (COUNT(DISTINCT ?dependent) AS ?dependents)
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:rung ?rung .
+  FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+  OPTIONAL { ?claim au:discipline ?d . ?d rdfs:label ?discipline }
+  OPTIONAL { ?claim au:stalledOn ?stalledOn }
+  OPTIONAL { ?dependent rfc:references ?claim }
+}
+GROUP BY ?claim ?rung ?discipline ?stalledOn
+ORDER BY DESC(?dependents) ?rung ?claim
