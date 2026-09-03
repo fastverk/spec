@@ -62,6 +62,18 @@ env:
   BAZEL_FLAGS: --nohome_rc
 
 jobs:
+  # Vehicle provenance only. Does not replace the bazel / console / consumer
+  # gates below. Fails if LEDGER.md include dirs are missing, if an exclude
+  # name exists as a top-level directory, or if documented module name/version
+  # rows disagree with MODULE.bazel.
+  ledger:
+    name: ledger check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: check LEDGER.md vs on-disk dirs
+        run: bash tools/ledger-check.sh
+
   gate:
     name: bazel build + test
     runs-on: ubuntu-latest
