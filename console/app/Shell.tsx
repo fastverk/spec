@@ -8,6 +8,7 @@ import IconButton from "@mui/material/IconButton";
 import List from "@mui/material/List";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemText from "@mui/material/ListItemText";
+import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useColorScheme } from "@mui/material/styles";
@@ -93,24 +94,72 @@ function Whoami() {
 export function Shell({ corpusVersion, children }: { corpusVersion: string; children: React.ReactNode }) {
   const path = usePathname();
   const groups = [...new Set(NAV.map((n) => n.group))];
+  const selected = (href: string) => path === href || (href !== "/overview" && path.startsWith(`${href}/`));
 
   // The sign-in page is the one screen with nothing to navigate.
   if (path === "/signin") return <>{children}</>;
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+    <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, minHeight: "100vh" }}>
+      <Box
+        component="header"
+        sx={{
+          display: { xs: "block", md: "none" },
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          bgcolor: "background.paper",
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 2, height: 54 }}>
+          <Typography variant="h1" sx={{ fontSize: 17, flex: 1 }}>spec</Typography>
+          <Button size="small" variant="contained" component={Link} href="/requirements/new">
+            New requirement
+          </Button>
+          <ThemeToggle />
+        </Stack>
+        <Box sx={{ display: "flex", overflowX: "auto", px: 1, pb: 1, gap: 0.5 }}>
+          {NAV.map((n) => (
+            <Button
+              key={n.href}
+              component={Link}
+              href={n.href}
+              size="small"
+              variant={selected(n.href) ? "contained" : "text"}
+              color={selected(n.href) ? "primary" : "inherit"}
+              sx={{ whiteSpace: "nowrap", minWidth: "auto", px: 1.25 }}
+            >
+              {n.label}
+            </Button>
+          ))}
+        </Box>
+      </Box>
       <Box
         component="nav"
         sx={{
           width: 232, flexShrink: 0, borderRight: 1, borderColor: "divider",
-          bgcolor: "background.paper", display: "flex", flexDirection: "column",
+          bgcolor: "background.paper", flexDirection: "column",
+          position: "sticky", top: 0, height: "100vh",
+          display: { xs: "none", md: "flex" },
         }}
       >
         <Box sx={{ p: 2, pb: 1.5 }}>
           <Typography variant="h1" sx={{ fontSize: 17 }}>spec</Typography>
           <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
-            the grounding console
+            Build specs that can be checked
           </Typography>
+          <Button
+            fullWidth
+            variant="contained"
+            size="small"
+            component={Link}
+            href="/requirements/new"
+            sx={{ mt: 2, justifyContent: "flex-start" }}
+          >
+            + New requirement
+          </Button>
         </Box>
         <Divider />
         <Box sx={{ flex: 1, overflowY: "auto" }}>
@@ -126,7 +175,7 @@ export function Shell({ corpusVersion, children }: { corpusVersion: string; chil
                 {NAV.filter((n) => n.group === g).map((n) => (
                   <ListItemButton
                     key={n.href} component={Link} href={n.href}
-                    selected={path === n.href} sx={{ py: 0.5, px: 2 }}
+                    selected={selected(n.href)} sx={{ py: 0.5, px: 2 }}
                   >
                     <ListItemText primaryTypographyProps={{ fontSize: 13.5 }} primary={n.label} />
                   </ListItemButton>
@@ -165,7 +214,9 @@ export function Shell({ corpusVersion, children }: { corpusVersion: string; chil
           </Box>
         </Box>
       </Box>
-      <Box component="main" sx={{ flex: 1, minWidth: 0, p: 3 }}>{children}</Box>
+      <Box component="main" sx={{ flex: 1, minWidth: 0, p: { xs: 2, sm: 3, lg: 4 } }}>
+        <Box sx={{ width: "100%", maxWidth: 1320, mx: "auto" }}>{children}</Box>
+      </Box>
     </Box>
   );
 }

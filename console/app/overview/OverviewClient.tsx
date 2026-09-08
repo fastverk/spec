@@ -2,7 +2,11 @@
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Paper from "@mui/material/Paper";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import type { Row } from "../../lib/overlay";
@@ -31,13 +35,20 @@ export function OverviewClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[];
   // examine nothing reports success forever, having examined nothing.
   const vacuous = reqs.filter((r) => r["outcome"] === "Vacuous").length;
   const unchecked = written - measured;
+  const unpinned = Math.max(0, surfaces.size - bound.size);
 
   return (
     <>
-      <PaneHead
-        title="Overview"
-        blurb="Where the work actually is. A pane is empty exactly when the work behind it has not been done — nothing here is stubbed to look further along than it is."
-      />
+      <Stack direction={{ xs: "column", sm: "row" }} alignItems={{ sm: "flex-start" }} spacing={2}>
+        <PaneHead
+          title={`${project || "Project"} spec`}
+          blurb="Turn project decisions into requirements, define the concepts they rely on, and connect checks as the implementation catches up."
+        />
+        <Box sx={{ flex: 1 }} />
+        <Button component={Link} href="/requirements/new" variant="contained" sx={{ whiteSpace: "nowrap", alignSelf: { xs: "flex-start", sm: "center" } }}>
+          + New requirement
+        </Button>
+      </Stack>
 
       {error ? <OverlayError message={error} /> : null}
 
@@ -51,6 +62,24 @@ export function OverviewClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[];
         <Tile n={`${bound.size} / ${surfaces.size}`} label="Terms pinned down" hint="bound to a real population" />
         <Tile n={measured} label="Population measured" hint="a check has actually run" />
       </Box>
+
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, mb: 3 }}>
+        <Typography variant="h2" sx={{ fontSize: 15, mb: 0.5 }}>Continue building the spec</Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+          Start with the highest-leverage unfinished work.
+        </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+          <Button component={Link} href="/requirements/new" variant="outlined" sx={{ flex: 1, justifyContent: "flex-start", py: 1.25 }}>
+            Write another requirement
+          </Button>
+          <Button component={Link} href="/terms" variant="outlined" color={unpinned ? "warning" : "inherit"} sx={{ flex: 1, justifyContent: "flex-start", py: 1.25 }}>
+            Define {unpinned} open {unpinned === 1 ? "concept" : "concepts"}
+          </Button>
+          <Button component={Link} href="/proposals" variant="outlined" sx={{ flex: 1, justifyContent: "flex-start", py: 1.25 }}>
+            Review pending proposals
+          </Button>
+        </Stack>
+      </Paper>
 
       {vacuous > 0 ? (
         <Alert severity="error" sx={{ mb: 2 }}>

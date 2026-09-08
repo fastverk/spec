@@ -91,13 +91,15 @@ export function NotBackedYet({ what }: { what: string }) {
  * rows that are artifacts of the loader rather than findings. Showing them
  * together here would undo that at the last step.
  */
-export function ProjectPicker({ projects, value, onChange }: {
-  projects: string[]; value: string; onChange: (p: string) => void;
+export function ProjectPicker({ projects, value, onChange, fullWidth = false }: {
+  projects: string[]; value: string; onChange: (p: string) => void; fullWidth?: boolean;
 }) {
   if (projects.length < 2) return null;
   return (
     <Select size="small" value={value} onChange={(e) => onChange(String(e.target.value))}
-            sx={{ mb: 2.5, minWidth: 180, fontSize: 13 }}>
+            fullWidth={fullWidth}
+            aria-label="Project"
+            sx={{ mb: fullWidth ? 0 : 2.5, minWidth: 180, fontSize: 13 }}>
       {projects.map((p) => (
         <MenuItem key={p} value={p} sx={{ fontSize: 13 }}>{p}</MenuItem>
       ))}
