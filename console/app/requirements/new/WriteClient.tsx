@@ -4,13 +4,14 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
-import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { advise, droppedEmphasis, extract } from "../../../lib/decompose";
 import type { Row } from "../../../lib/overlay";
@@ -18,8 +19,16 @@ import { inProject, openingProject, projectsIn } from "../../../lib/project";
 import { MONO, SERIF } from "../../theme";
 import { OverlayError, PaneHead, ProjectPicker, ReadOnly } from "../../ui";
 import { submitOp, useOverlay } from "../../useOverlay";
+import { Predicate } from "../[id]/Predicate";
 
 const MODALITIES = ["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"];
+const MODALITY_LABEL: Record<string, string> = {
+  MUST: "Must — required",
+  MUST_NOT: "Must not — prohibited",
+  SHOULD: "Should — expected",
+  SHOULD_NOT: "Should not — discouraged",
+  MAY: "May — permitted",
+};
 
 /** `auth-9` before `auth-10`; the suffix is compared as a number. */
 function nextId(existing: string[], prefix: string): string {
@@ -94,6 +103,34 @@ function Decomposition({ text }: { text: string }) {
   );
 }
 
+function ProgressStep({ n, label, done, active }: {
+  n: number; label: string; done: boolean; active?: boolean;
+}) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center">
+      <Box
+        sx={{
+          width: 26,
+          height: 26,
+          borderRadius: "50%",
+          display: "grid",
+          placeItems: "center",
+          fontFamily: MONO,
+          fontSize: 11,
+          fontWeight: 700,
+          bgcolor: done ? "success.main" : active ? "primary.main" : "action.disabledBackground",
+          color: done || active ? "primary.contrastText" : "text.secondary",
+        }}
+      >
+        {done ? "✓" : n}
+      </Box>
+      <Typography sx={{ fontSize: 12.5, fontWeight: active ? 650 : 500, color: done ? "success.main" : "text.primary" }}>
+        {label}
+      </Typography>
+    </Stack>
+  );
+}
+
 export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
   const { data, error, refresh } = useOverlay();
   const reqs = data?.requirements ?? corpusReqs;
@@ -121,11 +158,39 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
+  const editor = useRef<HTMLInputElement | null>(null);
 
   const id = (subject.trim() || suggested).toLowerCase();
   const taken = reqs.some((r) => String(r["requirement_id"] ?? "").toLowerCase() === id);
   const discipline = area || areas[0] || "";
   const ready = Boolean(text.trim()) && Boolean(discipline) && !taken;
+  const terms = useMemo(() => extract(text), [text]);
+  const hasDraft = Boolean(text.trim());
+  const hasDetails = hasDraft && Boolean(discipline) && !taken;
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!text.trim()) return;
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [text]);
+
+  function markSelection(mark: "`" | "**") {
+    const input = editor.current;
+    if (!input) return;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? start;
+    const selected = text.slice(start, end);
+    const replacement = `${mark}${selected || (mark === "`" ? "system field" : "business term")}${mark}`;
+    setText(`${text.slice(0, start)}${replacement}${text.slice(end)}`);
+    requestAnimationFrame(() => {
+      const selectedStart = start + mark.length;
+      input.focus();
+      input.setSelectionRange(selectedStart, selectedStart + (selected || replacement.slice(mark.length, -mark.length)).length);
+    });
+  }
 
   async function write() {
     setBusy(true); setErr(null); setSaved(null);
@@ -156,95 +221,169 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
 
   return (
     <>
-      <PaneHead
-        title="Write"
-        blurb="A new requirement, recorded as a proposal against the read point you are looking at. Nothing is edited in place and nothing is adopted by writing it — this adds a sentence to the pile a person still has to promote."
-      />
+      <Stack direction="row" alignItems="flex-start" spacing={2} sx={{ mb: 2.5 }}>
+        <PaneHead
+          title="Create a requirement"
+          blurb="Capture the rule in plain language, mark the concepts it depends on, then review the proposal before recording it."
+        />
+        <Box sx={{ flex: 1 }} />
+        <Button component={Link} href="/requirements" color="inherit" size="small" sx={{ whiteSpace: "nowrap" }}>
+          Cancel
+        </Button>
+      </Stack>
 
       {error ? <OverlayError message={error} /> : null}
       {data && !data.write_enabled ? <ReadOnly because={data.write_disabled_because} /> : null}
 
-      <ProjectPicker projects={projects} value={project} onChange={setProject} />
-
       {saved ? (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          <b>{saved.toUpperCase()} recorded</b> as a proposal under your name, against {parent}. It
-          is pending until someone promotes it — it is not in the corpus yet, and the Requirements
-          pane will show it marked as proposed.
+        <Alert
+          severity="success"
+          sx={{ mb: 2.5 }}
+          action={
+            <Button component={Link} href={`/requirements/${encodeURIComponent(saved)}`} color="inherit" size="small">
+              View requirement
+            </Button>
+          }
+        >
+          <b>{saved.toUpperCase()} is ready for review.</b> It was recorded as a proposal and has not
+          changed the adopted spec yet.
         </Alert>
       ) : null}
       {err ? <Alert severity="error" sx={{ mb: 2 }}><b>Not recorded.</b> {err}</Alert> : null}
 
-      <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <Paper variant="outlined" sx={{ p: 2.5, flex: "1 1 520px", minWidth: 340 }}>
+      <Paper variant="outlined" sx={{ px: { xs: 2, sm: 2.5 }, py: 1.5, mb: 2.5 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 1.25, sm: 3 }}
+          divider={<Divider orientation="vertical" flexItem />}
+        >
+          <ProgressStep n={1} label="Write the rule" done={hasDraft} active={!hasDraft} />
+          <ProgressStep n={2} label="Add project details" done={hasDetails} active={hasDraft && !hasDetails} />
+          <ProgressStep n={3} label="Review & propose" done={Boolean(saved)} active={hasDetails && !saved} />
+        </Stack>
+      </Paper>
+
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1.45fr) minmax(340px, 0.8fr)" }, gap: 2.5, alignItems: "start" }}>
+        <Stack spacing={2.5}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+            <Stack direction="row" alignItems="baseline" spacing={1} sx={{ mb: 0.5 }}>
+              <Typography variant="h2" sx={{ fontSize: 16 }}>1. Write the rule</Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>Use one testable statement.</Typography>
+            </Stack>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+              Select an important phrase, then mark whether it names a system value or a business concept.
+            </Typography>
           <TextField
             fullWidth multiline minRows={5} value={text}
             onChange={(e) => setText(e.target.value)}
-            label="What this requirement says"
+            inputRef={editor}
+            label="Requirement"
             placeholder="A user with `sponsor:edit` may never imply `deploy:*`."
             slotProps={{ input: { sx: { fontFamily: SERIF, fontSize: 15, lineHeight: 1.55 } } }}
-            helperText="Mark the words that carry weight. That markup is the whole input to decomposition — nothing is inferred."
+            helperText={`${text.length} characters · Keep each requirement focused on one rule.`}
           />
+            <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
+              <Button size="small" variant="outlined" onClick={() => markSelection("`")}>
+                Mark system field
+              </Button>
+              <Button size="small" variant="outlined" onClick={() => markSelection("**")}>
+                Mark business term
+              </Button>
+              <Typography variant="body2" sx={{ color: "text.secondary", alignSelf: "center", fontSize: 12 }}>
+                {terms.length ? `${terms.length} ${terms.length === 1 ? "concept" : "concepts"} marked` : "No concepts marked yet"}
+              </Typography>
+            </Stack>
+          </Paper>
 
-          <Stack direction="row" spacing={2} sx={{ mt: 2, flexWrap: "wrap", gap: 1.5 }}>
+          <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+            <Typography variant="h2" sx={{ fontSize: 16, mb: 0.5 }}>2. Add project details</Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary", mb: 2 }}>
+              These fields make the requirement easy to route, find, and review.
+            </Typography>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+              <Box>
+                <Typography component="label" sx={{ display: "block", fontSize: 12, fontWeight: 650, mb: 0.75 }}>
+                  Project
+                </Typography>
+                <ProjectPicker projects={projects} value={project} onChange={setProject} fullWidth />
+                {projects.length < 2 ? (
+                  <TextField size="small" fullWidth value={project} disabled />
+                ) : null}
+              </Box>
+              <TextField
+                select size="small" fullWidth value={modality}
+                onChange={(e) => setModality(String(e.target.value))}
+                label="Strength"
+                helperText="How strictly should this rule apply?"
+              >
+                {MODALITIES.map((m) => <MenuItem key={m} value={m}>{MODALITY_LABEL[m]}</MenuItem>)}
+              </TextField>
+              <TextField
+                select size="small" fullWidth value={discipline}
+                onChange={(e) => setArea(String(e.target.value))}
+                label="Area"
+                helperText="Who should own and review it?"
+              >
+                {areas.map((a) => <MenuItem key={a} value={a}>{a}</MenuItem>)}
+              </TextField>
             <TextField
-              size="small" value={subject} onChange={(e) => setSubject(e.target.value)}
-              label="Id" placeholder={suggested}
+                size="small" fullWidth value={subject} onChange={(e) => setSubject(e.target.value)}
+                label="Requirement ID" placeholder={suggested}
               error={taken}
-              helperText={taken ? `${id} already exists` : `defaults to ${suggested}`}
+                helperText={taken ? `${id} already exists` : `Leave blank to use ${suggested}`}
               slotProps={{ input: { sx: { fontFamily: MONO, fontSize: 13 } } }}
-              sx={{ width: 180 }}
             />
-            <Select size="small" value={modality} onChange={(e) => setModality(String(e.target.value))}
-                    sx={{ minWidth: 150, fontFamily: MONO, fontSize: 13, height: 40 }}>
-              {MODALITIES.map((m) => (
-                <MenuItem key={m} value={m} sx={{ fontFamily: MONO, fontSize: 13 }}>{m}</MenuItem>
-              ))}
-            </Select>
-            <Select size="small" value={discipline} displayEmpty
-                    onChange={(e) => setArea(String(e.target.value))}
-                    sx={{ minWidth: 240, fontSize: 13, height: 40 }}>
-              {areas.map((a) => <MenuItem key={a} value={a} sx={{ fontSize: 13 }}>{a}</MenuItem>)}
-            </Select>
-          </Stack>
-
           <TextField
             size="small" fullWidth value={citation} onChange={(e) => setCitation(e.target.value)}
-            label="Where this comes from (optional)" placeholder="§4.11"
-            sx={{ mt: 2 }}
+                label="Source (optional)" placeholder="Policy §4.11 or decision record URL"
             slotProps={{ input: { sx: { fontFamily: MONO, fontSize: 13 } } }}
+                sx={{ gridColumn: { sm: "1 / -1" } }}
           />
-
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 2.5 }}>
-            <Button variant="contained" disabled={busy || !ready || !data?.write_enabled}
-                    onClick={write}>
-              Propose this requirement
-            </Button>
-            {/* A disabled control with no stated reason is the same defect as an
-                empty pane with no stated reason: the reader cannot tell "not yet"
-                from "not ever". `data` is null only while the overlay is in
-                flight, and that is a different fact from writes being off. */}
-            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
-              {!data
-                ? "Checking whether writes are enabled…"
-                : taken
-                  ? `${id} is taken — an id names one claim, and reusing it would silently shadow the original.`
-                  : null}
-              {data && !taken ? (
-                <>
-                  Enters at <Box component="code" sx={{ fontFamily: MONO }}>R0</Box> — a rung is
-                  evidence, not a choice.
-                </>
-              ) : null}
-            </Typography>
-          </Stack>
+            </Box>
         </Paper>
+        </Stack>
 
-        <Paper variant="outlined" sx={{ p: 2.5, flex: "1 1 340px", minWidth: 300 }}>
-          <Typography variant="h2" sx={{ fontSize: 13, mb: 1.5 }}>
-            What this decomposes to
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, position: { lg: "sticky" }, top: { lg: 24 } }}>
+          <Typography variant="h2" sx={{ fontSize: 16 }}>3. Review</Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5, mb: 2 }}>
+            This is what reviewers will receive.
+          </Typography>
+
+          <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1.5, mb: 2 }}>
+            <Stack direction="row" spacing={1} sx={{ mb: 1, flexWrap: "wrap", gap: 0.5 }}>
+              <Chip size="small" label={id.toUpperCase()} sx={{ fontFamily: MONO, fontWeight: 700 }} />
+              <Chip size="small" variant="outlined" label={MODALITY_LABEL[modality]?.split(" — ")[0]} />
+              {discipline ? <Chip size="small" variant="outlined" label={discipline} /> : null}
+            </Stack>
+            {text.trim() ? (
+              <Predicate text={text} standings={[]} />
+            ) : (
+              <Typography sx={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.55, color: "text.secondary" }}>
+                Your requirement will appear here.
+              </Typography>
+            )}
+          </Box>
+
+          <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 1, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary" }}>
+            Concepts to define
           </Typography>
           <Decomposition text={text} />
+
+          <Divider sx={{ my: 2.5 }} />
+          <Button fullWidth size="large" variant="contained" disabled={busy || !ready || !data?.write_enabled} onClick={write}>
+            {busy ? "Recording proposal…" : "Propose requirement"}
+          </Button>
+          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12, mt: 1.25, textAlign: "center" }}>
+            {!data
+              ? "Checking whether proposals are enabled…"
+              : taken
+                ? `Choose another ID — ${id} already exists.`
+                : !text.trim()
+                  ? "Write the requirement to continue."
+                  : !discipline
+                    ? "Choose an area to continue."
+                    : <>Starts as a draft proposal at <Box component="code" sx={{ fontFamily: MONO }}>R0</Box>. Nothing is adopted automatically.</>}
+          </Typography>
         </Paper>
       </Box>
     </>
