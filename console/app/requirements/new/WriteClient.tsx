@@ -19,6 +19,7 @@ import { inProject, openingProject, projectsIn } from "../../../lib/project";
 import { MONO, SERIF } from "../../theme";
 import { OverlayError, PaneHead, ProjectPicker, ReadOnly } from "../../ui";
 import { submitOp, useOverlay } from "../../useOverlay";
+import { Predicate } from "../[id]/Predicate";
 
 const MODALITIES = ["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"];
 const MODALITY_LABEL: Record<string, string> = {
@@ -354,9 +355,13 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
               <Chip size="small" variant="outlined" label={MODALITY_LABEL[modality]?.split(" — ")[0]} />
               {discipline ? <Chip size="small" variant="outlined" label={discipline} /> : null}
             </Stack>
-            <Typography sx={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.55 }}>
-              {text.trim() || "Your requirement will appear here."}
-            </Typography>
+            {text.trim() ? (
+              <Predicate text={text} standings={[]} />
+            ) : (
+              <Typography sx={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.55, color: "text.secondary" }}>
+                Your requirement will appear here.
+              </Typography>
+            )}
           </Box>
 
           <Typography sx={{ fontSize: 12, fontWeight: 700, mb: 1, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary" }}>
