@@ -20,16 +20,20 @@ adapter supplied and accepted its structure.
 ## Dependency order
 
 1. Shared composer over known bindings
-2. Project catalog search contract
-3. Probe candidate comparison
-4. Binding evidence in the proposal vocabulary
-5. Reference adapter and conformance kit
-6. Deterministic catalog matcher
-7. Grounding interviewer
-8. Accessibility and interaction coverage
+2. Installable project connector bootstrap
+3. Declarative adapter model
+4. Visual adapter authoring studio
+5. Project catalog search contract
+6. Probe candidate comparison
+7. Binding evidence in the proposal vocabulary
+8. Reference adapter and conformance kit
+9. Deterministic catalog matcher
+10. Grounding interviewer
+11. Accessibility and interaction coverage
 
-Items 1 and 8 are console-owned. Items 2–5 define the consumer boundary. Item 6
-must precede item 7 so an agent is measured against the deterministic baseline.
+Items 1, 4, and 11 are console-owned. Items 2–3 and 5–8 define the consumer
+boundary. Item 9 must precede item 10 so an agent is measured against the
+deterministic baseline.
 
 ---
 
@@ -57,6 +61,182 @@ search, reuse, exact-entry fallback, and future adapter candidates.
 - Choosing an existing binding requires no locator retyping.
 - The component never parses or executes a locator.
 - Empty, loading, read-only, and submission-error states remain distinguishable.
+
+---
+
+## Issue: Ship an installable project connector bootstrap
+
+### Goal
+
+Replace “build and host a grounding adapter” with a standard runtime a project
+can install in its own trust boundary. The bootstrap provides connectivity and
+catalog introspection; the project still authors what the adapter means in the
+visual studio below.
+
+### Scope
+
+- Publish a small connector runtime for a serverless function or container.
+- Read a versioned `.spec/grounding.yaml` adapter model from the project
+  repository.
+- Keep database credentials and query execution entirely inside the project.
+- Expose health, catalog suggestion, and Probe routes.
+- Authenticate console calls with audience-scoped OIDC rather than a copied
+  long-lived token.
+- Provide framework presets for Next.js, Node, and a standalone container.
+
+### Done means
+
+- A sample project can install the connector without importing spec's ontology
+  or protobuf model.
+- The connector starts from one manifest and project-owned environment
+  credentials.
+- No customer row, SQL statement, or database credential is stored by spec.
+- The same conformance suite runs against every preset.
+
+---
+
+## Issue: Define the declarative grounding adapter model
+
+### Goal
+
+Make the adapter a reviewable project artifact rather than custom endpoint code.
+The model says what project concepts exist and how to measure them; a standard
+runtime supplies the HTTP behavior.
+
+### Model
+
+- **Data source references:** names and driver kinds only. Credentials stay in
+  project environment variables and never enter the model.
+- **Resources:** project-recognizable entities backed by allowlisted tables,
+  views, API collections, or permission catalogs.
+- **Fields:** label, type, sensitivity, searchability, and whether a field may
+  appear in transit-only examples.
+- **Relationships:** allowlisted joins between resources, with cardinality made
+  explicit.
+- **Referents:** stable IDs with human labels and a typed expression tree over
+  resources, fields, relationships, operators, and parameters.
+- **Suggestion metadata:** aliases, descriptions, owner, deprecation state, and
+  business vocabulary used by catalog search.
+- **Probe policy:** count ceiling, timeout, example limit, and redaction rules.
+
+### Expression constraints
+
+- Store a typed AST, never free-form SQL.
+- Permit only driver-supported operators.
+- Parameterize every value.
+- Require explicit joins from the relationship allowlist.
+- Compile and execute only inside the project connector.
+- Give every compiled query a reproducible fingerprint.
+
+### Done means
+
+- JSON Schema validates the complete adapter model.
+- Invalid fields, joins, operators, and secret literals are refused before
+  deployment.
+- Postgres and static-catalog fixtures compile the same referent AST
+  deterministically.
+- The model contains no credential, customer row, or executable free-form query.
+- Model diffs are understandable in an ordinary project pull request.
+
+---
+
+## Issue: Visual grounding adapter authoring studio
+
+### Goal
+
+Let a project owner define what the adapter is and does without writing code,
+SQL, protobuf, or environment-variable plumbing.
+
+### User flow
+
+1. Choose a connected project data source.
+2. Import its schema metadata and select the resources the adapter may see.
+3. Rename technical resources and fields into recognizable project language.
+4. Mark sensitive fields and choose the small subset safe for transient
+   examples.
+5. Define relationships by selecting source field, target resource, and target
+   field.
+6. Create a named referent with a visual condition builder:
+   **Resource → relationship → field → operator → parameter/value**.
+7. Preview the generated human-readable meaning, candidate count, fingerprint,
+   and redacted examples.
+8. Save a draft, test every referent, then create a project-side manifest PR.
+
+### Component model
+
+- `DataSourcePicker`
+- `ResourceCatalog`
+- `FieldPolicyEditor`
+- `RelationshipBuilder`
+- `ReferentBuilder`
+- `ConditionGroup` with nested AND/OR groups
+- `ProbePreview`
+- `AdapterReadinessChecklist`
+
+The same typed expression editor should be used when a grounding author creates
+an ad hoc candidate. The adapter studio saves reusable named referents; the
+grounding composer selects or specializes them.
+
+### Done means
+
+- A user can author a multi-condition referent with one allowlisted relationship
+  using only pointer or keyboard controls.
+- Field and operator choices are type-aware and autocomplete from imported
+  catalog metadata.
+- Every edit can be previewed without persisting customer rows.
+- Saving creates a deterministic `.spec/grounding.yaml` change in the project
+  repository.
+- Reopening the model reconstructs the visual form byte-for-byte.
+- Advanced users may inspect the manifest but never need to edit it manually.
+
+---
+
+## Issue: Point-and-click project data connection and authoring wizard
+
+### Goal
+
+Let a project owner install the runtime and open the adapter authoring studio
+using recognizable product language rather than an environment variable named
+`GROUNDING_ADAPTER_URL`.
+
+### User flow
+
+1. Open **Settings → Connect project data**.
+2. Choose the project repository and connector preset.
+3. Choose a project-owned data source.
+4. Open the adapter studio to select resources, describe relationships, and
+   author named referents.
+5. Review the privacy boundary: metadata, counts, fingerprints, and optional
+   transit-only examples.
+6. Click **Create connector PR**.
+7. After that PR deploys, click **Test connection** and see each capability
+   verified separately.
+
+### Scope
+
+- Add connection states: not connected, installing, deployed, authenticated,
+  catalog ready, Probe ready, and degraded.
+- Generate the connector bootstrap and empty adapter model from wizard choices.
+- Launch the visual authoring studio against catalog metadata returned by the
+  project-side connector.
+- Use a GitHub App to open the project-side PR; the console never writes project
+  code directly.
+- Verify health, OIDC audience, Suggest, positive Probe, zero handling, and
+  example redaction.
+- Store non-secret connection metadata per console deployment; keep project
+  credentials project-side.
+- Retain an advanced “connect an existing endpoint” path for teams that already
+  run an adapter.
+
+### Done means
+
+- A project owner completes setup without writing an adapter or manually copying
+  a secret.
+- Every wizard step is resumable and names the next blocked action.
+- “Connected” means the signed Probe handshake succeeded, not merely that a URL
+  exists.
+- Removing the generated project manifest disables the connector without
+  leaving a credential behind in spec.
 
 ---
 

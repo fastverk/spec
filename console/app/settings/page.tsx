@@ -172,13 +172,13 @@ export default function Page() {
               }
             />
             <Line
-              label="Grounding adapter"
-              value={h.grounding_adapter}
+              label="Project data connection"
+              value={h.grounding_adapter === "configured" ? "connected" : "not connected"}
               tone={h.grounding_adapter === "configured" ? "ok" : "warn"}
               hint={
                 h.grounding_adapter === "configured"
-                  ? "A project answers population questions in its own environment. spec never queries a project database."
-                  : "Unset. Terms can still be bound; how many records that would examine cannot be measured. A missing answer, which is not an empty one."
+                  ? "The project connector answers population questions inside the project's environment. spec never queries its database."
+                  : "Terms can still be authored. Schema suggestions and population counts require a connector running inside the project; this deployment has none."
               }
             />
           </Paper>
