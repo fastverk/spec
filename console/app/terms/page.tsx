@@ -1,6 +1,6 @@
-import { terms } from "../../lib/corpus";
+import { projects, terms } from "../../lib/corpus";
 import { TermsClient } from "./TermsClient";
 
 export default function Page() {
-  return <TermsClient corpusTerms={terms()} />;
+  return <TermsClient corpusTerms={terms()} projects={projects()} />;
 }

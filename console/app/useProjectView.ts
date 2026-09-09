@@ -48,11 +48,10 @@ export function useProjectView(available: readonly string[]) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [available]);
 
-  useEffect(() => {
-    if (state.project) window.sessionStorage.setItem(PROJECT_KEY, state.project);
-  }, [state.project]);
-
-  const setProject = useCallback((value: string) => dispatch({ type: "project", value }), []);
+  const setProject = useCallback((value: string) => {
+    window.sessionStorage.setItem(PROJECT_KEY, value);
+    dispatch({ type: "project", value });
+  }, []);
   const setQuery = useCallback((value: string) => dispatch({ type: "query", value }), []);
 
   return { project: state.project, query: state.query, setProject, setQuery };

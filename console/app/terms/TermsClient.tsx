@@ -12,9 +12,8 @@ import { useMemo } from "react";
 
 import { STANDING_LABEL, termEntities, termHref } from "../../lib/entity";
 import type { Row } from "../../lib/overlay";
-import { projectsIn } from "../../lib/project";
 import { MONO } from "../theme";
-import { OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
+import { NotBackedYet, OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
 import { useOverlay } from "../useOverlay";
 import { useProjectView } from "../useProjectView";
 
@@ -31,11 +30,10 @@ import { useProjectView } from "../useProjectView";
  * of the view: `sponsor:edit` is ONE decision that unblocks eleven requirements,
  * and a list sorted alphabetically would hide that.
  */
-export function TermsClient({ corpusTerms }: { corpusTerms: Row[] }) {
+export function TermsClient({ corpusTerms, projects }: { corpusTerms: Row[]; projects: string[] }) {
   const { data, error } = useOverlay();
   const termRows = data?.terms ?? corpusTerms;
 
-  const projects = useMemo(() => projectsIn(corpusTerms), [corpusTerms]);
   const { project, setProject, query: q, setQuery: setQ } = useProjectView(projects);
 
   const all = useMemo(() => termEntities(termRows), [termRows]);
@@ -81,7 +79,15 @@ export function TermsClient({ corpusTerms }: { corpusTerms: Row[] }) {
         from the project&rsquo;s own environment — spec never queries a project database.
       </Alert>
 
-      <Stack spacing={0.75}>
+      {shown.length === 0 ? (
+        <NotBackedYet
+          what={
+            q.trim()
+              ? `No terms in ${project} match “${q.trim()}”.`
+              : `${project} has no identified terms yet. Mark the concepts in a requirement to start its grounding queue.`
+          }
+        />
+      ) : <Stack spacing={0.75}>
         {shown.map((e) => (
           <Paper key={`${e.project}/${e.surface}`} variant="outlined"
                  component={Link} href={termHref(e)}
@@ -111,7 +117,7 @@ export function TermsClient({ corpusTerms }: { corpusTerms: Row[] }) {
             </Stack>
           </Paper>
         ))}
-      </Stack>
+      </Stack>}
     </>
   );
 }
