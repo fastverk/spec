@@ -4,14 +4,16 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import Divider from "@mui/material/Divider";
 import LinearProgress from "@mui/material/LinearProgress";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
+import { advise, extract } from "../../../lib/decompose";
 import { measurement, stateOf } from "../../../lib/evaluated";
 import { groundingOf, type TermStanding } from "../../../lib/grounded";
 import type { Row } from "../../../lib/overlay";
@@ -19,6 +21,177 @@ import { MONO } from "../../theme";
 import { OverlayError, ReadOnly, StateChip } from "../../ui";
 import { submitOp, useOverlay } from "../../useOverlay";
 import { Predicate, PredicateLegend } from "./Predicate";
+
+type EditMode = "reword" | "withdraw" | null;
+
+function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
+  id: string;
+  text: string;
+  parent: string;
+  writeEnabled: boolean;
+  ready: boolean;
+  onDone: () => void;
+}) {
+  const [mode, setMode] = useState<EditMode>(null);
+  const [draft, setDraft] = useState(text);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const editor = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const terms = useMemo(() => extract(draft), [draft]);
+  const advice = useMemo(() => advise(draft), [draft]);
+
+  function open(next: Exclude<EditMode, null>) {
+    setMode(next);
+    setDraft(text);
+    setReason("");
+    setErr(null);
+    setNote(null);
+  }
+
+  function markSelection(mark: "`" | "**") {
+    const input = editor.current;
+    if (!input) return;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? start;
+    const selected = draft.slice(start, end);
+    const fallback = mark === "`" ? "system field" : "business term";
+    const replacement = `${mark}${selected || fallback}${mark}`;
+    setDraft(`${draft.slice(0, start)}${replacement}${draft.slice(end)}`);
+    requestAnimationFrame(() => {
+      input.focus();
+      input.setSelectionRange(start + mark.length, start + mark.length + (selected || fallback).length);
+    });
+  }
+
+  async function submit(op: "amendNS" | "retractNS", fields: Record<string, unknown>) {
+    setBusy(true);
+    setErr(null);
+    setNote(null);
+    try {
+      await submitOp(op, { subject: id, ...fields }, parent);
+      setNote(
+        op === "amendNS"
+          ? "Rewording proposed. The adopted requirement is unchanged until this proposal is promoted."
+          : "Withdrawal proposed. The requirement remains in the adopted spec until this proposal is promoted.",
+      );
+      setMode(null);
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 2.5 }, mb: 2.5 }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} alignItems={{ sm: "center" }}>
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h2" sx={{ fontSize: 15 }}>Change this requirement</Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.35 }}>
+            Changes are recorded as reviewable proposals; the adopted spec is never edited in place.
+          </Typography>
+        </Box>
+        {writeEnabled ? (
+          <Stack direction="row" spacing={1}>
+            <Button size="small" variant="outlined" onClick={() => open("reword")}>Reword</Button>
+            <Button size="small" variant="outlined" color="error" onClick={() => open("withdraw")}>Withdraw</Button>
+          </Stack>
+        ) : !ready ? (
+          <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12.5 }}>
+            Checking whether proposals are enabled…
+          </Typography>
+        ) : null}
+      </Stack>
+
+      {note ? <Alert severity="success" sx={{ mt: 2 }}>{note}</Alert> : null}
+      {err ? <Alert severity="error" sx={{ mt: 2 }}><b>Not recorded.</b> {err}</Alert> : null}
+
+      {mode === "reword" ? (
+        <>
+          <Divider sx={{ my: 2.5 }} />
+          <Typography variant="h2" sx={{ fontSize: 15, mb: 0.5 }}>Propose new wording</Typography>
+          <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
+            Keep the meaning focused on one rule. Mark every concept that must eventually point at real records.
+          </Typography>
+          <TextField
+            inputRef={editor}
+            fullWidth
+            multiline
+            minRows={4}
+            label="Revised requirement"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <Stack direction="row" spacing={1} sx={{ mt: 1.25, flexWrap: "wrap", gap: 1 }}>
+            <Button size="small" variant="outlined" onClick={() => markSelection("`")}>Mark system field</Button>
+            <Button size="small" variant="outlined" onClick={() => markSelection("**")}>Mark business term</Button>
+            <Chip
+              size="small"
+              variant="outlined"
+              color={advice.kind === "none" ? "warning" : advice.kind === "dropped" ? "info" : "success"}
+              label={`${terms.length} ${terms.length === 1 ? "concept" : "concepts"} marked`}
+              sx={{ alignSelf: "center" }}
+            />
+          </Stack>
+          <Alert severity={advice.kind === "none" ? "warning" : advice.kind === "dropped" ? "info" : "success"} sx={{ mt: 1.5 }}>
+            {advice.message}
+          </Alert>
+          <Paper variant="outlined" sx={{ p: 2, mt: 1.5, bgcolor: "action.hover" }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "text.secondary", mb: 1 }}>
+              Review preview
+            </Typography>
+            <Predicate text={draft} standings={[]} />
+          </Paper>
+          <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+            <Button size="small" color="inherit" onClick={() => setMode(null)}>Cancel</Button>
+            <Button
+              size="small"
+              variant="contained"
+              disabled={busy || !draft.trim() || draft.trim() === text.trim()}
+              onClick={() => submit("amendNS", { text: draft.trim() })}
+            >
+              {busy ? "Recording…" : "Propose rewording"}
+            </Button>
+          </Stack>
+        </>
+      ) : null}
+
+      {mode === "withdraw" ? (
+        <>
+          <Divider sx={{ my: 2.5 }} />
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Withdrawing removes this requirement from the active spec after review and promotion. It does not erase its history.
+          </Alert>
+          <TextField
+            fullWidth
+            multiline
+            minRows={2}
+            label="Reason for withdrawal"
+            placeholder="Explain why this requirement should no longer apply."
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            helperText="Required so reviewers can distinguish an intentional withdrawal from a mistake."
+          />
+          <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
+            <Button size="small" color="inherit" onClick={() => setMode(null)}>Cancel</Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="error"
+              disabled={busy || !reason.trim()}
+              onClick={() => submit("retractNS", { reason: reason.trim() })}
+            >
+              {busy ? "Recording…" : "Propose withdrawal"}
+            </Button>
+          </Stack>
+        </>
+      ) : null}
+    </Paper>
+  );
+}
 
 /**
  * One step of the grounding walkthrough: a single word, and the decision it is
@@ -152,6 +325,10 @@ export function RequirementClient({ id, corpusReqs, corpusTerms }: {
   const text = String(req["predicate"] ?? "");
   const meas = measurement(req);
   const pct = g.live.length ? Math.round((g.bound / g.live.length) * 100) : 0;
+  const inCorpus = corpusReqs.some(
+    (r) => String(r["requirement_id"] ?? "").toLowerCase() === id.toLowerCase(),
+  );
+  const withdrawalPending = Boolean(req["retracted"]);
 
   return (
     <>
@@ -182,6 +359,25 @@ export function RequirementClient({ id, corpusReqs, corpusTerms }: {
         <Predicate text={text} standings={g.terms} />
         <PredicateLegend />
       </Paper>
+
+      {withdrawalPending ? (
+        <Alert severity="warning" sx={{ mb: 2.5 }}>
+          <b>Withdrawal proposed.</b> This remains part of the adopted spec until the proposal is reviewed and promoted.
+        </Alert>
+      ) : inCorpus ? (
+        <RequirementActions
+          id={id}
+          text={text}
+          parent={parent}
+          writeEnabled={Boolean(data?.write_enabled)}
+          ready={Boolean(data)}
+          onDone={refresh}
+        />
+      ) : (
+        <Alert severity="info" sx={{ mb: 2.5 }}>
+          This is a new requirement proposal. Rewording and withdrawal become available after it is adopted; until then, review the original proposal.
+        </Alert>
+      )}
 
       {/* ── the simple status ─────────────────────────────────────────────── */}
       <Paper variant="outlined" sx={{ p: 2.5, mb: 2.5 }}>
