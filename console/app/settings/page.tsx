@@ -6,7 +6,7 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 
 import { MONO } from "../theme";
 import { PaneHead } from "../ui";
@@ -25,6 +25,24 @@ type Health = {
   grounding_adapter: "configured" | "unset";
   adopt_with: string;
 };
+
+type HealthState =
+  | { status: "loading"; data: null; error: null }
+  | { status: "loaded"; data: Health; error: null }
+  | { status: "failed"; data: null; error: string };
+
+type HealthAction =
+  | { type: "loaded"; data: Health }
+  | { type: "failed"; error: string };
+
+function healthReducer(_: HealthState, action: HealthAction): HealthState {
+  switch (action.type) {
+    case "loaded":
+      return { status: "loaded", data: action.data, error: null };
+    case "failed":
+      return { status: "failed", data: null, error: action.error };
+  }
+}
 
 /**
  * What this deployment is actually serving.
@@ -57,14 +75,18 @@ function Line({ label, value, tone, hint }: {
 }
 
 export default function Page() {
-  const [h, setH] = useState<Health | null>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(
+    healthReducer,
+    { status: "loading", data: null, error: null } as HealthState,
+  );
+  const h = state.data;
+  const err = state.error;
 
   useEffect(() => {
     fetch("/api/health", { cache: "no-store" })
       .then((r) => r.json())
-      .then(setH)
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)));
+      .then((data: Health) => dispatch({ type: "loaded", data }))
+      .catch((e) => dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e) }));
   }, []);
 
   return (

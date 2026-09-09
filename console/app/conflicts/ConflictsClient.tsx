@@ -5,12 +5,12 @@ import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useState } from "react";
 
 import type { Row } from "../../lib/overlay";
-import { inProject, openingProject } from "../../lib/project";
+import { inProject } from "../../lib/project";
 import { MONO } from "../theme";
 import { NotBackedYet, PaneHead, ProjectPicker } from "../ui";
+import { useProjectView } from "../useProjectView";
 
 /**
  * ⚠ The field names here are the ones the emitter actually writes —
@@ -32,8 +32,14 @@ import { NotBackedYet, PaneHead, ProjectPicker } from "../ui";
 export function ConflictsClient({ conflicts, witness, projects }: {
   conflicts: Row[]; witness: Row[]; projects: string[];
 }) {
-  const [project, setProject] = useState(() => openingProject(projects));
+  const { project, setProject } = useProjectView(projects);
   const mine = conflicts.filter((c) => inProject(c, project));
+  const ordered = [...mine].sort((a, b) => {
+    const resolved = Number(a["state"] === "resolved") - Number(b["state"] === "resolved");
+    return resolved || Number(b["blocked_orders"] ?? 0) - Number(a["blocked_orders"] ?? 0);
+  });
+  const open = mine.filter((c) => c["state"] !== "resolved").length;
+  const blocked = mine.reduce((sum, c) => sum + Number(c["blocked_orders"] ?? 0), 0);
 
   // The witness payload carries the parties of each conflict, one row each.
   const partiesOf = (id: string) =>
@@ -61,22 +67,45 @@ export function ConflictsClient({ conflicts, witness, projects }: {
           }
         />
       ) : (
-        <Stack spacing={1.5}>
-          {mine.map((c) => {
+        <>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}>
+            <Chip size="small" color={open ? "error" : "success"} label={`${open} open`} />
+            <Chip size="small" variant="outlined" label={`${blocked} blocked ${blocked === 1 ? "order" : "orders"}`} />
+            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
+              Highest-impact unresolved conflicts first
+            </Typography>
+          </Stack>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "repeat(2, minmax(0, 1fr))" },
+              gap: 1.5,
+            }}
+          >
+          {ordered.map((c) => {
             const id = String(c["id"] ?? "");
             const parties = partiesOf(id);
             const resolved = c["state"] === "resolved";
+            const blockedOrders = Number(c["blocked_orders"] ?? 0);
+            const tone = resolved ? "success" : blockedOrders ? "error" : "warning";
             return (
               <Paper
                 key={id}
                 variant="outlined"
-                sx={{ p: 2, borderLeft: 3, borderColor: resolved ? "success.main" : "error.main" }}
+                sx={{
+                  p: 2,
+                  borderLeft: 4,
+                  borderLeftColor: `${tone}.main`,
+                  backgroundImage: `linear-gradient(90deg, color-mix(in srgb, var(--mui-palette-${tone}-main) 9%, transparent), transparent 45%)`,
+                }}
               >
-                <Stack direction="row" spacing={1.5} alignItems="baseline" sx={{ flexWrap: "wrap" }}>
-                  <Typography sx={{ fontFamily: MONO, fontSize: 12.5, fontWeight: 700 }}>{id}</Typography>
-                  <Typography sx={{ fontSize: 15, fontWeight: 650 }}>
-                    {String(c["kind"] ?? "Conflict")}
-                  </Typography>
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography sx={{ fontFamily: MONO, fontSize: 11, color: "text.secondary" }}>{id}</Typography>
+                    <Typography sx={{ fontSize: 15, fontWeight: 650 }}>
+                      {String(c["kind"] ?? "Conflict")}
+                    </Typography>
+                  </Box>
                   <Box sx={{ flex: 1 }} />
                   <Chip
                     size="small"
@@ -87,14 +116,27 @@ export function ConflictsClient({ conflicts, witness, projects }: {
                   />
                 </Stack>
 
-                {c["quantity"] ? (
-                  <Typography sx={{ fontFamily: MONO, fontSize: 12, mt: 1 }}>
-                    {String(c["quantity"])}
-                  </Typography>
-                ) : null}
+                <Stack direction="row" spacing={2} sx={{ mt: 1.5, py: 1.25, borderTop: 1, borderBottom: 1, borderColor: "divider" }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography sx={{ fontFamily: MONO, fontSize: 10, color: "text.secondary", textTransform: "uppercase" }}>
+                      Quantity
+                    </Typography>
+                    <Typography sx={{ fontFamily: MONO, fontSize: 12, mt: 0.25 }}>
+                      {String(c["quantity"] ?? "not typed")}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: "right" }}>
+                    <Typography sx={{ fontFamily: MONO, fontSize: 10, color: "text.secondary", textTransform: "uppercase" }}>
+                      Work stopped
+                    </Typography>
+                    <Typography sx={{ fontFamily: MONO, fontSize: 16, fontWeight: 700, color: blockedOrders ? "error.main" : "text.secondary" }}>
+                      {blockedOrders}
+                    </Typography>
+                  </Box>
+                </Stack>
 
-                <Typography variant="body2" sx={{ mt: 1, color: "text.secondary", maxWidth: "80ch" }}>
-                  {String(c["party_count"] ?? 0)} parties across {String(c["disciplines"] ?? "")}
+                <Typography variant="body2" sx={{ mt: 1.25, color: "text.secondary" }}>
+                  {String(c["party_count"] ?? 0)} parties · {String(c["disciplines"] ?? "")}
                 </Typography>
 
                 {parties.length > 0 ? (
@@ -110,14 +152,12 @@ export function ConflictsClient({ conflicts, witness, projects }: {
                   {/* ⛔ An unowned conflict is not a conflict anybody can act on, and
                       saying so is the point of showing the field at all. */}
                   {c["owner"] ? `Owner: ${String(c["owner"])}` : "No owner assigned — cannot be acted on"}
-                  {Number(c["blocked_orders"] ?? 0) > 0
-                    ? ` · blocking ${String(c["blocked_orders"])} order(s)`
-                    : ""}
                 </Typography>
               </Paper>
             );
           })}
-        </Stack>
+          </Box>
+        </>
       )}
     </>
   );

@@ -11,7 +11,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useReducer } from "react";
 
 import { advise, extract } from "../../../lib/decompose";
 import { measurement, stateOf } from "../../../lib/evaluated";
@@ -20,9 +20,37 @@ import type { Row } from "../../../lib/overlay";
 import { MONO } from "../../theme";
 import { OverlayError, ReadOnly, StateChip } from "../../ui";
 import { submitOp, useOverlay } from "../../useOverlay";
+import { useProposalMutation } from "../../useProposalMutation";
+import { useTermDecision } from "../../useTermDecision";
+import { useTextMarker } from "../../useTextMarker";
 import { Predicate, PredicateLegend } from "./Predicate";
 
 type EditMode = "reword" | "withdraw" | null;
+
+type RevisionState = {
+  mode: EditMode;
+  draft: string;
+  reason: string;
+};
+
+type RevisionAction =
+  | { type: "open"; mode: Exclude<EditMode, null>; text: string }
+  | { type: "draft"; value: string }
+  | { type: "reason"; value: string }
+  | { type: "close" };
+
+function revisionReducer(state: RevisionState, action: RevisionAction): RevisionState {
+  switch (action.type) {
+    case "open":
+      return { mode: action.mode, draft: action.text, reason: "" };
+    case "draft":
+      return { ...state, draft: action.value };
+    case "reason":
+      return { ...state, reason: action.value };
+    case "close":
+      return { ...state, mode: null };
+  }
+}
 
 function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
   id: string;
@@ -32,57 +60,35 @@ function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
   ready: boolean;
   onDone: () => void;
 }) {
-  const [mode, setMode] = useState<EditMode>(null);
-  const [draft, setDraft] = useState(text);
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const editor = useRef<HTMLTextAreaElement | HTMLInputElement | null>(null);
+  const [form, dispatch] = useReducer(
+    revisionReducer,
+    { mode: null, draft: text, reason: "" },
+  );
+  const { mode, draft, reason } = form;
+  const mutation = useProposalMutation();
+  const setDraft = useCallback((value: string) => dispatch({ type: "draft", value }), []);
+  const { inputRef: editor, markSelection } = useTextMarker(draft, setDraft);
   const terms = useMemo(() => extract(draft), [draft]);
   const advice = useMemo(() => advise(draft), [draft]);
 
   function open(next: Exclude<EditMode, null>) {
-    setMode(next);
-    setDraft(text);
-    setReason("");
-    setErr(null);
-    setNote(null);
-  }
-
-  function markSelection(mark: "`" | "**") {
-    const input = editor.current;
-    if (!input) return;
-    const start = input.selectionStart ?? 0;
-    const end = input.selectionEnd ?? start;
-    const selected = draft.slice(start, end);
-    const fallback = mark === "`" ? "system field" : "business term";
-    const replacement = `${mark}${selected || fallback}${mark}`;
-    setDraft(`${draft.slice(0, start)}${replacement}${draft.slice(end)}`);
-    requestAnimationFrame(() => {
-      input.focus();
-      input.setSelectionRange(start + mark.length, start + mark.length + (selected || fallback).length);
-    });
+    dispatch({ type: "open", mode: next, text });
+    mutation.clear();
   }
 
   async function submit(op: "amendNS" | "retractNS", fields: Record<string, unknown>) {
-    setBusy(true);
-    setErr(null);
-    setNote(null);
-    try {
-      await submitOp(op, { subject: id, ...fields }, parent);
-      setNote(
+    await mutation.run(
+      () => submitOp(op, { subject: id, ...fields }, parent),
+      (
         op === "amendNS"
           ? "Rewording proposed. The adopted requirement is unchanged until this proposal is promoted."
-          : "Withdrawal proposed. The requirement remains in the adopted spec until this proposal is promoted.",
-      );
-      setMode(null);
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+          : "Withdrawal proposed. The requirement remains in the adopted spec until this proposal is promoted."
+      ),
+      () => {
+        dispatch({ type: "close" });
+        onDone();
+      },
+    );
   }
 
   return (
@@ -106,8 +112,8 @@ function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
         ) : null}
       </Stack>
 
-      {note ? <Alert severity="success" sx={{ mt: 2 }}>{note}</Alert> : null}
-      {err ? <Alert severity="error" sx={{ mt: 2 }}><b>Not recorded.</b> {err}</Alert> : null}
+      {mutation.note ? <Alert severity="success" sx={{ mt: 2 }}>{mutation.note}</Alert> : null}
+      {mutation.error ? <Alert severity="error" sx={{ mt: 2 }}><b>Not recorded.</b> {mutation.error}</Alert> : null}
 
       {mode === "reword" ? (
         <>
@@ -146,14 +152,14 @@ function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
             <Predicate text={draft} standings={[]} />
           </Paper>
           <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
-            <Button size="small" color="inherit" onClick={() => setMode(null)}>Cancel</Button>
+            <Button size="small" color="inherit" onClick={() => dispatch({ type: "close" })}>Cancel</Button>
             <Button
               size="small"
               variant="contained"
-              disabled={busy || !draft.trim() || draft.trim() === text.trim()}
+              disabled={mutation.busy || !draft.trim() || draft.trim() === text.trim()}
               onClick={() => submit("amendNS", { text: draft.trim() })}
             >
-              {busy ? "Recording…" : "Propose rewording"}
+              {mutation.busy ? "Recording…" : "Propose rewording"}
             </Button>
           </Stack>
         </>
@@ -172,19 +178,19 @@ function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
             label="Reason for withdrawal"
             placeholder="Explain why this requirement should no longer apply."
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={(e) => dispatch({ type: "reason", value: e.target.value })}
             helperText="Required so reviewers can distinguish an intentional withdrawal from a mistake."
           />
           <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 2 }}>
-            <Button size="small" color="inherit" onClick={() => setMode(null)}>Cancel</Button>
+            <Button size="small" color="inherit" onClick={() => dispatch({ type: "close" })}>Cancel</Button>
             <Button
               size="small"
               variant="contained"
               color="error"
-              disabled={busy || !reason.trim()}
+              disabled={mutation.busy || !reason.trim()}
               onClick={() => submit("retractNS", { reason: reason.trim() })}
             >
-              {busy ? "Recording…" : "Propose withdrawal"}
+              {mutation.busy ? "Recording…" : "Propose withdrawal"}
             </Button>
           </Stack>
         </>
@@ -209,24 +215,8 @@ function Step({ term, project, parent, writeEnabled, ready, onDone }: {
   ready: boolean;
   onDone: () => void;
 }) {
-  const [definition, setDefinition] = useState("");
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-
-  async function act(op: string, fields: Record<string, unknown>, said: string) {
-    setBusy(true); setErr(null); setNote(null);
-    try {
-      await submitOp(op, { project, ...fields }, parent);
-      setNote(said); setDefinition(""); setReason("");
-      onDone();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { definition, reason, busy, error, note, setDefinition, setReason, act } =
+    useTermDecision(project, parent, onDone);
 
   return (
     <Paper variant="outlined" sx={{ p: 2, mb: 1.5 }}>
@@ -254,7 +244,7 @@ function Step({ term, project, parent, writeEnabled, ready, onDone }: {
       ) : null}
 
       {note ? <Alert severity="success" sx={{ mb: 1.5 }}>{note}</Alert> : null}
-      {err ? <Alert severity="error" sx={{ mb: 1.5 }}><b>Not recorded.</b> {err}</Alert> : null}
+      {error ? <Alert severity="error" sx={{ mb: 1.5 }}><b>Not recorded.</b> {error}</Alert> : null}
 
       {/* A control that is absent with no stated reason reads as "not possible"
           rather than "not yet". `data` is null only while the overlay is in
@@ -296,6 +286,81 @@ function Step({ term, project, parent, writeEnabled, ready, onDone }: {
   );
 }
 
+function ReadinessLadder({ decomposed, grounded, measured, enforced, rung }: {
+  decomposed: boolean;
+  grounded: boolean;
+  measured: boolean;
+  enforced: boolean;
+  rung: string;
+}) {
+  const stages = [
+    { label: "Written", detail: "The rule exists in the spec.", done: true },
+    { label: "Concepts identified", detail: "Its load-bearing words are explicit.", done: decomposed },
+    { label: "Concepts grounded", detail: "Every word points at real project records.", done: grounded },
+    { label: "Population measured", detail: "A check has examined a non-empty population.", done: measured },
+    { label: "Enforced", detail: "A passing verdict protects the requirement.", done: enforced },
+  ];
+  const next = stages.findIndex((stage) => !stage.done);
+
+  return (
+    <Paper variant="outlined" sx={{ mb: 2.5, overflow: "hidden" }}>
+      <Stack direction="row" alignItems="baseline" spacing={1.5} sx={{ px: 2.5, py: 1.75, bgcolor: "action.hover" }}>
+        <Typography variant="h2" sx={{ fontSize: 15 }}>Readiness path</Typography>
+        <Chip size="small" variant="outlined" label={rung || "R0"} sx={{ fontFamily: MONO, fontSize: 10.5 }} />
+        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
+          Evidence moves the requirement forward; authors do not choose a rung.
+        </Typography>
+      </Stack>
+      {stages.map((stage, index) => {
+        const active = index === next;
+        return (
+          <Box
+            key={stage.label}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "30px 1fr", sm: "30px 170px 1fr auto" },
+              gap: 1.25,
+              alignItems: "center",
+              px: 2.5,
+              py: 1.25,
+              borderTop: 1,
+              borderColor: "divider",
+              bgcolor: stage.done ? "color-mix(in srgb, var(--mui-palette-success-main) 7%, transparent)" : active ? "action.hover" : undefined,
+            }}
+          >
+            <Box
+              sx={{
+                width: 24,
+                height: 24,
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 1,
+                border: 1,
+                borderColor: stage.done ? "success.main" : active ? "warning.main" : "divider",
+                color: stage.done ? "success.main" : active ? "warning.main" : "text.disabled",
+                fontFamily: MONO,
+                fontWeight: 700,
+                fontSize: 11,
+              }}
+            >
+              {stage.done ? "✓" : index + 1}
+            </Box>
+            <Typography sx={{ fontSize: 12.5, fontWeight: active || stage.done ? 650 : 500 }}>
+              {stage.label}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12, gridColumn: { xs: "2", sm: "auto" } }}>
+              {stage.detail}
+            </Typography>
+            {active ? (
+              <Chip size="small" color="warning" variant="outlined" label="next" sx={{ fontSize: 10, justifySelf: "start" }} />
+            ) : null}
+          </Box>
+        );
+      })}
+    </Paper>
+  );
+}
+
 export function RequirementClient({ id, corpusReqs, corpusTerms }: {
   id: string; corpusReqs: Row[]; corpusTerms: Row[];
 }) {
@@ -324,6 +389,7 @@ export function RequirementClient({ id, corpusReqs, corpusTerms }: {
   const project = String(req["project"] ?? "");
   const text = String(req["predicate"] ?? "");
   const meas = measurement(req);
+  const populationMeasured = Boolean(meas) && Number(req["population"] ?? 0) > 0;
   const pct = g.live.length ? Math.round((g.bound / g.live.length) * 100) : 0;
   const inCorpus = corpusReqs.some(
     (r) => String(r["requirement_id"] ?? "").toLowerCase() === id.toLowerCase(),
@@ -378,6 +444,14 @@ export function RequirementClient({ id, corpusReqs, corpusTerms }: {
           This is a new requirement proposal. Rewording and withdrawal become available after it is adopted; until then, review the original proposal.
         </Alert>
       )}
+
+      <ReadinessLadder
+        decomposed={g.terms.length > 0}
+        grounded={g.state === "grounded"}
+        measured={populationMeasured}
+        enforced={stateOf(req) === "Enforced"}
+        rung={String(req["rung"] ?? "")}
+      />
 
       {/* ── the simple status ─────────────────────────────────────────────── */}
       <Paper variant="outlined" sx={{ p: 2.5, mb: 2.5 }}>

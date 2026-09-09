@@ -7,15 +7,16 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { measurement, stateOf } from "../../lib/evaluated";
 import { groundingOf } from "../../lib/grounded";
 import type { Row } from "../../lib/overlay";
-import { inProject, openingProject, projectsIn } from "../../lib/project";
+import { inProject, projectsIn } from "../../lib/project";
 import { MONO } from "../theme";
 import { OverlayError, PaneHead, ProjectPicker, ReadOnly, StateChip } from "../ui";
 import { useOverlay } from "../useOverlay";
+import { useProjectView } from "../useProjectView";
 
 /** `AUTH-2` before `AUTH-10`. */
 function compareIds(a: string, b: string): number {
@@ -35,13 +36,12 @@ function compareIds(a: string, b: string): number {
  */
 export function RequirementsClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[]; corpusTerms: Row[] }) {
   const { data, error } = useOverlay();
-  const [q, setQ] = useState("");
 
   const reqs = data?.requirements ?? corpusReqs;
   const termRows = data?.terms ?? corpusTerms;
 
   const projectList = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
-  const [project, setProject] = useState(() => openingProject(projectList));
+  const { project, setProject, query: q, setQuery: setQ } = useProjectView(projectList);
   const mine = useMemo(() => reqs.filter((r) => inProject(r, project)), [reqs, project]);
 
   const shown = useMemo(() => {

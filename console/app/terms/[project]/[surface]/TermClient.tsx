@@ -9,13 +9,14 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { STANDING_LABEL, termEntities } from "../../../../lib/entity";
 import type { Row } from "../../../../lib/overlay";
 import { MONO, SERIF } from "../../../theme";
 import { OverlayError, ReadOnly } from "../../../ui";
-import { submitOp, useOverlay } from "../../../useOverlay";
+import { useOverlay } from "../../../useOverlay";
+import { useTermDecision } from "../../../useTermDecision";
 
 /**
  * One word, at its own address.
@@ -39,27 +40,11 @@ export function TermClient({ project, surface, corpusTerms, corpusReqs }: {
     [termRows, project, surface],
   );
 
-  const [definition, setDefinition] = useState("");
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
+  const { definition, reason, busy, error: err, note, setDefinition, setReason, act } =
+    useTermDecision(project, parent, refresh);
 
   const predicateOf = (id: string) =>
     String(reqs.find((r) => String(r["requirement_id"] ?? "").toLowerCase() === id.toLowerCase())?.["predicate"] ?? "");
-
-  async function act(op: string, fields: Record<string, unknown>, said: string) {
-    setBusy(true); setErr(null); setNote(null);
-    try {
-      await submitOp(op, { project, ...fields }, parent);
-      setNote(said); setDefinition(""); setReason("");
-      refresh();
-    } catch (x) {
-      setErr(x instanceof Error ? x.message : String(x));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   if (!e) {
     return (

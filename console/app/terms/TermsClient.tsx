@@ -8,14 +8,15 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { STANDING_LABEL, termEntities, termHref } from "../../lib/entity";
 import type { Row } from "../../lib/overlay";
-import { openingProject, projectsIn } from "../../lib/project";
+import { projectsIn } from "../../lib/project";
 import { MONO } from "../theme";
 import { OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
 import { useOverlay } from "../useOverlay";
+import { useProjectView } from "../useProjectView";
 
 /**
  * The terms, as entities.
@@ -33,10 +34,9 @@ import { useOverlay } from "../useOverlay";
 export function TermsClient({ corpusTerms }: { corpusTerms: Row[] }) {
   const { data, error } = useOverlay();
   const termRows = data?.terms ?? corpusTerms;
-  const [q, setQ] = useState("");
 
   const projects = useMemo(() => projectsIn(corpusTerms), [corpusTerms]);
-  const [project, setProject] = useState(() => openingProject(projects));
+  const { project, setProject, query: q, setQuery: setQ } = useProjectView(projects);
 
   const all = useMemo(() => termEntities(termRows), [termRows]);
   const mine = useMemo(

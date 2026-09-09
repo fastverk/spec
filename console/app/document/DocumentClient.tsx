@@ -5,14 +5,15 @@ import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { stateOf } from "../../lib/evaluated";
 import type { Row } from "../../lib/overlay";
-import { inProject, openingProject, projectsIn } from "../../lib/project";
+import { inProject, projectsIn } from "../../lib/project";
 import { MONO, SERIF } from "../theme";
 import { OverlayError, PaneHead, ProjectPicker, StateChip } from "../ui";
 import { useOverlay } from "../useOverlay";
+import { useProjectView } from "../useProjectView";
 
 /**
  * The requirements document, generated from the requirements.
@@ -27,7 +28,7 @@ export function DocumentClient({ corpusReqs }: { corpusReqs: Row[] }) {
   const reqs = data?.requirements ?? corpusReqs;
 
   const projects = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
-  const [project, setProject] = useState(() => openingProject(projects));
+  const { project, setProject } = useProjectView(projects);
 
   const mine = reqs.filter((r) => inProject(r, project));
   const areas = [...new Set(mine.map((r) => String(r["discipline"] ?? "")))];

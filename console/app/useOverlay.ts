@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 
 import type { Row } from "../lib/overlay";
 
@@ -15,6 +15,30 @@ export type Overlay = {
   write_disabled_because: string;
 };
 
+type OverlayState = {
+  data: Overlay | null;
+  error: string | null;
+  loading: boolean;
+};
+
+type OverlayAction =
+  | { type: "loading" }
+  | { type: "loaded"; data: Overlay }
+  | { type: "failed"; error: string };
+
+const INITIAL: OverlayState = { data: null, error: null, loading: true };
+
+function overlayReducer(state: OverlayState, action: OverlayAction): OverlayState {
+  switch (action.type) {
+    case "loading":
+      return { ...state, loading: true };
+    case "loaded":
+      return { data: action.data, error: null, loading: false };
+    case "failed":
+      return { ...state, error: action.error, loading: false };
+  }
+}
+
 /**
  * The pending overlay, fetched separately from the corpus.
  *
@@ -28,22 +52,17 @@ export type Overlay = {
  * a write is visible on the very next request.
  */
 export function useOverlay() {
-  const [data, setData] = useState<Overlay | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, dispatch] = useReducer(overlayReducer, INITIAL);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    dispatch({ type: "loading" });
     try {
       const res = await fetch("/api/overlay", { cache: "no-store" });
       const body = await res.json();
       if (!res.ok) throw new Error(body.message || `overlay → ${res.status}`);
-      setData(body as Overlay);
-      setError(null);
+      dispatch({ type: "loaded", data: body as Overlay });
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
+      dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e) });
     }
   }, []);
 
@@ -51,7 +70,7 @@ export function useOverlay() {
     void refresh();
   }, [refresh]);
 
-  return { data, error, loading, refresh };
+  return { ...state, refresh };
 }
 
 /** Submit one op. `parent` is the read point — there is no default. */

@@ -11,14 +11,16 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 
 import { advise, droppedEmphasis, extract } from "../../../lib/decompose";
 import type { Row } from "../../../lib/overlay";
-import { inProject, openingProject, projectsIn } from "../../../lib/project";
+import { inProject, projectsIn } from "../../../lib/project";
 import { MONO, SERIF } from "../../theme";
 import { OverlayError, PaneHead, ProjectPicker, ReadOnly } from "../../ui";
 import { submitOp, useOverlay } from "../../useOverlay";
+import { useProjectView } from "../../useProjectView";
+import { useTextMarker } from "../../useTextMarker";
 import { Predicate } from "../[id]/Predicate";
 
 const MODALITIES = ["MUST", "MUST_NOT", "SHOULD", "SHOULD_NOT", "MAY"];
@@ -29,6 +31,42 @@ const MODALITY_LABEL: Record<string, string> = {
   SHOULD_NOT: "Should not — discouraged",
   MAY: "May — permitted",
 };
+
+type DraftField = "subject" | "text" | "area" | "modality" | "citation";
+type DraftState = Record<DraftField, string> & {
+  busy: boolean;
+  error: string | null;
+  saved: string | null;
+};
+type DraftAction =
+  | { type: "field"; field: DraftField; value: string }
+  | { type: "submit" }
+  | { type: "saved"; id: string }
+  | { type: "failed"; error: string };
+
+const INITIAL_DRAFT: DraftState = {
+  subject: "",
+  text: "",
+  area: "",
+  modality: "MUST",
+  citation: "",
+  busy: false,
+  error: null,
+  saved: null,
+};
+
+function draftReducer(state: DraftState, action: DraftAction): DraftState {
+  switch (action.type) {
+    case "field":
+      return { ...state, [action.field]: action.value, saved: null };
+    case "submit":
+      return { ...state, busy: true, error: null, saved: null };
+    case "saved":
+      return { ...state, subject: "", text: "", citation: "", busy: false, saved: action.id };
+    case "failed":
+      return { ...state, busy: false, error: action.error };
+  }
+}
 
 /** `auth-9` before `auth-10`; the suffix is compared as a number. */
 function nextId(existing: string[], prefix: string): string {
@@ -137,7 +175,7 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
   const parent = data?.corpus_version ?? "";
 
   const projects = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
-  const [project, setProject] = useState(() => openingProject(projects));
+  const { project, setProject } = useProjectView(projects);
 
   const mine = useMemo(() => reqs.filter((r) => inProject(r, project)), [reqs, project]);
   const areas = useMemo(
@@ -150,15 +188,14 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
     return nextId(ids, prefix);
   }, [mine]);
 
-  const [subject, setSubject] = useState("");
-  const [text, setText] = useState("");
-  const [area, setArea] = useState("");
-  const [modality, setModality] = useState("MUST");
-  const [citation, setCitation] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null);
-  const editor = useRef<HTMLInputElement | null>(null);
+  const [draft, dispatch] = useReducer(draftReducer, INITIAL_DRAFT);
+  const { subject, text, area, modality, citation, busy, error: err, saved } = draft;
+  const setField = useCallback(
+    (field: DraftField, value: string) => dispatch({ type: "field", field, value }),
+    [],
+  );
+  const setText = useCallback((value: string) => setField("text", value), [setField]);
+  const { inputRef: editor, markSelection } = useTextMarker(text, setText);
 
   const id = (subject.trim() || suggested).toLowerCase();
   const taken = reqs.some((r) => String(r["requirement_id"] ?? "").toLowerCase() === id);
@@ -177,23 +214,8 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [text]);
 
-  function markSelection(mark: "`" | "**") {
-    const input = editor.current;
-    if (!input) return;
-    const start = input.selectionStart ?? 0;
-    const end = input.selectionEnd ?? start;
-    const selected = text.slice(start, end);
-    const replacement = `${mark}${selected || (mark === "`" ? "system field" : "business term")}${mark}`;
-    setText(`${text.slice(0, start)}${replacement}${text.slice(end)}`);
-    requestAnimationFrame(() => {
-      const selectedStart = start + mark.length;
-      input.focus();
-      input.setSelectionRange(selectedStart, selectedStart + (selected || replacement.slice(mark.length, -mark.length)).length);
-    });
-  }
-
   async function write() {
-    setBusy(true); setErr(null); setSaved(null);
+    dispatch({ type: "submit" });
     try {
       // ⛔ rung is ALWAYS R0 and is not offered as a choice. "Rungs are evidence,
       // not intent" — `ladder-integrity.rq` refuses a hand-set rung, and
@@ -209,13 +231,10 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
         project,
         ...(citation.trim() ? { citation: citation.trim() } : {}),
       }, parent);
-      setSaved(id);
-      setSubject(""); setText(""); setCitation("");
+      dispatch({ type: "saved", id });
       refresh();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
+      dispatch({ type: "failed", error: e instanceof Error ? e.message : String(e) });
     }
   }
 
@@ -312,7 +331,7 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
               </Box>
               <TextField
                 select size="small" fullWidth value={modality}
-                onChange={(e) => setModality(String(e.target.value))}
+                onChange={(e) => setField("modality", String(e.target.value))}
                 label="Strength"
                 helperText="How strictly should this rule apply?"
               >
@@ -320,21 +339,21 @@ export function WriteClient({ corpusReqs }: { corpusReqs: Row[] }) {
               </TextField>
               <TextField
                 select size="small" fullWidth value={discipline}
-                onChange={(e) => setArea(String(e.target.value))}
+                onChange={(e) => setField("area", String(e.target.value))}
                 label="Area"
                 helperText="Who should own and review it?"
               >
                 {areas.map((a) => <MenuItem key={a} value={a}>{a}</MenuItem>)}
               </TextField>
             <TextField
-                size="small" fullWidth value={subject} onChange={(e) => setSubject(e.target.value)}
+                size="small" fullWidth value={subject} onChange={(e) => setField("subject", e.target.value)}
                 label="Requirement ID" placeholder={suggested}
               error={taken}
                 helperText={taken ? `${id} already exists` : `Leave blank to use ${suggested}`}
               slotProps={{ input: { sx: { fontFamily: MONO, fontSize: 13 } } }}
             />
           <TextField
-            size="small" fullWidth value={citation} onChange={(e) => setCitation(e.target.value)}
+            size="small" fullWidth value={citation} onChange={(e) => setField("citation", e.target.value)}
                 label="Source (optional)" placeholder="Policy §4.11 or decision record URL"
             slotProps={{ input: { sx: { fontFamily: MONO, fontSize: 13 } } }}
                 sx={{ gridColumn: { sm: "1 / -1" } }}

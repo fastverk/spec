@@ -7,17 +7,18 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { Row } from "../../lib/overlay";
-import { inProject, openingProject, projectsIn } from "../../lib/project";
+import { inProject, projectsIn } from "../../lib/project";
 import { OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
 import { useOverlay } from "../useOverlay";
+import { useProjectView } from "../useProjectView";
 
 export function OverviewClient({ corpusReqs, corpusTerms }: { corpusReqs: Row[]; corpusTerms: Row[] }) {
   const { data, error } = useOverlay();
   const projectList = useMemo(() => projectsIn(corpusReqs), [corpusReqs]);
-  const [project, setProject] = useState(() => openingProject(projectList));
+  const { project, setProject } = useProjectView(projectList);
 
   // Overlaid rows when the overlay answered; the corpus alone when it did not.
   const reqs = (data?.requirements ?? corpusReqs).filter((r) => inProject(r, project));
