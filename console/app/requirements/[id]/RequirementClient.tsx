@@ -15,8 +15,12 @@ import { useCallback, useMemo, useReducer } from "react";
 
 import { advise, extract } from "../../../lib/decompose";
 import { measurement, stateOf } from "../../../lib/evaluated";
+import type { GroundingSuggestion } from "../../../lib/grounding-suggestions";
+import { suggestionsFromTerms } from "../../../lib/grounding-suggestions";
 import { groundingOf, type TermStanding } from "../../../lib/grounded";
 import type { Row } from "../../../lib/overlay";
+import { GroundingAdapterNotice } from "../../GroundingAdapterNotice";
+import { GroundingComposer } from "../../GroundingComposer";
 import { MONO } from "../../theme";
 import { OverlayError, ReadOnly, StateChip } from "../../ui";
 import { submitOp, useOverlay } from "../../useOverlay";
@@ -208,9 +212,10 @@ function RequirementActions({ id, text, parent, writeEnabled, ready, onDone }: {
  * predicate. There is no field here that takes a count, because the count comes
  * from the project's own environment or it does not exist.
  */
-function Step({ term, project, parent, writeEnabled, ready, onDone }: {
+function Step({ term, project, parent, writeEnabled, ready, suggestions, onDone }: {
   term: TermStanding; project: string; parent: string;
   writeEnabled: boolean;
+  suggestions: GroundingSuggestion[];
   /** The overlay has answered. Distinguishes "writes are off" from "still asking". */
   ready: boolean;
   onDone: () => void;
@@ -258,12 +263,11 @@ function Step({ term, project, parent, writeEnabled, ready, onDone }: {
 
       {writeEnabled ? (
         <>
-          <TextField
-            fullWidth size="small" value={definition} onChange={(e) => setDefinition(e.target.value)}
-            placeholder="team_memberships.role = 'deployer'"
-            label="What does it point at?"
-            helperText="The stable referent in the product — what a query would actually select. Written in your project's own vocabulary; spec never parses it."
-            slotProps={{ input: { sx: { fontFamily: MONO, fontSize: 13 } } }}
+          <GroundingComposer
+            value={definition}
+            onChange={setDefinition}
+            suggestions={suggestions}
+            disabled={busy}
           />
           <Stack direction="row" spacing={1} sx={{ mt: 1.5, flexWrap: "wrap", gap: 1 }}>
             <Button size="small" variant="contained" disabled={busy || !definition.trim()}
@@ -388,6 +392,7 @@ export function RequirementClient({ id, corpusReqs, corpusTerms }: {
 
   const project = String(req["project"] ?? "");
   const text = String(req["predicate"] ?? "");
+  const groundingSuggestions = suggestionsFromTerms(termRows, project);
   const meas = measurement(req);
   const populationMeasured = Boolean(meas) && Number(req["population"] ?? 0) > 0;
   const pct = g.live.length ? Math.round((g.bound / g.live.length) * 100) : 0;
@@ -519,16 +524,12 @@ export function RequirementClient({ id, corpusReqs, corpusTerms }: {
             make on its own.
           </Typography>
 
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <b>No grounding adapter is answering.</b> Candidate readings and their record counts come
-            from the project&rsquo;s own environment — spec never queries a project database. You can
-            still record what a word means; you just cannot yet see how many records that would
-            examine. A missing answer, which is not the same as an empty one.
-          </Alert>
+          <GroundingAdapterNotice />
 
           {g.open.map((t) => (
             <Step key={t.surface} term={t} project={project} parent={parent}
                   writeEnabled={Boolean(data?.write_enabled)} ready={Boolean(data)}
+                  suggestions={groundingSuggestions}
                   onDone={refresh} />
           ))}
         </>

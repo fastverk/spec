@@ -12,7 +12,10 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import { STANDING_LABEL, termEntities } from "../../../../lib/entity";
+import { suggestionsFromTerms } from "../../../../lib/grounding-suggestions";
 import type { Row } from "../../../../lib/overlay";
+import { GroundingAdapterNotice } from "../../../GroundingAdapterNotice";
+import { GroundingComposer } from "../../../GroundingComposer";
 import { MONO, SERIF } from "../../../theme";
 import { OverlayError, ReadOnly } from "../../../ui";
 import { useOverlay } from "../../../useOverlay";
@@ -42,6 +45,10 @@ export function TermClient({ project, surface, corpusTerms, corpusReqs }: {
 
   const { definition, reason, busy, error: err, note, setDefinition, setReason, act } =
     useTermDecision(project, parent, refresh);
+  const groundingSuggestions = useMemo(
+    () => suggestionsFromTerms(termRows, project, surface),
+    [termRows, project, surface],
+  );
 
   const predicateOf = (id: string) =>
     String(reqs.find((r) => String(r["requirement_id"] ?? "").toLowerCase() === id.toLowerCase())?.["predicate"] ?? "");
@@ -91,7 +98,7 @@ export function TermClient({ project, surface, corpusTerms, corpusReqs }: {
           {/* ⛔ Said every time a binding is shown. Pointing at a population is
               not the same as having counted it, and without an adapter nothing
               here has counted anything. */}
-          How many records that matches is unknown — no adapter has answered.
+          This identifies the referent; it does not by itself prove how many records match.
         </Alert>
       ) : (
         <Alert severity="warning" sx={{ mb: 2 }}>
@@ -107,14 +114,16 @@ export function TermClient({ project, surface, corpusTerms, corpusReqs }: {
         </Alert>
       ) : null}
 
+      <GroundingAdapterNotice />
+
       <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
         <Paper variant="outlined" sx={{ p: 2.5, flex: "1 1 420px", minWidth: 320 }}>
           <Typography variant="h2" sx={{ fontSize: 13, mb: 1 }}>What does it point at?</Typography>
-          <TextField
-            fullWidth size="small" value={definition} onChange={(x) => setDefinition(x.target.value)}
-            placeholder="team_memberships.role = 'deployer'"
-            helperText="The stable referent in your product — what a query would actually select. Written in your own vocabulary; spec never parses it."
-            slotProps={{ input: { sx: { fontFamily: MONO, fontSize: 13 } } }}
+          <GroundingComposer
+            value={definition}
+            onChange={setDefinition}
+            suggestions={groundingSuggestions}
+            disabled={busy}
           />
           <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>
             <Button size="small" variant="contained"
