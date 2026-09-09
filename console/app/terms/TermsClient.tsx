@@ -1,6 +1,5 @@
 "use client";
 
-import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Paper from "@mui/material/Paper";
@@ -12,6 +11,7 @@ import { useMemo } from "react";
 
 import { STANDING_LABEL, termEntities, termHref } from "../../lib/entity";
 import type { Row } from "../../lib/overlay";
+import { GroundingAdapterNotice } from "../GroundingAdapterNotice";
 import { MONO } from "../theme";
 import { NotBackedYet, OverlayError, PaneHead, ProjectPicker, Tile } from "../ui";
 import { useOverlay } from "../useOverlay";
@@ -71,13 +71,7 @@ export function TermsClient({ corpusTerms, projects }: { corpusTerms: Row[]; pro
         <Tile n={cleared.length} label="Not a term" hint="cleared as decomposer noise" />
       </Box>
 
-      {/* ⚠ The adapter notice belongs here as much as on a requirement: without
-          it a person can say what a word means and cannot see how many records
-          that would examine. A missing answer, which is not an empty one. */}
-      <Alert severity="info" sx={{ mb: 2 }}>
-        <b>No grounding adapter is answering.</b> Candidate readings and their record counts come
-        from the project&rsquo;s own environment — spec never queries a project database.
-      </Alert>
+      <GroundingAdapterNotice />
 
       {shown.length === 0 ? (
         <NotBackedYet
