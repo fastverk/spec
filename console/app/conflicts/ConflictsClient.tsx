@@ -49,7 +49,7 @@ export function ConflictsClient({ conflicts, witness, projects }: {
     <>
       <PaneHead
         title="Conflicts"
-        blurb="Two requirements that cannot both hold. Once they are propositions rather than prose this is decidable, so it fails at authoring time instead of in production."
+        blurb="Requirements whose constraints cannot all hold together. Once they are propositions rather than prose this is decidable, so the conflict surfaces during authoring instead of in production."
       />
 
       <ProjectPicker projects={projects} value={project} onChange={setProject} />
