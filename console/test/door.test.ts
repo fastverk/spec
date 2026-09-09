@@ -110,6 +110,52 @@ describe("POST /api/proposal — the door", () => {
     expect(flat["canonical"]).toBe(nested["canonical"]);
   });
 
+  it("records rewording and exposes it as a pending requirement change", async () => {
+    const res = await post(postProposalOp, "/api/proposal/op", {
+      parent: PARENT,
+      op: "amendNS",
+      subject: "auth-24",
+      text: "A `sponsor:edit` grant MUST NOT imply `deploy:*`.",
+    });
+    expect(res.status).toBe(202);
+
+    const pending = Pending.fromRecords(lines());
+    const rows = [{ requirement_id: "auth-24", predicate: "Old wording" }];
+    pending.applyRequirements(rows);
+    expect(rows[0]).toMatchObject({
+      predicate: "A `sponsor:edit` grant MUST NOT imply `deploy:*`.",
+      pending: true,
+      pending_by: AUTHOR,
+    });
+  });
+
+  it("requires a reason to withdraw, then exposes the admitted withdrawal", async () => {
+    const missing = await post(postProposalOp, "/api/proposal/op", {
+      parent: PARENT,
+      op: "retractNS",
+      subject: "auth-24",
+    });
+    expect(missing.status).toBe(422);
+    expect(existsSync(proposalLog())).toBe(false);
+
+    const admitted = await post(postProposalOp, "/api/proposal/op", {
+      parent: PARENT,
+      op: "retractNS",
+      subject: "auth-24",
+      reason: "Superseded by the organization-wide deployment policy.",
+    });
+    expect(admitted.status).toBe(202);
+
+    const pending = Pending.fromRecords(lines());
+    const rows = [{ requirement_id: "auth-24", predicate: "Old wording" }];
+    pending.applyRequirements(rows);
+    expect(rows[0]).toMatchObject({
+      retracted: true,
+      pending: true,
+      pending_by: AUTHOR,
+    });
+  });
+
   it("⛔ §9.1: the same change from two surfaces is one proposal with two provenance records", async () => {
     const meridian = await json(await post(postProposalOp, "/api/proposal/op", { ...FLAT, surface: "Meridian" }));
     const chat = await json(await post(postProposalOp, "/api/proposal/op", { ...FLAT, surface: "Chat" }));
