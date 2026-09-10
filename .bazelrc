@@ -2,7 +2,7 @@
 # (the Lean toolchain backing the spec-framework modules) resolves from the
 # public fastverk registry. Made explicit here so the build is self-contained
 # (previously relied on a global/user.bazelrc).
-common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
 
 
@@ -18,6 +18,20 @@ build --tool_java_language_version=21
 # environment so the fetch works locally and in CI.
 common --repo_env=JAVA_HOME
 build --action_env=JAVA_HOME
+
+# tectonic (//impact:needle) caches its TeX bundle under $HOME/.cache/Tectonic,
+# or $XDG_CACHE_HOME when set. On the RBE worker neither is writable, and
+# tectonic reports the failure without naming the path it tried:
+#
+#   Compiling //impact:needle with tectonic failed: (Exit 1)
+#   error: Permission denied (os error 13)
+#   caused by: Permission denied (os error 13)
+#
+# The build succeeds on a developer machine, where $HOME is writable, so this
+# only ever fails remotely. Point the cache at a sandbox-writable path so the
+# action does not depend on the worker image having a writable home.
+build --action_env=TECTONIC_CACHE_DIR=/tmp/tectonic-cache
+build --action_env=XDG_CACHE_HOME=/tmp/xdg-cache
 
 try-import %workspace%/user.bazelrc
 
