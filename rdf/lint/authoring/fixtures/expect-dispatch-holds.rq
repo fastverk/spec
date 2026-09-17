@@ -1,0 +1,134 @@
+# ---
+# title: "Dispatch-hold liveness counts (adversarial control)"
+# description: "Zero-row iff dispatch-hold.rq reports EXACTLY the four planted live holds in dispatch-holds.ttl and stays silent on the two released ones. Fails if a liveness branch goes quiet, or a released outcome starts holding."
+# severity: error
+# tier: 3
+# rationale: "Same posture as expect-detections.rq: a negative control alone cannot prove the query detects anything, and dispatch-hold.rq's ESCALATED branch is precisely the rule that existed in prose only ('hold affected work orders') with nothing exercising it. One counted assertion per liveness branch, one for the total (guards double-counting a conflict that matches two branches), and one asserting the released outcomes (au:Narrow, au:Refute) contribute nothing — the direction that fails if someone 'simplifies' the query to any-blocksWorkOrder-is-held, which would hold wo-041 and wo-042 forever on ampere's adjudicated conflicts. The branch bodies are inlined, so if dispatch-hold.rq's body changes this file must change with it; that coupling is the point."
+# ---
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?check ?expected ?actual
+WHERE {
+  {
+    {
+      SELECT (COUNT(DISTINCT ?c) AS ?actual)
+      WHERE {
+        ?c a au:Conflict ; au:blocksWorkOrder ?o .
+        FILTER NOT EXISTS { ?c au:resolvedBy ?r }
+      }
+    }
+    BIND("live: UNRESOLVED" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    {
+      SELECT (COUNT(DISTINCT ?c) AS ?actual)
+      WHERE {
+        ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+        ?res au:outcome au:Escalate .
+      }
+    }
+    BIND("live: ESCALATED" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    {
+      SELECT (COUNT(DISTINCT ?c) AS ?actual)
+      WHERE {
+        ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+        ?res au:outcome au:Exempt ; au:expires ?exp .
+        FILTER(?exp < xsd:date(NOW()))
+      }
+    }
+    BIND("live: LAPSED-WAIVER" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    {
+      SELECT (COUNT(DISTINCT ?c) AS ?actual)
+      WHERE {
+        ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+        ?res au:outcome au:Exempt .
+        FILTER NOT EXISTS { ?res au:expires ?e }
+      }
+    }
+    BIND("live: UNBOUNDED-WAIVER" AS ?check)
+    BIND(1 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # The full liveness union over the fixture: exactly four (order, conflict)
+    # pairs. Guards a conflict matching two branches and being counted twice,
+    # and a fifth conflict slipping in live.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        SELECT DISTINCT ?o ?c
+        WHERE {
+          # Branches self-contained — the hoisted form leaves ?c unbound in
+          # the FILTER-only branch; see dispatch-hold.rq's header.
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o .
+            FILTER NOT EXISTS { ?c au:resolvedBy ?r } }
+          UNION
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+            ?res au:outcome au:Escalate . }
+          UNION
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+            ?res au:outcome au:Exempt ; au:expires ?exp .
+            FILTER(?exp < xsd:date(NOW())) }
+          UNION
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+            ?res au:outcome au:Exempt .
+            FILTER NOT EXISTS { ?res au:expires ?e } }
+        }
+      }
+    }
+    BIND("live: total pairs" AS ?check)
+    BIND(4 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+  UNION
+  {
+    # The released direction: Narrow and Refute release, so the orders they
+    # held must contribute ZERO live pairs.
+    {
+      SELECT (COUNT(*) AS ?actual)
+      WHERE {
+        SELECT DISTINCT ?o ?c
+        WHERE {
+          # Branches self-contained — the hoisted form leaves ?c unbound in
+          # the FILTER-only branch; see dispatch-hold.rq's header.
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o .
+            FILTER(?o IN ("wo-released", "wo-refuted"))
+            FILTER NOT EXISTS { ?c au:resolvedBy ?r } }
+          UNION
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+            FILTER(?o IN ("wo-released", "wo-refuted"))
+            ?res au:outcome au:Escalate . }
+          UNION
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+            FILTER(?o IN ("wo-released", "wo-refuted"))
+            ?res au:outcome au:Exempt ; au:expires ?exp .
+            FILTER(?exp < xsd:date(NOW())) }
+          UNION
+          { ?c a au:Conflict ; au:blocksWorkOrder ?o ; au:resolvedBy ?res .
+            FILTER(?o IN ("wo-released", "wo-refuted"))
+            ?res au:outcome au:Exempt .
+            FILTER NOT EXISTS { ?res au:expires ?e } }
+        }
+      }
+    }
+    BIND("released: Narrow and Refute hold nothing" AS ?check)
+    BIND(0 AS ?expected)
+    FILTER(?actual != ?expected)
+  }
+}
+ORDER BY ?check

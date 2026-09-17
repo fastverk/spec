@@ -1,0 +1,45 @@
+{
+  "_comment": "The fanout config — what the corpus cannot know: order ids (stable names for threads of work; au:blocksWorkOrder's strings resolve through these), artifact paths (a repo-layout fact), and budgets (an allocation decision, spec#46). Shape documented against proto/spec/v1/workorder.proto's FanoutConfig reading of OrderSpec. The four ids are the ones ampere's conflicts have named since the corpus was written — mock-only until now.",
+  "orders": [
+    {
+      "order_id": "wo-041",
+      "scope": "https://ampere.example/corpus#s-oem-warranty",
+      "discipline": "https://ampere.example/corpus#d-warranty",
+      "write_paths": ["src/thermal/**"],
+      "forbidden": ["src/bid/**", "src/settle/**", "src/compliance/**"],
+      "max_tokens": 2000000,
+      "max_probes": 40,
+      "acceptance": ["//thermal:derate_envelope_test"]
+    },
+    {
+      "order_id": "wo-042",
+      "scope": "https://ampere.example/corpus#s-market-b",
+      "discipline": "https://ampere.example/corpus#d-market",
+      "write_paths": ["src/bid/**"],
+      "forbidden": ["src/thermal/**", "src/compliance/**"],
+      "max_tokens": 1500000,
+      "max_probes": 20,
+      "acceptance": ["//bid:capacity_commitment_test"]
+    },
+    {
+      "order_id": "wo-046",
+      "scope": "https://ampere.example/corpus#s-lgia",
+      "discipline": "https://ampere.example/corpus#d-interconnection",
+      "write_paths": ["src/interconnect/**"],
+      "forbidden": ["src/bid/**", "src/thermal/**"],
+      "max_tokens": 1500000,
+      "max_probes": 20,
+      "acceptance": ["//interconnect:ride_through_test"]
+    },
+    {
+      "order_id": "wo-057",
+      "scope": "https://ampere.example/corpus#s-tax-code",
+      "discipline": "https://ampere.example/corpus#d-tax",
+      "write_paths": ["src/itc/**"],
+      "forbidden": ["src/bid/**"],
+      "max_tokens": 1000000,
+      "max_probes": 10,
+      "acceptance": ["//itc:domestic_content_test"]
+    }
+  ]
+}

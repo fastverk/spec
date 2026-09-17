@@ -1,4 +1,4 @@
-load("@rules_graphviz//graphviz:defs.bzl", "dot_diagram", "svg_pdf")
+load("@rules_graphviz//graphviz:defs.bzl", "dot_diagram")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -40,30 +40,79 @@ filegroup(
     ],
 )
 
-# Vector PDF of each graph, converted hermetically from the canonical SVG above
-# (rules_graphviz svg_pdf: bun + vendored converter, no host `dot`). tectonic
-# embeds PDF, not SVG, so the deck (//deck) consumes these. Converting the same
-# SVG (rather than re-rendering) guarantees the PDF matches the canonical SVG.
-svg_pdf(
-    name = "crystal_pdf",
-    src = ":crystal_svg",
+# ── TikZ for tectonic ────────────────────────────────────────────────────────
+#
+# These were `svg_pdf` targets until they were found to be unbuildable. Both
+# `svg_pdf` and `dot_pdf` in rules_graphviz@0.2.0 fail for EVERY consumer: the
+# vendored bun bundle folded `__dirname` into a literal at bundle time, and
+# pdfkit reads its AFM font metrics off disk at run time, so the "hermetic"
+# converter reaches for
+#
+#   /private/tmp/claude-501/.../scratchpad/svg2pdf-final/
+#       node_modules/pdfkit/js/data/Helvetica.afm
+#
+# — the scratchpad of the machine that built the bundle. No `.afm` ships with
+# the module, so patching the path would still find nothing to read. This was
+# one of the two causes of `fastverk/build` being red on main (the other was
+# the unpinned maven resolution).
+#
+# `dot_diagram` itself works, and graphviz's `plain` output IS the computed
+# layout as text — so graphviz still does the layout, hermetically in WASM, and
+# //graph:plain_to_tikz turns it into TikZ that LaTeX draws as vector. The deck
+# already `\input`s native pgfplots/TikZ for its data figures, so the graph
+# figures are now the same kind of object rather than an embedded raster-free
+# PDF that nothing could produce.
+#
+#   bazel build //graph:tikz  ->  bazel-bin/graph/{crystal,collapse_*}_tikz.tex
+
+dot_diagram(
+    name = "crystal_plain",
+    src = "figures/crystal.dot",
+    engine = "twopi",
+    output_format = "plain",
 )
 
-svg_pdf(
-    name = "collapse_before_pdf",
-    src = ":collapse_before_svg",
+dot_diagram(
+    name = "collapse_before_plain",
+    src = "figures/collapse_before.dot",
+    engine = "sfdp",
+    output_format = "plain",
 )
 
-svg_pdf(
-    name = "collapse_after_pdf",
-    src = ":collapse_after_svg",
+dot_diagram(
+    name = "collapse_after_plain",
+    src = "figures/collapse_after.dot",
+    engine = "dot",
+    output_format = "plain",
 )
+
+# Host `python3`, deliberately, rather than a `py_binary`: rules_python is not a
+# dep of this module and adding one would land in every consumer's module graph
+# for a figure only the deck builds. spec already assumes host python3 for
+# tools/readmodel/*.py, and //graph is a paper surface, not part of the
+# framework surface consumers depend on.
+[
+    genrule(
+        name = "{}_tikz".format(n),
+        srcs = [":{}_plain".format(n)],
+        outs = ["{}_tikz.tex".format(n)],
+        cmd = "python3 $(location plain_to_tikz.py) --layout $< --output $@",
+        tools = ["plain_to_tikz.py"],
+    )
+    for n in [
+        "crystal",
+        "collapse_before",
+        "collapse_after",
+    ]
+]
 
 filegroup(
-    name = "pdfs",
+    name = "tikz",
     srcs = [
-        ":collapse_after_pdf",
-        ":collapse_before_pdf",
-        ":crystal_pdf",
+        ":collapse_after_tikz",
+        ":collapse_before_tikz",
+        ":crystal_tikz",
     ],
 )
+
+exports_files(["plain_to_tikz.py"])

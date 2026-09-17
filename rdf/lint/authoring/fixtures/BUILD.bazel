@@ -1,0 +1,182 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query", "sparql_query_test")
+load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+load("@rules_python//python:defs.bzl", "py_test")
+load("//rdf/readmodel:readmodel.bzl", "spec_readmodel")
+
+package(default_visibility = ["//visibility:public"])
+
+# ── The controls ────────────────────────────────────────────────────────────
+#
+# Following grounding/BUILD.bazel's adversarial_gate discipline: a gate that has
+# never been shown to reject anything is an assertion, not a check — and a gate
+# that fires on both fixtures is a false-positive generator. So both directions
+# are wired.
+#
+#   bazel test //rdf/lint/authoring/fixtures/...
+
+# The incoherent slice: four instruments whose bounds on one quantity intersect
+# to nothing, plus one planted instance of every hygiene and ladder defect.
+rdf_dataset(
+    name = "conflict_fixture",
+    srcs = ["envelope-conflict.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# The same slice, honestly adjudicated: the capacity commitment re-offered down
+# to the binding warranty ceiling, the homonym pair registered disjoint, every
+# rung provenanced, every sub-R4 claim naming its blocker, and the conflict
+# retained with a witness, an owner and a resolution.
+rdf_dataset(
+    name = "clean_fixture",
+    srcs = ["envelope-clean.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# ── Negative control: every gate silent on the coherent fixture ─────────────
+#
+# This is the direction that proves the gates do not false-positive. It cannot
+# prove they detect anything — a gate that always returns zero passes it
+# trivially — which is what :expect_detections below is for.
+spec_authoring_gates(
+    name = "clean",
+    dataset = ":clean_fixture",
+    measures = False,
+)
+
+# The clean fixture is also structurally sound, so the pre-existing suite runs
+# over it too. Cheap, and it catches a fixture that only looks valid.
+spec_corpus_gates(
+    name = "clean_structural",
+    dataset = ":clean_fixture",
+)
+
+# ── Positive control: the gates detect EXACTLY the planted defects ──────────
+#
+# Zero-row iff every gate's detection count over the conflict fixture is the
+# expected one. Fails if a gate stops detecting (a body regression) AND if it
+# starts over-detecting. Written as counted assertions in the same zero-row
+# idiom as everything else, rather than an emit_diff_test against a golden TSV,
+# so it carries no dependency on the SPARQL engine's TSV serialization.
+#
+# Verified behaviour: 0 rows over :conflict_fixture, 7 rows over :clean_fixture
+# (the assertions are live — absent detections fire them; the one branch that
+# expects 0, envelope-unrecorded-silent-when-documented, is silent on both).
+sparql_query_test(
+    name = "expect_detections",
+    dataset = ":conflict_fixture",
+    query = "expect-detections.rq",
+)
+
+# ── The direction that was missing entirely ────────────────────────────────
+#
+# ⛔ Everything above proves the gates can stay SILENT, and proves five of the
+# six can SPEAK. envelope_unrecorded — the one authoring_gates.bzl calls the
+# load-bearing gate — could do neither, because no fixture in this directory
+# asks it to fire: :conflict_fixture records its own infeasibility with
+# fx:conflict-envelope, so zero rows there is CORRECT, and :clean_fixture is
+# silent by construction. A gate with two negative controls and no positive one
+# is an assertion, which is the thing this whole directory exists to refuse.
+#
+# It was, in fact, detecting nothing at all — written in the flat
+# BIND(IF(...)) + HAVING(MAX > MIN) form that returns zero rows under ARQ for
+# every input, the form empty-envelope.rq was rewritten out of and documents in
+# its own header. Neither control could see that.
+#
+# The earlier note here said this assertion needed a query label from another
+# package and was left unwired. It does not: inlining the gate's body, the way
+# expect-detections.rq already does for every other gate, needs no label.
+rdf_dataset(
+    name = "undocumented_fixture",
+    srcs = ["envelope-undocumented.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# Zero-row iff envelope-unrecorded.rq finds EXACTLY the one undocumented
+# infeasibility, with the right deficit. This is the assertion that fails if the
+# gate ever goes quiet again.
+sparql_query_test(
+    name = "expect_undocumented",
+    dataset = ":undocumented_fixture",
+    query = "expect-undocumented.rq",
+)
+
+# The silent direction now lives in expect-detections.rq as
+# "envelope-unrecorded-silent-when-documented", so both directions are wired for
+# every gate in the suite.
+
+# ⛔ AND THE READ MODEL'S OWN COPY OF THE SAME QUESTION, under the same engine.
+#
+# The console's `envelopes` route asked this in the flat
+# BIND(IF(...))+HAVING(MAX>MIN) form that empty-envelope.rq and
+# envelope-unrecorded.rq each document at length as broken under ARQ. It survived
+# there because `tools/readmodel/emit_readmodel.py` runs **rdflib**, where the
+# form happens to work — so the third instance of a defect this repo had already
+# found twice sat in the one place nobody ran the engine of record. Measured: 2
+# rows under rdflib, 0 under ARQ, over the same corpus.
+#
+# This is that route's positive control, on the fixture built for the gate: the
+# infeasibility is real and NO au:Conflict names it, so the payload must carry
+# exactly one envelope with `recorded` false. It also pins the half of the
+# rewrite that is easiest to get wrong — the `recorded` sub-select must bind
+# ?quantity OUTSIDE its OPTIONAL, or an unrecorded envelope produces no row at
+# all and vanishes from the very panel that exists to show it.
+spec_readmodel(
+    name = "undocumented_readmodel",
+    dataset = ":undocumented_fixture",
+    project = "fixture",
+    srcs = ["envelope-undocumented.ttl"],
+)
+
+py_test(
+    name = "undocumented_readmodel_test",
+    size = "small",
+    srcs = ["undocumented_readmodel_test.py"],
+    # ⚠ The OUTPUT FILE's label, not the genrule's. `$(rootpath)` resolves only
+    # against a declared prerequisite, and naming the rule stages all eight
+    # payloads while resolving none of them individually.
+    args = ["$(rootpath :undocumented_readmodel/envelopes.json)"],
+    data = [":undocumented_readmodel/envelopes.json"],
+)
+
+exports_files(glob([
+    "*.ttl",
+    "*.rq",
+]))
+
+# ── Dispatch-hold liveness, both directions ────────────────────────────────
+#
+# dispatch-hold.rq derives which au:blocksWorkOrder assertions are LIVE — the
+# ESCALATED branch is a rule that existed only as prose ("hold affected work
+# orders") until this fixture, and the released direction is what fails if the
+# query is ever "simplified" to any-blocksWorkOrder-is-held, which would hold
+# ampere's wo-041/wo-042 forever on adjudicated conflicts. Deliberately its
+# own minimal fixture, NOT wired through the gate suites: these conflicts
+# carry no witnesses or owners, so the hygiene gates would (correctly) fire.
+rdf_dataset(
+    name = "dispatch_holds_fixture",
+    srcs = ["dispatch-holds.ttl"],
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+sparql_query_test(
+    name = "expect_dispatch_holds",
+    dataset = ":dispatch_holds_fixture",
+    query = "expect-dispatch-holds.rq",
+)
+
+
+# Diagnostic view of the vacuous gate over the conflict fixture. The gate itself
+# is wired by spec_authoring_gates above (zero-row on :clean); this makes the
+# planted rows readable when it fires.
+sparql_query(
+    name = "vacuous_detected",
+    dataset = ":conflict_fixture",
+    query = "//rdf/lint/authoring:vacuous-invariant.rq",
+    out_format = "tsv",
+)

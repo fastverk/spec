@@ -1,0 +1,77 @@
+# ---
+# title: "Unrecorded empty envelope"
+# description: "A quantity whose bounds intersect to the empty set with NO au:Conflict object recording it. The zero-row gate form of empty-envelope.rq."
+# severity: error
+# tier: 3
+# rationale: "empty-envelope.rq is a MEASURE, not a gate: an empty feasible envelope is a genuine finding about the world, and failing the build on it would mean a corpus could never record two instruments that genuinely cannot both be met. What must never happen is an empty envelope that nobody wrote down. This query is therefore the gate: it fires only when the arithmetic says infeasible AND no au:Conflict names that quantity. Zero rows means every infeasibility in the corpus is an admitted, witnessed, owned object — which is exactly the discipline that makes admitting conflicts (rather than rejecting the write) defensible. Pairs with conflict-hygiene-strict.rq, which then guarantees each of those recorded conflicts has a witness and an owner."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+# ⛔ THIS GATE RETURNED ZERO ROWS FOR EVERY INPUT, AND READ AS PASSING.
+#
+# It was written in the flat form empty-envelope.rq documents at length as
+# broken:
+#
+#     BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
+#     BIND(IF(?kind = au:UpperBound, ?v, ?unbound) AS ?hi)
+#     ...
+#     HAVING (MAX(?lo) > MIN(?hi))
+#
+# Every solution leaves exactly one of ?lo / ?hi unbound; ARQ's MAX/MIN return
+# UNBOUND for a group in which any row lacks the variable; HAVING then compares
+# two unbounds and admits nothing. The measure was rewritten out of that form
+# after it was caught. THE GATE WAS NOT — one file recorded the bug and its
+# neighbour kept the shape, which is drift between two statements of one rule,
+# the failure this repo exists to prevent.
+#
+# It compounded: the positive control never covered this gate. fixtures/
+# envelope-conflict.ttl records its infeasibility with fx:conflict-envelope, so
+# 0 rows there is CORRECT and proves nothing, and no fixture existed on which
+# this gate was supposed to fire. Two independent reasons to detect nothing, and
+# a green build either way. fixtures/envelope-undocumented.ttl now exists for
+# exactly this gate, and expect-undocumented.rq pins the count.
+#
+# Sub-selects, as in empty-envelope.rq: each aggregate only ever sees bound
+# values, which is portable and needs no error-to-unbound semantics at all.
+SELECT ?quantity ?unit ?greatestLower ?leastUpper
+       (?greatestLower - ?leastUpper AS ?deficit)
+WHERE {
+  # Greatest lower bound asserted on the quantity, across all disciplines.
+  {
+    SELECT ?quantity (MAX(?v) AS ?greatestLower)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound .
+      ?bound au:boundKind au:LowerBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # Least upper bound.
+  {
+    SELECT ?quantity (MIN(?v) AS ?leastUpper)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound .
+      ?bound au:boundKind au:UpperBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+
+  ?quantity a au:Quantity .
+  OPTIONAL { ?quantity au:unit ?unit }
+
+  # ⚠ au:discipline is deliberately NOT required of a bounding claim here,
+  # though the flat form required it. empty-envelope.rq needs it only to COUNT
+  # disciplines, and a gate that skipped a claim for omitting one would let an
+  # infeasibility out through an authoring slip.
+  FILTER(?greatestLower > ?leastUpper)
+
+  # The gate condition: no admitted conflict names this quantity.
+  FILTER NOT EXISTS {
+    ?conflict a au:Conflict ; au:onQuantity ?quantity .
+  }
+}
+ORDER BY DESC(?deficit)

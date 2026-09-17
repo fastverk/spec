@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Never commit a database URL. The console connects as `spec_app` (INSERT +
+# SELECT); the owner credential that could DISABLE TRIGGER lives only in CI.
+.env
+.env.local
+.env*.local

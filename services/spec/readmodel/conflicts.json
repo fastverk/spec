@@ -1,0 +1,150 @@
+{
+  "conflicts": [
+    {
+      "id": "INV-01",
+      "kind": "EmptyEnvelope",
+      "quantity": "q-sustained-discharge",
+      "disciplines": "electrochemistry & thermal x fire & life safety x insurance, warranty & O&M x market microstructure & tariff x power-systems interconnection x software & DER fleet control",
+      "party_count": 6,
+      "blocked_orders": 3,
+      "owner": "p-asset-mgr",
+      "state": "resolved",
+      "outcome": "Narrow",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-02",
+      "kind": "ModalityClash",
+      "quantity": "q-setpoint",
+      "disciplines": "fire & life safety x market microstructure & tariff",
+      "party_count": 3,
+      "blocked_orders": 1,
+      "owner": "p-ahj",
+      "state": "resolved",
+      "outcome": "Narrow",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-03",
+      "kind": "EmptyEnvelope",
+      "quantity": "q-telemetry-latency",
+      "disciplines": "cybersecurity & reliability compliance x protection & controls",
+      "party_count": 2,
+      "blocked_orders": 1,
+      "owner": "p-ciso",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-07",
+      "kind": "ModalityClash",
+      "quantity": "q-setpoint",
+      "disciplines": "market microstructure & tariff x power-systems interconnection x software & DER fleet control",
+      "party_count": 3,
+      "blocked_orders": 1,
+      "owner": "p-controls-sw",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-11",
+      "kind": "PrecedenceUndefined",
+      "quantity": "",
+      "disciplines": "insurance, warranty & O&M x power-systems interconnection",
+      "party_count": 2,
+      "blocked_orders": 1,
+      "owner": "p-interconnection-eng",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-13",
+      "kind": "PrecedenceUndefined",
+      "quantity": "q-domestic-content",
+      "disciplines": "environmental permitting & land use x tax & project finance",
+      "party_count": 2,
+      "blocked_orders": 1,
+      "owner": "p-tax-counsel",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-05",
+      "kind": "EmptyEnvelope",
+      "quantity": "q-noise",
+      "disciplines": "environmental permitting & land use x fire & life safety",
+      "party_count": 3,
+      "blocked_orders": 0,
+      "owner": "p-permit-mgr",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-10",
+      "kind": "ModalityClash",
+      "quantity": "q-station-power",
+      "disciplines": "accounting & revenue recognition x market microstructure & tariff",
+      "party_count": 2,
+      "blocked_orders": 0,
+      "owner": "p-controller",
+      "state": "resolved",
+      "outcome": "Refute",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-12",
+      "kind": "Homonym",
+      "quantity": "",
+      "disciplines": "accounting & revenue recognition x tax & project finance",
+      "party_count": 2,
+      "blocked_orders": 0,
+      "owner": "p-tax-counsel",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-14",
+      "kind": "ModalityClash",
+      "quantity": "",
+      "disciplines": "power-systems interconnection x software & DER fleet control",
+      "party_count": 2,
+      "blocked_orders": 0,
+      "owner": "p-interconnection-eng",
+      "state": "open",
+      "outcome": "",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-16",
+      "kind": "TopologyDisagreement",
+      "quantity": "",
+      "disciplines": "metering & settlement x power-systems interconnection",
+      "party_count": 3,
+      "blocked_orders": 0,
+      "owner": "p-settlement-analyst",
+      "state": "resolved",
+      "outcome": "Narrow",
+      "project": "ampere"
+    },
+    {
+      "id": "INV-19",
+      "kind": "Homonym",
+      "quantity": "",
+      "disciplines": "accounting & revenue recognition x environmental permitting & land use x market microstructure & tariff",
+      "party_count": 3,
+      "blocked_orders": 0,
+      "owner": "p-market-ops",
+      "state": "resolved",
+      "outcome": "Narrow",
+      "project": "ampere"
+    }
+  ],
+  "corpus_version": "corpus:b22cd35e1854ea7d",
+  "unreachable_repos": []
+}

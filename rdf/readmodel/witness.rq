@@ -1,0 +1,25 @@
+# ---
+# title: "Conflict witnesses: the claims party to each conflict, with their bounds"
+# description: "The `parties` rows of the witness read-model route."
+# severity: info
+# tier: 3
+# rationale: "A conflict with no witness is a claim, not a conflict — RFC-002 §7's conflict-hygiene gate fails an unwitnessed one. This is what the witness panel renders to show WHY two claims cannot both hold."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?conflict ?quantity ?unit ?party ?discipline ?modality ?boundKind ?boundValue ?guard ?defeasible
+WHERE {
+  ?conflict a au:Conflict ; au:party ?party .
+  ?party rfc:modality ?modality .
+  # The join key to ListEnvelopes. Without it a witness row says "this claim binds
+  # at 55" with no way to know 55 of WHAT, which makes the constraint-bar axis
+  # (the one screen the whole read model exists for) impossible to draw.
+  OPTIONAL { ?conflict au:onQuantity ?quantity . OPTIONAL { ?quantity au:unit ?unit } }
+  OPTIONAL { ?party au:discipline ?d . ?d rdfs:label ?discipline }
+  OPTIONAL { ?party au:hasBound ?b . ?b au:boundKind ?boundKind ; au:boundValue ?boundValue .
+             OPTIONAL { ?b au:boundGuard ?guard } }
+  OPTIONAL { ?party au:defeasible ?defeasible }
+}
+ORDER BY ?conflict ?boundValue

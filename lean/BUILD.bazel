@@ -1,6 +1,52 @@
-load("@rules_lean//lean:lean.bzl", "lean_test")
+load("@rules_lean//lean:lean.bzl", "lean_emit", "lean_test")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools:diff.bzl", "emit_diff_test")
 
 package(default_visibility = ["//visibility:public"])
+
+# ─── The proof gate ──────────────────────────────────────────────────────────
+#
+# ⛔ `lean_test` DOES NOT CHECK PROOFS. A `sorry` is a *warning* and `lean` exits
+# 0, so a file proving anything `by sorry` passes a `lean_test` cleanly. This was
+# MEASURED here, not inferred: a probe theorem appended to
+# Spec/Grounding/WriteDoor.lean left //lean:grounding_test green.
+#
+# That is worse than a normal gate gap, because the comment on :grounding_test
+# said "compiling (sorry-free) IS the verification that the grounding is real",
+# and //grounding:grounding_verified ties the corpus's `:provenBy` to precisely
+# that claim. The guarantee the whole grounding story rests on was asserted and
+# not enforced.
+#
+# Two layers close it:
+#   1. `set_option warningAsError true` in every Lean source (after the imports).
+#      Turns `declaration uses 'sorry'` into a hard error — verified in both
+#      directions: the probe now FAILS, and the tree still passes without it.
+#   2. This audit, for what the option cannot see, plus the axiom ratchet.
+#
+# On the ratchet: this tree declares 93 axioms ON PURPOSE — the universe of
+# discourse is opaque by design. Banning them (as the same gate does in agora)
+# would make this impossible to turn on. What must not happen is the trusted
+# base growing quietly, so the counts live in axiom_baseline.txt and a change
+# there is a visible decision.
+sh_test(
+    name = "audit_proofs_test",
+    size = "small",
+    srcs = ["audit_proofs.sh"],
+    args = ["$(rootpaths :lean_srcs)"] + ["$(rootpath axiom_baseline.txt)"],
+    data = [
+        "axiom_baseline.txt",
+        ":lean_srcs",
+    ],
+)
+
+filegroup(
+    name = "lean_srcs",
+    srcs = glob(
+        ["Spec/**/*.lean"],
+        exclude = ["lake/**"],
+    ),
+)
 
 # Generic spec-framework Lean modules. Exposed as source labels so cross-repo
 # consumers (Aion's lean_test targets) list them in their own `srcs` —
@@ -18,6 +64,10 @@ exports_files([
     "Spec/Corpus/Inference.lean",
     "Spec/Emit/TtlEmit.lean",
     "Spec/Emit/MdEmit.lean",
+    "Spec/Emit/TierVocab.lean",
+    "Spec/Authoring/Op.lean",
+    "Spec/Authoring/Proposal.lean",
+    "Spec/Authoring/Door.lean",
     "Spec/Logic/Core.lean",
     "Spec/Logic/InferenceRulesProofs.lean",
     "Spec/Compaction/Projection.lean",
@@ -34,9 +84,14 @@ lean_test(
 )
 
 # The machine-checked grounding for the ratio corpus's write-door / conservation
-# claims — the proof object //corpus claims point at via :provenBy. Compiling
-# (sorry-free) IS the verification that the grounding is real; the
-# //corpus:grounding_verified gate ties the corpus's :provenBy to it.
+# claims — the proof object //corpus claims point at via :provenBy.
+#
+# ⚠ This comment used to read "Compiling (sorry-free) IS the verification that
+# the grounding is real". Compiling was NOT that verification: until the guard
+# above was added, this target passed with a `sorry` in the file. It is true now,
+# and only because of :audit_proofs_test — so the two move together.
+#
+# //corpus:grounding_verified ties the corpus's :provenBy to this target.
 lean_test(
     name = "grounding_test",
     srcs = ["Spec/Grounding/WriteDoor.lean"],
@@ -55,9 +110,82 @@ lean_test(
         "Spec/Corpus/Inference.lean",
         "Spec/Emit/TtlEmit.lean",
         "Spec/Emit/MdEmit.lean",
+        "Spec/Emit/TierVocab.lean",
+        "Spec/Authoring/Op.lean",
+        "Spec/Authoring/Proposal.lean",
+        "Spec/Authoring/Door.lean",
         "Spec/Logic/Core.lean",
         "Spec/Logic/InferenceRulesProofs.lean",
         "Spec/FrameworkCheck.lean",
     ],
     entry = "Spec/FrameworkCheck.lean",
+)
+
+# ─── The door ────────────────────────────────────────────────────────────────
+#
+# RFC-002 §4.1's central claim, in the one form that cannot be lost to review
+# drift: *"there is no `admit` overload that can see who wrote it."* `admit`
+# takes `{parent, ops}`, so the equal-citizen property (§9.1 — a click and a chat
+# that author the same change are one proposal) is a consequence of the signature
+# rather than a convention.
+#
+# Its own target as well as being in :spec_framework_test, because these are the
+# proofs somebody will want to run alone while changing the door:
+#
+#   bazel test //lean:authoring_test
+#
+# ⚠ `lean_test` DOES NOT CHECK PROOFS on its own — see the note on
+# :audit_proofs_test above. These files carry `set_option warningAsError true`
+# like every other source here, and that audit is what keeps them carrying it.
+lean_test(
+    name = "authoring_test",
+    # ⚠ DEPENDENCY ORDER, not alphabetical. `lean_test` compiles `srcs` in the
+    # order given and each module needs its imports' `.olean` to exist already;
+    # sorted-by-name gives "object file Spec/Authoring/Proposal.olean … does not
+    # exist", which reads like a missing file rather than a wrong order. Same
+    # reason :spec_framework_test lists Universe before Predicates.
+    srcs = [
+        "Spec/Authoring/Op.lean",
+        "Spec/Authoring/Proposal.lean",
+        "Spec/Authoring/Door.lean",
+    ],
+    entry = "Spec/Authoring/Door.lean",
+)
+
+# ─── The ontology, emitted from Lean ─────────────────────────────────────────
+#
+# rfc:tier had no TTL form — Spec.Corpus.Schema.Tier was Lean-only, so it was
+# neither queryable nor drift-checkable (RFC-002 §6.1). This is the first piece
+# of the ontology this repo emits FROM Lean rather than hand-writes: the Tier
+# class, its three individuals and the rfc:tier property come out of the
+# inductive (Spec/Emit/TierVocab.lean proves its list of constructors is
+# exhaustive), and the committed rdf/ontology/tier.ttl is pinned to that output
+# byte for byte. Edit the Lean, `bazel run //lean:update_tier_ttl`, commit both.
+lean_emit(
+    name = "tier_ttl_generated",
+    srcs = [
+        "Spec/Corpus/Schema.lean",
+        "Spec/Emit/TtlEmit.lean",
+        "Spec/Emit/TierVocab.lean",
+    ],
+    entry = "Spec/Emit/TierVocab.lean",
+    out = "tier.ttl",
+)
+
+# The drift gate: the committed ontology file IS the Lean emit.
+emit_diff_test(
+    name = "tier_ttl_diff_test",
+    committed = "//rdf/ontology:tier.ttl",
+    generated = ":tier_ttl_generated",
+    update_target = "//lean:update_tier_ttl",
+)
+
+sh_binary(
+    name = "update_tier_ttl",
+    srcs = ["//tools:update_artifact.sh"],
+    args = [
+        "lean/tier.ttl",
+        "rdf/ontology/tier.ttl",
+    ],
+    data = [":tier_ttl_generated"],
 )

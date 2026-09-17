@@ -15,7 +15,7 @@ gets the full gate suite by pointing the macro at *their* corpus dataset:
 generates `corpus_gates_shacl` (rdf_validate_test against shapes.ttl) plus
 one `corpus_gates_<name>` sparql_query_test per consistency invariant
 (dangling refs, dependency cycles, diagnostic-code collisions, asymmetric
-inverse edges). The engine is whatever rdf toolchain the consumer
+inverse edges, untyped documents). The engine is whatever rdf toolchain the consumer
 registers (rules_jena in practice). Replaces the bespoke in-JVM
 GateHarness — the gate IS the rule.
 """
@@ -32,6 +32,10 @@ _CONSISTENCY_GATES = {
     "cycles": Label("//rdf/queries/consistency:circular-deps.rq"),
     "collisions": Label("//rdf/queries/consistency:diagnostic-collisions.rq"),
     "inverse_edges": Label("//rdf/queries/consistency:inverse-edges.rq"),
+    # A node carrying document identity or provenance with no rdf:type at all.
+    # SHACL targets by class, so an untyped document is a document nothing
+    # checks — Studio's sat that way, green, until this existed.
+    "untyped_documents": Label("//rdf/queries/consistency:untyped-documents.rq"),
 }
 
 _SHAPES = Label("//rdf/ontology:shapes.ttl")

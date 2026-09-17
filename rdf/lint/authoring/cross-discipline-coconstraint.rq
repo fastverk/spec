@@ -1,0 +1,26 @@
+# ---
+# title: "Cross-discipline co-constraint"
+# description: "Two claims from DIFFERENT disciplines constrain the same quantity while citing nothing in common. The candidate set the conflict board is built from."
+# severity: info
+# tier: 3
+# rationale: "The decisive number in a multidisciplinary corpus is not the citation count but the count of IMPLICIT co-constraint pairs: statements from different disciplines bounding the same physical, temporal, or financial quantity with no mutual reference. A citation graph finds almost none of these. This query finds all of them, and deliberately reports rather than fails (severity: info) — most co-constraints are compatible. It is the input to empty-envelope.rq and to the conflict board's discipline-pair facets. The rfc:references filter suppresses pairs that already know about each other, since those were authored deliberately."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?quantity ?discA ?discB ?claimA ?claimB ?modA ?modB
+WHERE {
+  ?claimA a rfc:NormativeStatement ;
+          au:constrains ?quantity ; au:discipline ?discA ; rfc:modality ?modA .
+  ?claimB a rfc:NormativeStatement ;
+          au:constrains ?quantity ; au:discipline ?discB ; rfc:modality ?modB .
+
+  FILTER(STR(?claimA) < STR(?claimB))
+  FILTER(?discA != ?discB)
+
+  # Suppress pairs that already reference each other — those were authored
+  # knowingly and are not the blind spot this gate exists to find.
+  FILTER NOT EXISTS { ?claimA rfc:references ?claimB }
+  FILTER NOT EXISTS { ?claimB rfc:references ?claimA }
+}
+ORDER BY ?quantity ?discA ?discB

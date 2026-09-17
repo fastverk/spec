@@ -1,0 +1,54 @@
+# The read-model surface, from consumer position (spec#52).
+#
+# ⛔ ITS OWN PACKAGE, for the reason //fanout is: the root package pins the
+# PUBLISHED spec and must load nothing that release lacks. This loads
+# @spec//rdf/readmodel, which exists only in the working tree until the next
+# release, so it builds ONLY under --override_module=spec=<the tree>. CI runs
+# both positions, in that order.
+#
+# `spec_readmodel` is the whole consumer API for the console's read model, and
+# like spec_workorders it reaches a long way across the boundary: eight .rq
+# files from @spec, a py_binary from @spec (so @spec's python toolchain must
+# resolve for a CONSUMER, not merely for spec's own build), and a genrule over
+# the consumer's own TTL. Every one of those is a place a bare label inside a
+# macro would resolve against this repository instead — the bug that shipped
+# spec_workorders broken in 0.8.1 and that nothing inside spec could see.
+#
+# ⛔ THE FIXTURE IS THE UNDOCUMENTED ENVELOPE, not the clean one //fanout uses.
+# The `envelopes` route is the one that was broken: written in the flat
+# BIND(IF(...))+HAVING(MAX>MIN) form, it returns rows under rdflib and NOTHING
+# under ARQ, and this macro runs ARQ. A consumer pointed at a coherent corpus
+# would see an empty envelopes panel and could not tell a working route from a
+# silent one. Pointed here, the payload must carry exactly one infeasibility —
+# so a consumer's first build proves the route can say yes.
+load("@rules_python//python:defs.bzl", "py_test")
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@spec//rdf/readmodel:readmodel.bzl", "spec_readmodel")
+
+rdf_dataset(
+    name = "corpus",
+    srcs = ["@spec//rdf/lint/authoring/fixtures:envelope-undocumented.ttl"],
+    in_format = "turtle",
+    # ⚠ authoring_vocab (rfc: + au:), NOT vocab. Without the au: terms every
+    # pattern silently matches nothing and all eight payloads emit empty — the
+    # vacuous pass this plane exists to refuse, wearing a green build.
+    deps = ["@spec//rdf:authoring_vocab"],
+)
+
+spec_readmodel(
+    name = "readmodel",
+    dataset = ":corpus",
+    project = "smoke",
+    srcs = ["@spec//rdf/lint/authoring/fixtures:envelope-undocumented.ttl"],
+)
+
+# A build-only target would prove the macro RUNS; this proves what it produced,
+# which is the difference between "the consumer surface exists" and "the
+# consumer surface works".
+py_test(
+    name = "readmodel_test",
+    size = "small",
+    srcs = ["readmodel_test.py"],
+    args = ["$(rootpaths :readmodel)"],
+    data = [":readmodel"],
+)

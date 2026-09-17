@@ -25,8 +25,8 @@
 # -----------------------------------------------------------------------------
 
 :Document a owl:Class ;
-    rdfs:label "RFC Document" ;
-    rdfs:comment "A single RFC, identified by its rfcId (e.g., RFC-0036)." .
+    rdfs:label "Document" ;
+    rdfs:comment "A normative document. Under the default :RfcDocument profile, a single RFC identified by an rfcId of the form RFC-NNNN (e.g., RFC-0036) with at least one section; under :PlainDocument, any other stable-identified source — a requirements document, a dossier sheet, an annex. The profile decides what DocumentShape demands." .
 
 :Section a owl:Class ;
     rdfs:label "RFC Section" ;
@@ -125,14 +125,39 @@
 :Defect  a :Severity ; rdfs:label "Defect" .
 
 # -----------------------------------------------------------------------------
+# Document profiles — which identifier + structure conventions a Document
+# follows. The first instance of RFC-001 §6's "aion-rfc as one profile" framing:
+# the RFC-NNNN numbering and the section structure are ONE profile, not the
+# definition of a document.
+# -----------------------------------------------------------------------------
+
+:DocumentProfile a owl:Class ;
+    rdfs:label "Document Profile" ;
+    rdfs:comment "Which identifier and structure conventions DocumentShape validates a Document against." .
+
+:RfcDocument a :DocumentProfile ;
+    rdfs:label "RFC-numbered document" ;
+    rdfs:comment "rfcId matches ^RFC-[0-9]{4}$ and the document has at least one :hasSection. THE DEFAULT: a Document with no :documentProfile is validated against this profile, so every existing corpus keeps exactly the constraints it had." .
+
+:PlainDocument a :DocumentProfile ;
+    rdfs:label "Plain document" ;
+    rdfs:comment "Any stable identifier the source already carries (a filename, a sheet number, a clause id). Minting an RFC number to satisfy a shape invents an identity that then has to be maintained, which is what this profile exists to avoid. Sections optional. MUST be declared explicitly via :documentProfile, and the rfcId MUST NOT be of the RFC-NNNN form, so a mistyped RFC number fails loudly instead of quietly becoming a plain document." .
+
+# -----------------------------------------------------------------------------
 # Document properties
 # -----------------------------------------------------------------------------
 
 :rfcId a owl:DatatypeProperty ;
     rdfs:domain :Document ;
     rdfs:range  xsd:string ;
-    rdfs:label "RFC identifier" ;
-    rdfs:comment "Stable identifier of the form RFC-NNNN." .
+    rdfs:label "Document identifier" ;
+    rdfs:comment "Stable identifier of the document. Under :RfcDocument (the default) of the form RFC-NNNN; under :PlainDocument whatever stable id the source already carries (e.g., 'AuthRequirements.md'). Never whitespace. Keeps its historical name: the consistency and analytics queries, kg_edit and every consumer emitter key on it." .
+
+:documentProfile a owl:ObjectProperty ;
+    rdfs:domain :Document ;
+    rdfs:range  :DocumentProfile ;
+    rdfs:label "Document profile" ;
+    rdfs:comment "Absent means :RfcDocument." .
 
 :title a owl:DatatypeProperty ;
     rdfs:domain :Document ;

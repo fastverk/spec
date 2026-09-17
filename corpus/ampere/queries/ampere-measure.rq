@@ -1,0 +1,64 @@
+# ---
+# title: "AMPERE corpus measure"
+# description: "The corpus counts and the rung histogram, read straight off the graph. The dark fraction (share of claims below the binding rung R4) is the honest measure of how much of this corpus an agent fleet may NOT build against."
+# severity: info
+# tier: 3
+# rationale: "Counterpart to //corpus:eg_measure for the authoring-era corpus. The rung histogram is the number that matters: RFC-002's ladder exists so that partial formalization is a legal, COUNTABLE state rather than an invisible one, and this query is where that count becomes a build artifact."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?metric ?value
+WHERE {
+  { SELECT ("01 documents" AS ?metric) (COUNT(DISTINCT ?d) AS ?value)
+    WHERE { ?d a rfc:Document } }
+  UNION
+  { SELECT ("02 sections" AS ?metric) (COUNT(DISTINCT ?s) AS ?value)
+    WHERE { ?s a rfc:Section } }
+  UNION
+  { SELECT ("03 normative statements" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c a rfc:NormativeStatement } }
+  UNION
+  { SELECT ("04 disciplines" AS ?metric) (COUNT(DISTINCT ?x) AS ?value)
+    WHERE { ?x a au:Discipline } }
+  UNION
+  { SELECT ("05 quantities (typed, with referent)" AS ?metric) (COUNT(DISTINCT ?q) AS ?value)
+    WHERE { ?q a au:Quantity } }
+  UNION
+  { SELECT ("06 reified bounds" AS ?metric) (COUNT(DISTINCT ?b) AS ?value)
+    WHERE { ?b a au:Bound } }
+  UNION
+  { SELECT ("07 scopes" AS ?metric) (COUNT(DISTINCT ?s) AS ?value)
+    WHERE { ?s a au:Scope } }
+  UNION
+  { SELECT ("08 precedence edges asserted" AS ?metric) (COUNT(*) AS ?value)
+    WHERE { ?a au:precedes ?b } }
+  UNION
+  { SELECT ("09 claims carrying a discipline" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:discipline ?d } }
+  UNION
+  { SELECT ("10 claims constraining a quantity" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:constrains ?q } }
+  UNION
+  { SELECT ("11 non-defeasible claims" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:defeasible false } }
+  UNION
+  { SELECT ("12 conflicts recorded" AS ?metric) (COUNT(DISTINCT ?k) AS ?value)
+    WHERE { ?k a au:Conflict } }
+  UNION
+  { SELECT ("13 conflicts resolved" AS ?metric) (COUNT(DISTINCT ?k) AS ?value)
+    WHERE { ?k a au:Conflict ; au:resolvedBy ?r } }
+  UNION
+  { SELECT ("14 rung R2" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:rung au:R2 } }
+  UNION
+  { SELECT ("15 rung R3" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:rung au:R3 } }
+  UNION
+  { SELECT ("16 rung R4 (binding for fanout)" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:rung au:R4 } }
+  UNION
+  { SELECT ("17 dark (below R4)" AS ?metric) (COUNT(DISTINCT ?c) AS ?value)
+    WHERE { ?c au:rung ?r . FILTER(?r IN (au:R0, au:R1, au:R2, au:R3)) } }
+}
+ORDER BY ?metric

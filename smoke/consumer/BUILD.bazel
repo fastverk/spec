@@ -1,0 +1,39 @@
+# The smoke corpus: spec's own negative-control fixture, consumed from the
+# PUBLISHED module. envelope-clean.ttl is the file every gate must stay silent
+# on — spec's fixture suite proves that from the inside; this package proves the
+# same targets can be ASSEMBLED from the outside, which is the half that broke.
+#
+# Every load below crosses the repo boundary the way a consumer's does, and the
+# gate macros expand to targets whose own labels (queries, vocab, shapes) point
+# back into @spec — the exact resolution path #58 died on.
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@spec//rdf:authoring_gates.bzl", "spec_authoring_gates")
+load("@spec//rdf:gates.bzl", "spec_corpus_gates")
+
+# srcs from @spec rather than a vendored copy: the corpus content ships inside
+# the release under test, so the smoke can never drift from the fixture — and
+# exports_files visibility from consumer position is itself part of the surface.
+rdf_dataset(
+    name = "corpus",
+    srcs = ["@spec//rdf/lint/authoring/fixtures:envelope-clean.ttl"],
+    in_format = "turtle",
+    # authoring_vocab (rfc: + au:), NOT vocab — the authoring gates key on au:
+    # terms and pass VACUOUSLY without them. Spec says so in three places;
+    # consumers keep having to say it in a fourth.
+    deps = ["@spec//rdf:authoring_vocab"],
+)
+
+# The structural suite: SHACL conformance + the four consistency invariants.
+spec_corpus_gates(
+    name = "corpus_gates",
+    dataset = ":corpus",
+)
+
+# The RFC-002 authoring suite. measures = False as in spec's own fixture
+# package: the four measure targets are sparql_query reports, not tests, and a
+# smoke that only ever runs `bazel test //...` would build them for nothing.
+spec_authoring_gates(
+    name = "corpus_authoring",
+    dataset = ":corpus",
+    measures = False,
+)

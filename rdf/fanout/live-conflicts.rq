@@ -1,0 +1,36 @@
+# ---
+# title: "Live conflicts, by party"
+# description: "One row per (live conflict, party claim, party scope). The assembler holds any order whose closure contains a party — P7's 'an order whose closure touches an open conflict refuses to dispatch'."
+# severity: info
+# tier: 3
+# rationale: "The second hold source, beside the direct au:blocksWorkOrder record (dispatch-hold.rq): a DERIVED order has no hand-authored holds, so its conflict_holds come from intersection — live conflict parties against the closure's claims. Liveness is the same four-branch rule as dispatch-hold.rq, branches self-contained for the same ARQ scoping reason its header records."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT DISTINCT ?conflict ?party
+WHERE {
+  {
+    ?conflict a au:Conflict ; au:party ?party .
+    FILTER NOT EXISTS { ?conflict au:resolvedBy ?r }
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:party ?party ; au:resolvedBy ?res .
+    ?res au:outcome au:Escalate .
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:party ?party ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt ; au:expires ?exp .
+    FILTER(?exp < xsd:date(NOW()))
+  }
+  UNION
+  {
+    ?conflict a au:Conflict ; au:party ?party ; au:resolvedBy ?res .
+    ?res au:outcome au:Exempt .
+    FILTER NOT EXISTS { ?res au:expires ?e }
+  }
+}
+ORDER BY ?conflict ?party

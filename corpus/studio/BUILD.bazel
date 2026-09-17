@@ -1,0 +1,162 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("@rules_rdf//sparql:defs.bzl", "sparql_query")
+load("//rdf:authoring_gates.bzl", "spec_authoring_gates")
+load("//rdf:gates.bzl", "spec_corpus_gates")
+load("//rdf/readmodel:readmodel.bzl", "spec_readmodel")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(default_visibility = ["//visibility:public"])
+
+# STUDIO — SAVVI Studio's authorization requirements, imported from the product's
+# own AuthRequirements.md. 66 claims across the document's 14 sections, plus 3
+# tombstoned identifiers.
+#
+#   bazel test  //corpus/studio/...
+#   bazel build //corpus/studio:measure && cat bazel-bin/corpus/studio/measure.tsv
+#
+# ── What makes this corpus different from //corpus/ampere ────────────────────
+#
+# ampere is a worked example, authored to exercise the mechanisms. This one is a
+# REAL product's requirements, and it arrives in the state real requirements are
+# actually in: every claim at R0, none decomposed, none grounded, none proven.
+# The dark fraction is 100%.
+#
+# That is the honest posture for prose that has just been read in, and it is the
+# number the whole system exists to move. A corpus that imported at R2 because
+# the sentences "looked structured" would be inventing the thing being measured.
+#
+# ⚠ GENERATED. Re-run the importer rather than hand-editing:
+#
+#   python3 tools/import/authreq_to_ttl.py \
+#       --source <path>/AuthRequirements.md --out corpus/studio
+#
+# corpus.ttl carries a sha256 of the source. The document is live — it changed
+# 674 lines across 19 commits in the week before the first import — so a
+# corpus that cannot be regenerated would be stale within days. The one
+# previously internalized document here (corpus/nav-sec-2a4.ttl) was
+# hand-transcribed, which is exactly the thing that does not survive that.
+#
+# The source document is typed rfc:Document under the rfc:PlainDocument profile
+# (rdf/ontology/aion-rfc.ttl): its rfcId is the filename it already has, not a
+# minted RFC number, and the plain profile does not demand sections. Before #50
+# it sat untyped — a document the SHACL suite could not see — and the
+# untyped-documents gate now exists so that cannot quietly happen again.
+
+# ⛔ ONE LIST, TWO READERS. The gates load this dataset; `//tools/readmodel:
+# corpus_is_the_corpus_test` compares it against `glob(["*.ttl"])` — everything
+# actually on disk — and fails if they differ. That comparison is the whole gate:
+# `tools/readmodel/emit_readmodel.py` decides what the corpus IS by listing the
+# directory, so a `.ttl` here that the dataset does not name is a file the console
+# serves and no gate ever ran over.
+STUDIO_CORPUS = [
+    "corpus.ttl",
+    "disciplines.ttl",
+    # The named holes, from tools/import/decompose.py. Separate file because
+    # it is a separate act: import captures, decomposition names what is
+    # missing, and the two are re-runnable independently.
+    "terms.ttl",
+    # Promoted proposals — what people decided in the console. Separate file
+    # again because it is a separate act with a separate author: the
+    # importer captures, decomposition names holes, and this is a person
+    # answering. tools/proposals/materialize.py regenerates it from the log.
+    "proposals.ttl",
+]
+
+rdf_dataset(
+    name = "studio",
+    srcs = STUDIO_CORPUS,
+    in_format = "turtle",
+    # //rdf:authoring_vocab (rfc: + au:), not //rdf:vocab — the authoring gates
+    # key on au: terms and pass VACUOUSLY without them, which is the same defect
+    # they are meant to catch.
+    deps = ["//rdf:authoring_vocab"],
+)
+
+# The structural suite: SHACL conformance plus the consistency invariants.
+spec_corpus_gates(
+    name = "studio_gates",
+    dataset = ":studio",
+)
+
+# The RFC-002 authoring suite.
+#
+# These pass, and it is worth being precise about what that does and does not
+# mean. It means the corpus is COHERENT: every claim names the blocker holding
+# it at R0 (ladder-integrity), no conflict is recorded without a witness and an
+# owner, no invariant claims a result over an empty population. It does NOT mean
+# anything about Studio's authorization model is verified — nothing here has been
+# decomposed, grounded, or proven, and the gates say so by leaving every claim
+# stalled.
+spec_authoring_gates(
+    name = "studio_authoring",
+    dataset = ":studio",
+)
+
+# The rung histogram, i.e. the dark fraction. Expected to read 100% on import.
+sparql_query(
+    name = "measure",
+    dataset = ":studio",
+    query = "//corpus/ampere:queries/ampere-measure.rq",
+    out_format = "tsv",
+)
+
+# Every stalled claim with the blocker it names. On a fresh import this is the
+# whole corpus, and it is the work queue.
+sparql_query(
+    name = "frontier",
+    dataset = ":studio",
+    query = "//corpus/ampere:queries/frontier.rq",
+    out_format = "tsv",
+)
+
+# What the gates say the corpus is…
+filegroup(
+    name = "corpus_ttl",
+    srcs = STUDIO_CORPUS,
+)
+
+# …and what is actually in the directory.
+filegroup(
+    name = "all_ttl",
+    srcs = glob(["*.ttl"]),
+)
+
+exports_files(glob(["*.ttl"]))
+
+# ⛔ THE CORPUS IS GENERATED — asserted, not stated.
+#
+# `proposals.ttl` is produced by tools/proposals/materialize.py from the
+# append-only log. Every gate above runs over it AS COMMITTED, so until this test
+# existed a hand-edited proposals.ttl — or one generated from a log nobody has —
+# passed all of them. Invariant ⑥ was a comment.
+#
+# This re-materializes from //logs and fails if the result differs. Promotion
+# must therefore update the log and the TTL together, in one reviewable diff,
+# which is the whole point of promotion being a deliberate step.
+#
+# ⚠ Reads only: `--check` compares and returns without writing.
+#
+# ⚠ The `data` list is the load-bearing part. Under `bazel test` the script sees
+# exactly what is staged here and nothing else — a file omitted either crashes
+# the test or, worse, makes a check quietly pass over nothing.
+sh_test(
+    name = "proposals_ttl_matches_the_log",
+    size = "small",
+    srcs = ["//tools/proposals:check_materialized.sh"],
+    args = ["studio"],
+    data = [
+        "proposals.ttl",
+        "//logs:evaluations.jsonl",
+        "//logs:proposals.jsonl",
+        "//tools/proposals:materialize.py",
+    ],
+)
+
+# The same eight questions under the engine of record — see the note on
+# //corpus/ampere:readmodel.
+spec_readmodel(
+    name = "readmodel",
+    dataset = ":studio",
+    project = "studio",
+    srcs = STUDIO_CORPUS,
+)

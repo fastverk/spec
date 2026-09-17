@@ -1,0 +1,127 @@
+name: migrate
+
+# Apply the database migrations, then prove the door still refuses.
+#
+# ⛔ WHY THIS RUNS IN CI AND NOT ON VERCEL.
+#
+# Migrations need the OWNER credential, and the owner is exactly the role that
+# can `ALTER TABLE ... DISABLE TRIGGER` and delete. Running them from the web
+# tier would put that credential in the web tier's environment — handing the
+# application the power to erase an append-only log, which is the one thing the
+# whole schema is arranged to prevent. Vercel also builds every preview, so a
+# build-time migration would let a preview branch's DDL reach whatever database
+# that build points at.
+#
+# So the owner credential lives here, behind a GitHub Environment with a required
+# reviewer, and the app only ever gets `spec_app` (INSERT + SELECT).
+
+on:
+  # ⚠ workflow_dispatch and push-to-main ONLY. Never pull_request: a PR can come
+  # from a fork, and a workflow with the owner credential that runs on untrusted
+  # PR code is a way to hand that credential to anyone who opens a PR.
+  workflow_dispatch:
+    inputs:
+      set_app_password:
+        description: "Also set spec_app's password from the SPEC_APP_PASSWORD secret"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "console/db/migrations/**"
+      - "console/db/migrate.mjs"
+      - "console/db/verify.mjs"
+
+permissions:
+  contents: read
+
+# ⚠ cancel-in-progress is FALSE, unlike the CI workflow. Cancelling a migration
+# mid-flight is not a neutral act: the runner dies holding an advisory lock and
+# possibly mid-DDL. Let it finish. The runner takes the lock precisely so a
+# second run waits rather than racing.
+concurrency:
+  group: migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: apply migrations + verify the door
+    runs-on: ubuntu-latest
+    # The Environment is where the required reviewer and the owner secret live.
+    # Create it as `database-production` in Settings → Environments and add a
+    # reviewer, or this runs unattended with the most powerful credential in the
+    # system.
+    #
+    # ⚠ Named for the STAGE, not the vendor. GitHub Environments model deployment
+    # targets and gate promotion between them, and there will be a second one:
+    # preview deployments get their own Neon branch, so `neon` would be true of
+    # both and would not tell a reviewer which log they are about to run DDL
+    # against. That is the fact approval turns on.
+    #
+    # Not `vercel` either — this workflow never talks to Vercel. Vercel deploys
+    # through its own GitHub integration and uses no Environment at all.
+    environment: database-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: console/pnpm-lock.yaml
+
+      - name: install
+        working-directory: console
+        run: pnpm install --frozen-lockfile
+
+      # Idempotent: already-applied migrations are skipped by the ledger, and a
+      # migration edited AFTER it was applied is refused with both hashes rather
+      # than leaving a database that differs from the file describing it.
+      - name: apply migrations
+        working-directory: console
+        env:
+          DATABASE_URL: ${{ secrets.NEON_OWNER_URL }}
+        run: node db/migrate.mjs
+
+      # Optional and off by default. Keeps the app password out of chat logs and
+      # out of anyone's clipboard — set it once as a secret and let CI apply it.
+      # The migrations deliberately create the role WITHOUT a password, so it
+      # exists and cannot connect until someone does this on purpose.
+      - name: set spec_app's password
+        if: inputs.set_app_password
+        working-directory: console
+        env:
+          DATABASE_URL: ${{ secrets.NEON_OWNER_URL }}
+          SPEC_APP_PASSWORD: ${{ secrets.SPEC_APP_PASSWORD }}
+        run: node db/set-app-password.mjs
+
+      # ⛔ A schema that has been APPLIED is not the same fact as a schema that
+      # REFUSES. This exercises every trigger, grant and CHECK the migrations
+      # created and fails if any accepts what it exists to reject.
+      #
+      # It runs inside a transaction that is always rolled back, because the log
+      # is append-only and a verification record could not be removed afterwards.
+      # Measured the hard way against a real database, where the only cleanup
+      # left was dropping the schema.
+      - name: prove the door refuses
+        working-directory: console
+        env:
+          DATABASE_URL: ${{ secrets.NEON_OWNER_URL }}
+        run: node db/verify.mjs
+
+      - name: summary
+        if: always()
+        run: |
+          {
+            echo "### Database"
+            echo ""
+            echo "Migrations applied and the refusals re-proved against the live database."
+            echo "Verification runs in a rolled-back transaction, so it writes nothing."
+            echo ""
+            echo "⚠ \`seq\` is ordered, not contiguous — a refused insert still consumes a"
+            echo "sequence value, so gaps are evidence the door did its job."
+          } >> "$GITHUB_STEP_SUMMARY"

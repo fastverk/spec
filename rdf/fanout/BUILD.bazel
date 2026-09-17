@@ -1,0 +1,14 @@
+# The fanout derivation's graph questions, as queries any corpus can run.
+# rdf/fanout/fanout.bzl's spec_workorders macro wires all four (plus
+# //rdf/lint/authoring:dispatch-hold.rq for the direct holds) over a dataset
+# and hands the TSVs to //tools/fanout:derive. Exported for the same reason
+# rdf/lint/authoring exports its queries: a consumer's BUILD references them
+# by label.
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.rq"]))
+
+filegroup(
+    name = "queries",
+    srcs = glob(["*.rq"]),
+)

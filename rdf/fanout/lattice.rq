@@ -1,0 +1,14 @@
+# ---
+# title: "Scope lattice (transitive precedes pairs)"
+# description: "Every (broader, narrower) pair in the transitive closure of au:precedes. The assembler walks both directions from an order's scope."
+# severity: info
+# tier: 3
+# rationale: "au:precedes is DELIBERATELY PARTIAL — an undefined pair is an owned decision (au:PrecedenceUndefined), never an invented ranking — so this emits exactly the asserted order and its transitive consequences, nothing inferred. RFC-002 §10 mechanism 1 closes UPWARD AND DOWNWARD: the order at the warranty scope must see the reliability standard above it, and the reliability order must see what leans on it."
+# ---
+PREFIX au: <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?broader ?narrower
+WHERE {
+  ?broader au:precedes+ ?narrower .
+}
+ORDER BY ?broader ?narrower

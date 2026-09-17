@@ -5,9 +5,6 @@
 common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
 
-# The services/spec plugin's crate_universe `crate` extension uses isolate = True;
-# isolated usages are flag-gated in Bazel 9.x — enable so CI matches local.
-common --experimental_isolated_extension_usages
 
 # Apache Jena 5.x is compiled for Java 17+. Pin a remote 21 JDK for both
 # target and tool builds (same pin as the Aion + mycelium repos).
@@ -45,3 +42,38 @@ try-import %workspace%/user.bazelrc
 common --enable_platform_specific_config
 build:linux --host_linkopt=-Wl,--no-gc-sections
 build:linux --linkopt=-Wl,--no-gc-sections
+
+# tectonic resolves fonts through fontconfig on Linux, and fontconfig needs a
+# writable cache directory. Inside the sandbox it has none, reports
+#
+#   Fontconfig error: No writable cache directories
+#
+# and then cannot find the Latin Modern OpenType face the `article` document
+# class asks for, failing with:
+#
+#   size11.clo:54: Font TU/lmr/m/n/10.95=[lmroman10-regular]:mapping=tex-text
+#   not loadable: Metric (TFM) file or installed font not found
+#
+# //deck (beamer) is unaffected because it never takes that lookup path, which
+# is exactly why this looked like a per-document LaTeX problem and is not one.
+# `\usepackage{lmodern}` was tried on the failing documents and does NOT fix it.
+#
+# Linux only, and invisible until this repo had CI at all.
+build:linux --sandbox_add_mount_pair=/tmp
+build:linux --action_env=XDG_CACHE_HOME=/tmp/xdg-cache
+# ⚠ Named explicitly as well. CI caches /tmp/xdg-cache/Tectonic across runs
+# (ci.yml), and on 2026-08-20 two consecutive runs restored a 404-byte — empty —
+# cache after Tectonic had compiled all three documents, i.e. the bundle was
+# being written somewhere else and fetched from the CDN every run. Tectonic
+# honours TECTONIC_CACHE_DIR over the XDG lookup; this removes the guesswork.
+build:linux --action_env=TECTONIC_CACHE_DIR=/tmp/xdg-cache/Tectonic
+
+# crate_universe runs cargo inside a repository rule, so cargo's own git
+# transport is what fetches the private fastverk-plugin-crates deps. Telling it
+# to shell out to git instead means it uses whatever credentials git already has
+# — a developer's gh login locally, an App installation token in CI.
+#
+# `common` and not a CI flag: --repo_env is a COMMAND option, so it cannot be
+# passed in the startup-option position (that is what --nohome_rc is), and
+# putting it here means both places get it the same way.
+common --repo_env=CARGO_NET_GIT_FETCH_WITH_CLI=true

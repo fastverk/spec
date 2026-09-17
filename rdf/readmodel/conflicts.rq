@@ -1,0 +1,26 @@
+# ---
+# title: "Open and resolved conflicts, with what each blocks"
+# description: "The `conflicts` rows of the conflicts read-model route."
+# severity: info
+# tier: 3
+# rationale: "RFC-002 §7 keeps UNRESOLVED a measure rather than a gate, so `open` is a legitimate steady state and the board must be able to show it. `state` is DERIVED here (a conflict with no au:Resolution is open) rather than stored, so a resolution cannot be asserted without a Resolution node."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?conflict ?kind ?quantity ?owner ?resolution ?outcome
+       (GROUP_CONCAT(DISTINCT ?discLabel; separator=" x ") AS ?disciplines)
+       (COUNT(DISTINCT ?party) AS ?partyCount)
+       (COUNT(DISTINCT ?order) AS ?blockedOrders)
+WHERE {
+  ?conflict a au:Conflict .
+  OPTIONAL { ?conflict au:conflictKind ?kind }
+  OPTIONAL { ?conflict au:onQuantity ?quantity }
+  OPTIONAL { ?conflict au:owner ?owner }
+  OPTIONAL { ?conflict au:resolvedBy ?resolution . ?resolution au:outcome ?outcome }
+  OPTIONAL { ?conflict au:blocksWorkOrder ?order }
+  OPTIONAL { ?conflict au:party ?party . ?party au:discipline ?d . ?d rdfs:label ?discLabel }
+}
+GROUP BY ?conflict ?kind ?quantity ?owner ?resolution ?outcome
+ORDER BY DESC(?blockedOrders) ?conflict

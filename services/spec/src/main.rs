@@ -1,16 +1,23 @@
-//! spec-server — the spec plugin backend (read-only).
+//! spec-server — the spec plugin backend.
 //!
-//! Two planes over the same estate index:
+//! Two planes over two sources:
 //!   * HTTP/JSON facade on `$PORT_ADDR` (:8080) — the web plane the fastverk-web
 //!     shell forwards to (`/api/gw/spec/*`): `/healthz`, `/describe`,
 //!     `/panels.binpb`, the data routes, and the MCP tool surface (`/mcp`).
 //!   * gRPC meridian `LayoutService` on `$SPEC_GRPC_ADDR` (:50056) — the plugin's
-//!     nested nav (Specs / Contracts / Proof-Status), so the console shell renders
-//!     a proper section subtree instead of the flat-leaf fallback. The leaf ids
-//!     match the panel ids in ui/panels.textproto.
+//!     nav subtree, so the console shell renders a proper section instead of the
+//!     flat-leaf fallback. The leaf ids match the panel ids in ui/panels.textproto.
 //!
-//! Both run concurrently; if either exits, the process exits. No outbound network
-//! — the index is a scan of the git-synced source tree at `$SPEC_SOURCE_ROOT`.
+//! The two sources are the estate **spec index** (`$SPEC_SOURCE_ROOT`, a scan of
+//! the git-synced tree) and the RFC-002 **authoring read model**
+//! (`$SPEC_READMODEL_DIR`, precomputed SPARQL results). Both are read-only, and so
+//! is this process now: the write surface — `POST /proposal`, `POST /proposal/op` —
+//! is RETIRED and answers 410 naming the console's routes. `$SPEC_PROPOSAL_LOG` is
+//! still read, for the pending overlay; it is no longer written. One door, because
+//! two doors are two implementations of a content address (see `spec::proposal`).
+//!
+//! Both planes run concurrently; if either exits, the process exits. No outbound
+//! network.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -49,11 +56,88 @@ async fn main() -> Result<()> {
     let backend = Arc::new(spec::SpecBackend::from_env());
     tracing::info!(source_root = %backend.source_root().display(), "spec index source root");
 
+    // The RFC-002 authoring read model: precomputed SPARQL results served as files
+    // (the build computes, the plugin serves — see spec::readmodel).
+    let readmodel = Arc::new(spec::readmodel::ReadModel::from_env(backend.source_root()));
+    tracing::info!(dir = %readmodel.dir().display(), "authoring read model directory");
+    for r in readmodel.status()["routes"].as_array().into_iter().flatten() {
+        tracing::info!(
+            route = r["route"].as_str().unwrap_or(""),
+            rows = r["rows"].as_u64().unwrap_or(0),
+            available = r["available"].as_bool().unwrap_or(false),
+            note = r["note"].as_str().unwrap_or(""),
+            "read model route",
+        );
+    }
+
+    // Fail LOUD at boot if a served authoring route isn't declared in /describe.
+    // The alternative is discovering it as "no gateway route for
+    // spec.v1.Authoring/…" in a browser console, which reads as a console bug.
+    if let Err(why) = spec::readmodel::routes_match_describe(&spec::routes::describe_web_routes()) {
+        tracing::error!(%why, "web_routes and the served read-model routes disagree");
+    }
+
+    // ⚠ READ ONLY. `$SPEC_PROPOSAL_LOG` still names the file the pending overlay
+    // replays; nothing here appends to it any more.
+    let log = Arc::new(spec::proposal::ProposalLog::from_env());
+    // A SEPARATE file. Replaying judgements and measurements from one log would
+    // make "who decided this" and "what did it measure" the same question.
+    let evaluations = Arc::new(spec::proposal::AppendLog::new(
+        std::env::var("SPEC_EVALUATION_LOG")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(std::path::PathBuf::from),
+    ));
+    // And a THIRD, for the same reason again: a dispatch is neither a
+    // judgement nor a measurement — it authorizes writes to a path set. Unset
+    // disables the dispatch route (503 naming the variable), which is the right
+    // default for an instance nobody has decided may fan agents out.
+    let dispatches = Arc::new(spec::proposal::AppendLog::new(
+        std::env::var("SPEC_DISPATCH_LOG")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .map(std::path::PathBuf::from),
+    ));
+
+    // The gate plane's client. Constructed unconditionally: whether the sidecar is
+    // deployed is a fact about the pod, and the service reports it per-call
+    // (FAILED_PRECONDITION naming $SPEC_GATE_ADDR) rather than by being absent
+    // from the server — an UNIMPLEMENTED would say this build cannot gate, which
+    // is a different and untrue thing.
+    //
+    // ⚠ No boot-time probe. The JVM beside us is still parsing its corpus while
+    // this line runs, so a probe here would report a healthy sidecar as absent for
+    // the first few seconds and log a warning that is wrong more often than right.
+    let gate = Arc::new(spec::gate::GateClient::from_env());
+    match gate.addr() {
+        Some(addr) => tracing::info!(%addr, project = gate.serves_project().unwrap_or("<unset>"),
+                                     "gate plane configured (spec.v1.Derivation)"),
+        None => tracing::info!(
+            "no gate sidecar ({} unset); spec.v1.Derivation will report FAILED_PRECONDITION",
+            spec::gate::GATE_ADDR_ENV
+        ),
+    }
+
     let panels = load_panels(args.panel_bundle);
     let gateway_token = std::env::var("FASTVERK_PLUGIN_TOKEN").ok();
     let http = spec::http::router(
         spec::http::HttpState {
             backend,
+            readmodel,
+            log,
+            evaluations,
+            dispatches,
+            // RFC-004 §8 Q7: default OFF. Read once here rather than at the
+            // door — an instance fans agents out because someone decided it
+            // should, and that decision belongs in the deployment, not in a
+            // request.
+            agents_enabled: matches!(
+                std::env::var("SPEC_AGENT_ENABLED").unwrap_or_default().trim(),
+                "1" | "true" | "TRUE" | "yes"
+            ),
+            dispatch_gate: Arc::new(std::sync::Mutex::new(())),
             panels: panels.clone(),
         },
         gateway_token,
@@ -71,10 +155,34 @@ async fn main() -> Result<()> {
                     fastverk_layout::leaf("specs", "Specs"),
                     fastverk_layout::leaf("contracts", "Contracts"),
                     fastverk_layout::leaf("status", "Proof Status"),
+                    // The RFC-002 authoring plane. Flat leaves, not a `group`:
+                    // `leaf` is the only constructor this plugin's pinned
+                    // fastverk-layout tag is known to carry, and nine leaves read
+                    // fine. Grouping is a follow-up, not a prerequisite.
+                    //
+                    // Order is deliberate — the three shipped index leaves keep
+                    // their positions, then the authoring surfaces in the order
+                    // they are actually used: what is in conflict, what is
+                    // infeasible, what is stalled, who owns what. Claims is LAST:
+                    // with thousands of them a flat list is the least useful
+                    // surface, and the point of the four above it is that you
+                    // rarely need it.
+                    fastverk_layout::leaf("conflicts", "Conflicts"),
+                    fastverk_layout::leaf("envelopes", "Envelopes"),
+                    fastverk_layout::leaf("frontier", "Frontier"),
+                    fastverk_layout::leaf("disciplines", "Disciplines"),
+                    fastverk_layout::leaf("witness", "Witnesses"),
+                    fastverk_layout::leaf("claims", "Claims"),
+                    fastverk_layout::leaf("requirements", "Requirements"),
+                    fastverk_layout::leaf("workorders", "Fanout"),
                 ])
                 .with_panels(panels)
                 .into_server(),
             )
+            // The gate plane (RFC-006 §5). Same server as the nav plane: one
+            // gRPC port, two services, and the ALB target group that will front
+            // it does not need to learn a second one.
+            .add_service(spec::derivation::DerivationService::new(gate).into_server())
             .serve(grpc_addr)
             .await
             .map_err(anyhow::Error::from)

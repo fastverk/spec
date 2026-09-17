@@ -1,0 +1,46 @@
+package(default_visibility = ["//visibility:public"])
+
+# The console's inputs to //conformance:conformance_test, as source labels.
+#
+# The console is not built by Bazel — it is a Next.js app gated by its own CI job
+# (typecheck, the shared conformance cases, build). This filegroup exists only so
+# the stdlib checker can READ these files inside a Bazel sandbox.
+#
+# ⛔ `lib/evaluation.ts` is the important one. It carries the TypeScript half of
+# OUTCOMES and POSITIVE, and comparing them against the Rust constants is the
+# single most valuable thing check_conformance.py does — it is what would catch
+# `Examined` being dropped from one implementation and not the other. Unstaged,
+# that comparison skipped silently in CI and ran only on a laptop.
+#
+# ⚠ This file becomes dead when the console is extracted to its own repo. That is
+# the correct time to delete it, not before.
+# The console's route -> field table, for //tools/readmodel:check_wiring_test.
+# It is the fourth description of the same mapping and the one a consumer's
+# payloads are checked against; nothing compared it until #52.
+exports_files(["lib/readmodel.ts"])
+
+alias(
+    name = "readmodel.ts",
+    actual = "lib/readmodel.ts",
+)
+
+filegroup(
+    name = "conformance_inputs",
+    srcs = [
+        # ⛔ The content address's TypeScript half. Its ADDRESS_PREFIX is compared
+        # against conformance/address_cases.json, which the checker also
+        # re-derives from scratch — an address that two implementations spell
+        # differently is two permanent names for one proposal, and nothing else
+        # in CI would notice.
+        "lib/address.ts",
+        "db/bootstrap.sql",
+        # The console's half of the decomposition rule. Its MAX_TERM_WORDS is
+        # compared against conformance/decomposition_cases.json — never against
+        # the Python constant directly, because two constants agreeing with a
+        # third is checkable from either side and two agreeing with each other is
+        # a coincidence nobody re-checks.
+        "lib/decompose.ts",
+        "lib/evaluation.ts",
+        "lib/overlay.ts",
+    ] + glob(["db/migrations/*.sql"]),
+)

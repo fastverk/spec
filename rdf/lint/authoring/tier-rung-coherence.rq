@@ -1,0 +1,19 @@
+# ---
+# title: "Tier / rung coherence"
+# description: "A claim whose rfc:tier is Derivational while its au:rung is below R4 — a derivational proof grade asserted for something not yet typed into the Lean corpus schema."
+# severity: error
+# tier: 3
+# rationale: "rdf/ontology/authoring.ttl promises: a claim can be fully formalized (R4) and still Structural; it cannot be Derivational below R4. Until rfc:tier had a TTL form (rdf/ontology/tier.ttl, emitted from Spec.Corpus.Schema.Tier) that sentence was unenforceable and ladder-integrity.rq had to fall back to rfc:provenBy. EXACTLY the promise is enforced here. Implemented below R4, anything about R5, and whether Derivational should require rfc:provenBy are deliberately NOT gated: the orthogonality note says nothing about them, and a gate enforcing a rule nobody wrote is how a self-declared field gets a second life. They are recorded as open questions in RFC-002 §13. Structural below R4 is legal — a tier guess on a claim still being formalized — and the clean fixture says so."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?claim ?rung ?defect ?detail
+WHERE {
+  ?claim a rfc:NormativeStatement ; rfc:tier rfc:Derivational ; au:rung ?rung .
+  FILTER(?rung IN (au:R0, au:R1, au:R2, au:R3))
+  BIND("DERIVATIONAL-BELOW-RUNG" AS ?defect)
+  BIND(CONCAT("rfc:tier Derivational at ", STRAFTER(STR(?rung), "#"),
+              " — a derivational proof grade claimed before R4 typing") AS ?detail)
+}
+ORDER BY ?claim

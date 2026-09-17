@@ -1,0 +1,90 @@
+{
+  "requirements": [
+    {
+      "requirement_id": "ahj-soc-cap",
+      "predicate": "BMS-reported state of charge MUST NOT exceed 85 percent nor fall below 15 percent.",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "implementation": "",
+      "population": "\u2014",
+      "outcome": "NOT-EVALUATED",
+      "blocked_on": "",
+      "project": "fixture"
+    },
+    {
+      "requirement_id": "cap-must-deliver",
+      "predicate": "The resource MUST deliver at least its re-offered capacity obligation for four continuous hours when called.",
+      "discipline": "market microstructure / tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "implementation": "",
+      "population": "\u2014",
+      "outcome": "NOT-EVALUATED",
+      "blocked_on": "",
+      "project": "fixture"
+    },
+    {
+      "requirement_id": "cap-notice-window",
+      "predicate": "Every contracted resource MUST receive an outage notice at least 30 days before a planned derate.",
+      "discipline": "market microstructure / tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "implementation": "canonical",
+      "population": "12481",
+      "outcome": "Passes",
+      "blocked_on": "",
+      "project": "fixture"
+    },
+    {
+      "requirement_id": "cap-notice-window",
+      "predicate": "Every contracted resource MUST receive an outage notice at least 30 days before a planned derate.",
+      "discipline": "market microstructure / tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "implementation": "target",
+      "population": "0",
+      "outcome": "CannotBeGrounded",
+      "blocked_on": "",
+      "project": "fixture"
+    },
+    {
+      "requirement_id": "oem-derate",
+      "predicate": "Continuous discharge MUST NOT exceed the ambient-derated rating at 45 C.",
+      "discipline": "thermal / electrochemistry",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "implementation": "",
+      "population": "\u2014",
+      "outcome": "NOT-EVALUATED",
+      "blocked_on": "",
+      "project": "fixture"
+    },
+    {
+      "requirement_id": "pending-efficiency",
+      "predicate": "Round-trip efficiency MUST be recomputed after each firmware revision.",
+      "discipline": "thermal / electrochemistry",
+      "modality": "MUST",
+      "rung": "R2",
+      "implementation": "",
+      "population": "\u2014",
+      "outcome": "NOT-EVALUATED",
+      "blocked_on": "no model of firmware revision effects on the derate curve",
+      "project": "fixture"
+    },
+    {
+      "requirement_id": "warranty-throughput",
+      "predicate": "Cumulative annual throughput MUST NOT exceed the warranted budget for the contract year.",
+      "discipline": "insurance / warranty",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "implementation": "",
+      "population": "\u2014",
+      "outcome": "NOT-EVALUATED",
+      "blocked_on": "",
+      "project": "fixture"
+    }
+  ],
+  "corpus_version": "corpus:73b24f9938dc48f4",
+  "unreachable_repos": []
+}

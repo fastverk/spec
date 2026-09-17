@@ -1,0 +1,34 @@
+# Positive control for DocumentShape: four documents, each breaking the profile
+# rule a different way. AdversarialShapeCheck.java asserts the validator names
+# EXACTLY these four focus nodes and no other.
+@prefix rfc: <https://aion.savvi.io/ontology/rfc#> .
+@prefix fx:  <https://aion.savvi.io/fixture/documents#> .
+
+# (i) An RFC-NNNN id with no sections and no marker: fails the RFC branch (no
+#     section) AND the plain branch (no marker), so the sh:or fires.
+fx:rfc-without-sections a rfc:Document ;
+    rfc:rfcId "RFC-0099" ;
+    rfc:title "Sectionless" .
+
+# (ii) The plain marker on an RFC-NNNN id: the branches are disjoint, so an RFC
+#      cannot dodge its section rule by declaring itself plain.
+fx:plain-with-rfc-id a rfc:Document ;
+    rfc:documentProfile rfc:PlainDocument ;
+    rfc:rfcId "RFC-0098" ;
+    rfc:title "An RFC in disguise" .
+
+# (iii) A plain document whose id contains whitespace: the core says no.
+fx:plain-with-whitespace-id a rfc:Document ;
+    rfc:documentProfile rfc:PlainDocument ;
+    rfc:rfcId "Auth Requirements.md" ;
+    rfc:title "A filename with a space in it" .
+
+# (iv) A profile nobody defined. Otherwise a perfectly good RFC.
+fx:unknown-profile a rfc:Document ;
+    rfc:documentProfile rfc:Annex ;
+    rfc:rfcId "RFC-0097" ;
+    rfc:title "Mis-profiled" ;
+    rfc:hasSection fx:unknown-profile-s1 .
+fx:unknown-profile-s1 a rfc:Section ;
+    rfc:sectionNumber "1" ;
+    rfc:title "Purpose" .

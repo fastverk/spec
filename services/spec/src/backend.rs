@@ -433,12 +433,75 @@ fn module_of(rel: &str) -> String {
     p.replace('/', ".")
 }
 
-/// Count `sorry` obligations, matching botnoc's authoritative `grep sorry` green
-/// check but word-bounded (so `sorryDetail` / prose don't false-trip). Returns
-/// (count, 1-based line numbers).
+/// Blank out Lean comments, preserving line structure so line numbers survive.
+///
+/// `/- -/` nests in Lean, so this tracks depth rather than scanning for the
+/// first terminator.
+///
+/// ⚠ Not string-literal aware. A `"-- "` inside a string would start a false
+/// comment; no Lean source here does that, and the failure direction is to
+/// UNDER-count sorries in that one file rather than to invent them everywhere.
+fn strip_comments(body: &str) -> String {
+    let b: Vec<char> = body.chars().collect();
+    let mut out = String::with_capacity(body.len());
+    let mut i = 0usize;
+    let mut depth = 0usize;
+
+    while i < b.len() {
+        let c = b[i];
+        let next = b.get(i + 1).copied();
+
+        if depth > 0 {
+            if c == '-' && next == Some('/') {
+                depth -= 1;
+                out.push_str("  ");
+                i += 2;
+            } else if c == '/' && next == Some('-') {
+                depth += 1;
+                out.push_str("  ");
+                i += 2;
+            } else {
+                out.push(if c == '\n' { '\n' } else { ' ' });
+                i += 1;
+            }
+            continue;
+        }
+
+        if c == '/' && next == Some('-') {
+            depth += 1;
+            out.push_str("  ");
+            i += 2;
+        } else if c == '-' && next == Some('-') {
+            while i < b.len() && b[i] != '\n' {
+                out.push(' ');
+                i += 1;
+            }
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
+}
+
+/// Count `sorry` obligations. Returns (count, 1-based line numbers).
+///
+/// ⛔ COMMENTS ARE STRIPPED FIRST, and that is the whole point. Word-bounding
+/// alone does not exclude prose: this counted the word "sorry" wherever it
+/// appeared, so `Spec/Predicates.lean` — whose header comment explains that a
+/// `sorry` is banned and how the gate turns it into a hard error — reported
+/// THREE open obligations and a SORRY badge. Thirteen of fourteen modules were
+/// flagged the same way, every one of them provably sorry-free: //lean:audit_
+/// proofs_test asserts it textually AND every source carries
+/// `set_option warningAsError true`.
+///
+/// So the pane whose subject is proof was reporting the opposite of the truth,
+/// and it read as authoritative because it was specific. A file that documents
+/// its own discipline must not be punished for saying the word.
 fn count_sorries(body: &str) -> (u32, Vec<u32>) {
+    let code = strip_comments(body);
     let mut lines = Vec::new();
-    for (i, line) in body.lines().enumerate() {
+    for (i, line) in code.lines().enumerate() {
         if line_has_word(line, "sorry") {
             lines.push((i as u32) + 1);
         }
@@ -725,6 +788,33 @@ fn truncate(mut s: String) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ⛔ Both directions. A gate only ever shown to accept is an assertion.
+    ///
+    /// The first half is the bug that shipped: 13 of 14 Lean modules were badged
+    /// SORRY because their comments explain that `sorry` is forbidden.
+    #[test]
+    fn sorry_count_ignores_comments_and_still_sees_real_ones() {
+        // Verbatim shape of Spec/Predicates.lean's header, which reported 3.
+        let documented = "\
+-- ⛔ MUST stay. `lean_test` DOES NOT CHECK PROOFS on its own: a `sorry` is a
+-- *warning* and `lean` exits 0, so a file proving anything `by sorry` passes.
+-- `declaration uses 'sorry'` into a hard error; audit_proofs_test asserts it.
+set_option warningAsError true
+theorem t : 1 = 1 := rfl
+";
+        assert_eq!(count_sorries(documented).0, 0, "prose must not count");
+
+        // Block comments nest in Lean; the inner close must not end the outer.
+        let nested = "/- outer /- inner sorry -/ still comment sorry -/\ntheorem t : 1 = 1 := rfl\n";
+        assert_eq!(count_sorries(nested).0, 0, "nested block comments must not count");
+
+        // …and the check must still catch the thing it exists for.
+        let real = "-- a comment about sorry\ntheorem bad : 1 = 2 := by sorry\n";
+        let (n, at) = count_sorries(real);
+        assert_eq!(n, 1, "a real sorry must still be found");
+        assert_eq!(at, vec![2], "and reported on its own line");
+    }
 
     #[test]
     fn module_derivation_strips_lean_root() {

@@ -1,0 +1,28 @@
+# ---
+# title: "Per-discipline coverage: claims, rungs, and the dark fraction"
+# description: "The `disciplines` rows of the disciplines read-model route."
+# severity: info
+# tier: 3
+# rationale: "The number the whole system exists to move. A discipline whose claims are all R0 reads 100% dark, which is the honest posture on import."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?discipline ?steward
+       (COUNT(DISTINCT ?claim) AS ?claims)
+       (COUNT(DISTINCT ?typed) AS ?typedClaims)
+       (COUNT(DISTINCT ?hard) AS ?nonDefeasible)
+       (COUNT(DISTINCT ?dark) AS ?darkClaims)
+WHERE {
+  ?d a au:Discipline .
+  OPTIONAL { ?d rdfs:label ?discipline }
+  OPTIONAL { ?d au:stewardedBy ?steward }
+  ?claim a rfc:NormativeStatement ; au:discipline ?d .
+  OPTIONAL { ?typed au:discipline ?d ; au:constrains ?q }
+  OPTIONAL { ?hard  au:discipline ?d ; au:defeasible false }
+  OPTIONAL { ?dark  au:discipline ?d ; au:rung ?r .
+             FILTER(?r IN (au:R0, au:R1, au:R2, au:R3)) }
+}
+GROUP BY ?discipline ?steward
+ORDER BY DESC(?claims)

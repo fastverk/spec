@@ -1,0 +1,14 @@
+# The trusted base: statements this tree BELIEVES rather than proves.
+# Every theorem in //lean is relative to these. Growing the list is a real
+# decision — //lean:audit_proofs_test fails until this file agrees.
+#
+# Why they exist: Spec/Universe.lean models the universe of discourse as
+# OPAQUE types, and Spec/Predicates.lean states the predicates over them.
+# Formalizing the runtime instead would be months of work; axiomatizing it
+# makes the axioms structurally manipulable, which is the point.
+
+lean/Spec/Kernel.lean 3
+lean/Spec/Predicates.lean 63
+lean/Spec/Universe.lean 27
+
+TOTAL 93

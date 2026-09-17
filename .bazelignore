@@ -1,0 +1,6 @@
+# The registry-consumer smoke is its own Bazel module: it must ONLY ever be
+# built from inside smoke/consumer, where spec resolves from the registry. Left
+# visible to the outer workspace it would analyse against the working tree —
+# @spec maps to the module itself here — silently restoring the blindness it
+# exists to remove.
+smoke/consumer

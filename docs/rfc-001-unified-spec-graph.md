@@ -242,6 +242,13 @@ ontology (`:Document`, `:Section`, `:NormativeStatement`, `:Term`, `:Grammar`,
 `ieee`, `iso`, `ansi` as additional profiles (each adding its document-numbering
 + section conventions).
 
+The first profile landed in #50, inside `aion-rfc.ttl` rather than as a new
+ontology: `rfc:documentProfile` with `rfc:RfcDocument` (the default — RFC-NNNN
+numbering plus at least one section) and `rfc:PlainDocument` (any stable id the
+source already carries, sections optional). A requirements document now types
+as a `:Document` without a minted number, and `DocumentShape` validates each
+document against the profile it declares.
+
 ---
 
 ## 7. Discovery / frontier expansion

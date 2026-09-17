@@ -1,0 +1,33 @@
+# ---
+# title: "Untyped-documents detection count (adversarial control)"
+# description: "Zero-row iff untyped-documents.rq, inlined, finds EXACTLY the one untyped node planted in untyped-document.ttl. Fails if the gate stops detecting, or starts over-detecting."
+# severity: error
+# tier: 3
+# rationale: "The negative control (documents_clean over plain-document.ttl) proves the gate does not false-positive. It cannot prove the gate detects anything — a gate that always returns zero passes it trivially. This is the positive control, in the same counted-assertion idiom as rdf/lint/authoring/fixtures/expect-detections.rq: run the gate's body over the planted fixture, count, emit a row if the count is not one. If you change the gate's body, this file must change with it — that coupling is the point."
+# ---
+PREFIX rfc:     <https://aion.savvi.io/ontology/rfc#>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+
+SELECT ?check ?expected ?actual
+WHERE {
+  {
+    SELECT (COUNT(*) AS ?actual)
+    WHERE {
+      {
+        SELECT DISTINCT ?doc
+        WHERE {
+          VALUES ?signal {
+            rfc:rfcId rfc:title rfc:hasSection rfc:status rfc:documentProfile
+            dcterms:identifier dcterms:source dcterms:title
+          }
+          ?doc ?signal ?o .
+          FILTER(isIRI(?doc))
+          FILTER NOT EXISTS { ?doc a ?type }
+        }
+      }
+    }
+  }
+  BIND("untyped-documents" AS ?check)
+  BIND(1 AS ?expected)
+  FILTER(?actual != ?expected)
+}

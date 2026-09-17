@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node"],
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true
+  },
+  // ⚠ `../console/lib` is INCLUDED on purpose. `preview_decomposition.ts` and
+  // `propose_requirement.ts` import the console's `lib/decompose.ts` directly
+  // rather than restating the rule, so the agent, the console's live preview and
+  // the corpus decomposer cannot disagree about what a sentence decomposes to.
+  // A copy here would be a fourth implementation of a rule that already has one
+  // conformance fixture holding three of them together.
+  "include": ["agent/**/*.ts", "../console/lib/decompose.ts"]
+}

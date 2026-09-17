@@ -1,0 +1,697 @@
+#!/usr/bin/env python3
+"""check_conformance — assert every implementation of the safety rules agrees.
+
+The vacuous refusal, the pending overlay and the adoption computation exist twice:
+in Rust for the Bazel/plugin plane, and in TypeScript because the hosted console
+runs on a platform with no Rust runtime. Two implementations of a safety rule
+diverge silently — each keeps passing its own suite while they drift apart.
+
+`conformance/*.json` is the shared answer: one set of cases, executed by both.
+This file exists because that is necessary and NOT sufficient.
+
+    //services/spec:spec_test runs only when CI can mint a token for the private
+    plugin crates (.github/workflows/ci.yml, the `plugin` step, which is
+    continue-on-error and has been skipping).
+
+So on an ordinary PR only the TypeScript half actually executes the fixtures, and
+a divergence introduced on the Rust side is reported by nothing. This closes as
+much of that as can be closed with no Rust toolchain and no credential: it parses
+the CONSTANTS out of both sources and re-derives every evaluation verdict from
+them, independently of either implementation.
+
+    python3 conformance/check_conformance.py
+
+⚠ What it does NOT catch, stated plainly: this checks the data the rule is made
+of, not the code that reads it. Reordering the guards in `evaluation::check` so
+the zero-check becomes unreachable would leave every constant intact and pass
+here. Only //services/spec:spec_test catches that. This is a mitigation for that
+target being unrunnable, not a replacement for it.
+
+Needs nothing but the standard library, which is the point — it runs in CI, in a
+pre-commit hook, or on a laptop with no Bazel and no crate registry access.
+"""
+import hashlib
+import json
+import os
+import re
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+EVAL_CASES = "conformance/evaluation_cases.json"
+OVERLAY_CASES = "conformance/overlay_cases.json"
+ADDRESS_CASES = "conformance/address_cases.json"
+RS_EVAL = "services/spec/src/evaluation.rs"
+RS_OVERLAY = "services/spec/src/overlay.rs"
+RS_PROPOSAL = "services/spec/src/proposal.rs"
+RS_HTTP = "services/spec/src/http.rs"
+TS_EVAL = "console/lib/evaluation.ts"
+TS_ADDRESS = "console/lib/address.ts"
+TS_OVERLAY = "console/lib/overlay.ts"
+
+# The overlay entry points a case may target, and the corpus payloads each needs.
+APPLY_TARGETS = {
+    "terms": ("terms",),
+    "requirements": ("requirements",),
+    "proposals": ("terms", "requirements"),
+}
+
+failures = []
+checks = 0
+
+
+def check(cond, msg):
+    global checks
+    checks += 1
+    if not cond:
+        failures.append(msg)
+    return cond
+
+
+def read(rel):
+    with open(os.path.join(ROOT, rel)) as fh:
+        return fh.read()
+
+
+def load(rel):
+    with open(os.path.join(ROOT, rel)) as fh:
+        return json.load(fh)
+
+
+def rust_str_slice(src, name):
+    """The string literals of a `const NAME: &[&str] = &[...]` declaration."""
+    m = re.search(rf"const {name}:\s*&\[&str\]\s*=\s*&\[(.*?)\];", src, re.S)
+    if not m:
+        return None
+    return re.findall(r'"([^"]+)"', m.group(1))
+
+
+def ts_str_array(src, name):
+    """The string literals of a `const NAME = [...]` declaration in TypeScript."""
+    m = re.search(rf"const {name}\s*(?::[^=]+)?=\s*\[(.*?)\]", src, re.S)
+    if not m:
+        return None
+    return re.findall(r'"([^"]+)"', m.group(1))
+
+
+def strip_line_comments(src):
+    return "\n".join(re.sub(r"//.*$", "", ln) for ln in src.split("\n"))
+
+
+def rust_str_const(src, name):
+    """The string literal of a `const NAME: &str = "...";` declaration."""
+    m = re.search(rf'const {name}:\s*&str\s*=\s*"([^"]*)";', src)
+    return m.group(1) if m else None
+
+
+def ts_str_const(src, name):
+    """The string literal of a `const NAME = "...";` declaration in TypeScript."""
+    m = re.search(rf'const {name}\s*(?::[^=]+)?=\s*"([^"]*)"', src)
+    return m.group(1) if m else None
+
+
+# ── 1. the fixtures are well-formed ───────────────────────────────────────────
+ev = load(EVAL_CASES)
+ov = load(OVERLAY_CASES)
+
+fixture_outcomes = ev.get("outcomes")
+fixture_positive = ev.get("positive_outcomes")
+check(isinstance(fixture_outcomes, list) and fixture_outcomes,
+      f"{EVAL_CASES}: no `outcomes` list")
+check(isinstance(fixture_positive, list) and fixture_positive,
+      f"{EVAL_CASES}: no `positive_outcomes` list")
+check(set(fixture_positive or []) <= set(fixture_outcomes or []),
+      f"{EVAL_CASES}: positive_outcomes is not a subset of outcomes")
+
+# A machine reports, never judges (RFC-004a §4): the judgments are the outcomes
+# a `machine:`-authored measurement is refused.
+fixture_judgments = ev.get("judgments")
+fixture_prefix = ev.get("machine_author_prefix")
+check(isinstance(fixture_judgments, list) and fixture_judgments,
+      f"{EVAL_CASES}: no `judgments` list")
+check(set(fixture_judgments or []) <= set(fixture_positive or []),
+      f"{EVAL_CASES}: judgments is not a subset of positive_outcomes")
+# ⛔ Examined is a MEASUREMENT, not a judgment. Listing it here would lock every
+# machine out of the one outcome it exists to report.
+check("Examined" not in (fixture_judgments or []),
+      f"{EVAL_CASES}: judgments contains `Examined` — a machine could then report nothing")
+check(isinstance(fixture_prefix, str) and fixture_prefix.endswith(":"),
+      f"{EVAL_CASES}: `machine_author_prefix` must be a `<kind>:` prefix")
+
+ev_names = [c.get("name") for c in ev.get("cases", [])]
+check(len(ev_names) == len(set(ev_names)), f"{EVAL_CASES}: duplicate case names")
+check(len(ev_names) >= 10, f"{EVAL_CASES}: only {len(ev_names)} cases")
+
+# Both directions, or the suite is an assertion rather than a check.
+expects = [c.get("expect") for c in ev.get("cases", [])]
+check("refused" in expects, f"{EVAL_CASES}: no case expects a refusal")
+check("accepted" in expects, f"{EVAL_CASES}: no case expects an acceptance")
+
+# The machine half, both directions too: a rule only ever shown to refuse a
+# machine is a lockout, and one only shown to accept is no boundary at all.
+machine_cases = [c for c in ev.get("cases", [])
+                 if isinstance(c.get("author"), str)
+                 and c["author"].startswith(fixture_prefix or "machine:")]
+check(any(c.get("expect") == "refused" for c in machine_cases),
+      f"{EVAL_CASES}: no machine-authored case expects a refusal")
+check(any(c.get("expect") == "accepted" for c in machine_cases),
+      f"{EVAL_CASES}: no machine-authored case expects an acceptance")
+
+for c in ev.get("cases", []):
+    n = c.get("name", "?")
+    check(c.get("expect") in ("accepted", "refused"),
+          f"{EVAL_CASES}: {n}: expect must be accepted|refused")
+    check(bool(c.get("why")), f"{EVAL_CASES}: {n}: no `why` — a case nobody can read is a case nobody will maintain")
+    check(bool(c.get("author")), f"{EVAL_CASES}: {n}: no `author` — nothing is attributed to nobody")
+    check(isinstance(c.get("body"), dict), f"{EVAL_CASES}: {n}: no `body`")
+    if c.get("expect") == "accepted":
+        check("message_contains" not in c,
+              f"{EVAL_CASES}: {n}: an accepted case cannot assert a refusal message")
+
+ov_names = [c.get("name") for c in ov.get("cases", [])]
+check(len(ov_names) == len(set(ov_names)), f"{OVERLAY_CASES}: duplicate case names")
+for c in ov.get("cases", []):
+    n = c.get("name", "?")
+    check(c.get("apply") in APPLY_TARGETS,
+          f"{OVERLAY_CASES}: {n}: apply={c.get('apply')!r} is not one of {sorted(APPLY_TARGETS)}")
+    check(bool(c.get("why")), f"{OVERLAY_CASES}: {n}: no `why`")
+    check(isinstance(c.get("log"), list) and c["log"],
+          f"{OVERLAY_CASES}: {n}: no `log`")
+    for need in APPLY_TARGETS.get(c.get("apply"), ()):
+        check(isinstance(c.get("corpus", {}).get(need), list),
+              f"{OVERLAY_CASES}: {n}: apply={c['apply']} needs corpus.{need}")
+    expect = c.get("expect", {})
+    check(isinstance(expect.get("rows"), list) and expect["rows"],
+          f"{OVERLAY_CASES}: {n}: no `expect.rows`")
+    for r in expect.get("rows", []):
+        check(isinstance(r.get("where"), dict) and r["where"],
+              f"{OVERLAY_CASES}: {n}: a row assertion with no `where`")
+        check(bool(r.get("fields")) or bool(r.get("absent")),
+              f"{OVERLAY_CASES}: {n}: a row assertion that asserts nothing")
+    for entry in c.get("log", []):
+        check(("ops" in entry) != ("malformed" in entry),
+              f"{OVERLAY_CASES}: {n}: a log entry must carry exactly one of ops|malformed")
+        # `verdict` is the door's au:Verdict for the whole proposal. Optional,
+        # because every record written before the door computed one has none.
+        check(entry.get("verdict", "Admitted") in ("Admitted", "Queued", "Rejected"),
+              f"{OVERLAY_CASES}: {n}: verdict={entry.get('verdict')!r} is not an au:Verdict")
+
+# `pending means differs from the corpus` is the rule most likely to be lost in a
+# port, and the only proof it survived is a case where the corpus already agrees.
+check(any("absent" in r and "pending" in r["absent"]
+          for c in ov.get("cases", []) for r in c.get("expect", {}).get("rows", [])),
+      f"{OVERLAY_CASES}: no case asserts that an ADOPTED proposal stops being pending")
+
+# ⛔ And the other direction of the same idea: the door's verdict has to be
+# HONOURED downstream or recording it is decoration. A Rejected record is never
+# appended by the door, so one in the log came from a hand-edited or restored
+# file — and replaying it applies a change nobody was allowed to make.
+_rejected_cases = [c for c in ov.get("cases", [])
+                   if any(e.get("verdict") == "Rejected" for e in c.get("log", []))]
+check(bool(_rejected_cases),
+      f"{OVERLAY_CASES}: no case plants a Rejected record — nothing proves either "
+      f"overlay refuses to replay one")
+# …with a record carrying NO verdict beside it, or the case is equally satisfied
+# by an overlay that drops everything.
+check(any(any("verdict" not in e and "ops" in e for e in c.get("log", []))
+          for c in _rejected_cases),
+      f"{OVERLAY_CASES}: the Rejected case plants no un-verdicted record beside it — "
+      f"an overlay that dropped EVERY record would pass it")
+
+# ── 2. the Rust constants ─────────────────────────────────────────────────────
+rs_eval = read(RS_EVAL)
+rs_outcomes = rust_str_slice(rs_eval, "OUTCOMES")
+rs_positive = rust_str_slice(rs_eval, "POSITIVE")
+
+check(rs_outcomes is not None, f"{RS_EVAL}: no OUTCOMES slice")
+check(rs_positive is not None, f"{RS_EVAL}: no POSITIVE slice")
+if rs_outcomes is not None:
+    check(rs_outcomes == fixture_outcomes,
+          f"{RS_EVAL}: OUTCOMES is {rs_outcomes}, fixtures declare {fixture_outcomes}")
+if rs_positive is not None:
+    check(rs_positive == fixture_positive,
+          f"{RS_EVAL}: POSITIVE is {rs_positive}, fixtures declare {fixture_positive}")
+    # ⛔ The single most important constant in the repo. `Examined` is in POSITIVE
+    # because its whole content is "there were records to look at" — over zero
+    # there were not. Dropping it here is how a vacuous pass gets recorded under a
+    # quieter name, and it is a one-word edit.
+    check("Examined" in (rs_positive or []),
+          f"{RS_EVAL}: POSITIVE no longer contains `Examined` — an Examined over "
+          f"zero records is the same lie in a quieter voice")
+
+rs_judgments = rust_str_slice(rs_eval, "JUDGMENTS")
+rs_prefix = rust_str_const(rs_eval, "MACHINE_PREFIX")
+check(rs_judgments is not None, f"{RS_EVAL}: no JUDGMENTS slice")
+check(rs_prefix is not None, f"{RS_EVAL}: no MACHINE_PREFIX const")
+if rs_judgments is not None:
+    check(rs_judgments == fixture_judgments,
+          f"{RS_EVAL}: JUDGMENTS is {rs_judgments}, fixtures declare {fixture_judgments}")
+if rs_prefix is not None:
+    check(rs_prefix == fixture_prefix,
+          f"{RS_EVAL}: MACHINE_PREFIX is {rs_prefix!r}, fixtures declare {fixture_prefix!r}")
+
+# There must be no Unknown bucket; it would immediately become where anything
+# awkward went.
+check("Unknown" not in (rs_outcomes or []), f"{RS_EVAL}: OUTCOMES gained an `Unknown`")
+
+# ── 3. re-derive every verdict from the constants alone ───────────────────────
+# This is the cross-check that does not need a toolchain: the rule is small enough
+# to state independently, so state it, and make the fixtures agree with it. If the
+# rule and the fixtures disagree, one of them is wrong and a human must look.
+def derive(body, author, outcomes, positive, judgments, prefix):
+    """Return None if the measurement is admissible, else why it is refused."""
+    def s(k):
+        v = body.get(k)
+        return v.strip() if isinstance(v, str) else ""
+
+    if not s("claim"):
+        return "claim"
+    if not s("implementation"):
+        return "implementation"
+    if s("outcome") not in outcomes:
+        return "outcome"
+    # A machine reports, never judges — before the population rules, so a
+    # machine's Examined over zero is still refused as Vacuous.
+    if author.startswith(prefix) and s("outcome") in judgments:
+        return "judgment"
+    pop = body.get("population")
+    if pop is None:
+        return "population" if s("outcome") in positive else None
+    if not isinstance(pop, int) or isinstance(pop, bool):
+        return "population"
+    if pop == 0 and s("outcome") in positive:
+        return "Vacuous"
+    if pop < 0:
+        return "population"
+    return None
+
+
+if rs_outcomes and rs_positive:
+    for c in ev.get("cases", []):
+        n = c.get("name", "?")
+        why = derive(c.get("body", {}), c.get("author", ""), rs_outcomes, rs_positive,
+                     rs_judgments or [], rs_prefix or "machine:")
+        want_refused = c.get("expect") == "refused"
+        check(
+            (why is not None) == want_refused,
+            f"{EVAL_CASES}: {n}: fixtures expect {c.get('expect')}, but the rule "
+            f"re-derived from {RS_EVAL}'s constants says "
+            f"{'refused (' + str(why) + ')' if why else 'accepted'}",
+        )
+
+# ── 4. the TypeScript constants ───────────────────────────────────────────────
+# ⛔ REQUIRED, not optional. This was guarded by an exists() check while the port
+# was being written, and the guard outlived its reason: once the file was not
+# staged as a Bazel data dep, the most valuable comparison in this file — the one
+# that catches `Examined` being dropped from one implementation and not the other
+# — skipped silently in CI and ran only on a laptop. A check that quietly does
+# nothing is worse than no check, because it is counted.
+ts_path = os.path.join(ROOT, TS_EVAL)
+ts_present = os.path.exists(ts_path)
+check(ts_present, f"{TS_EVAL} is missing or not staged — the Rust/TypeScript "
+                  f"constant comparison cannot run, and skipping it silently is "
+                  f"how the two implementations drift apart unnoticed")
+if ts_present:
+    ts_eval = read(TS_EVAL)
+    ts_outcomes = ts_str_array(ts_eval, "OUTCOMES")
+    ts_positive = ts_str_array(ts_eval, "POSITIVE")
+    check(ts_outcomes is not None, f"{TS_EVAL}: no OUTCOMES array")
+    check(ts_positive is not None, f"{TS_EVAL}: no POSITIVE array")
+    if ts_outcomes is not None:
+        check(ts_outcomes == fixture_outcomes,
+              f"{TS_EVAL}: OUTCOMES is {ts_outcomes}, fixtures declare {fixture_outcomes}")
+    if ts_positive is not None:
+        check(ts_positive == fixture_positive,
+              f"{TS_EVAL}: POSITIVE is {ts_positive}, fixtures declare {fixture_positive}")
+        check("Examined" in (ts_positive or []),
+              f"{TS_EVAL}: POSITIVE no longer contains `Examined`")
+    ts_judgments = ts_str_array(ts_eval, "JUDGMENTS")
+    ts_prefix = ts_str_const(ts_eval, "MACHINE_PREFIX")
+    check(ts_judgments is not None, f"{TS_EVAL}: no JUDGMENTS array")
+    check(ts_prefix is not None, f"{TS_EVAL}: no MACHINE_PREFIX const")
+    if ts_judgments is not None:
+        check(ts_judgments == fixture_judgments,
+              f"{TS_EVAL}: JUDGMENTS is {ts_judgments}, fixtures declare {fixture_judgments}")
+    if ts_prefix is not None:
+        check(ts_prefix == fixture_prefix,
+              f"{TS_EVAL}: MACHINE_PREFIX is {ts_prefix!r}, fixtures declare {fixture_prefix!r}")
+
+# ── 4a. the content address, re-derived in a THIRD implementation ────────────
+#
+# ⛔ This is the only check in this file that recomputes a permanent NAME rather
+# than comparing constants. The address is what makes a proposal quotable,
+# replayable, and — via RFC-002 §9.1 — the same proposal whether it was clicked
+# or typed. Two implementations that disagree about the pre-image do not produce
+# an error anywhere: they produce two names for one thing, forever, and the first
+# symptom is a replay that finds nothing.
+#
+# So the bytes are rebuilt here from the fixture's PROPOSAL, in stdlib Python,
+# and hashed with hashlib. Neither implementation is consulted. If this file, the
+# fixture, TypeScript and Rust all agree, the rule is what four independent
+# things say it is.
+def canonical_json(v):
+    """Keys sorted by UTF-8 bytes, no whitespace, no unrenderable number.
+
+    ⚠ Python sorts `str` by code point and Rust sorts `String` by UTF-8 bytes,
+    which agree everywhere — UTF-8 is order-preserving. JavaScript's default sort
+    does NOT (the astral-plane boundary), which is why console/lib/canonical.ts
+    carries a comparator and this does not need one.
+    """
+    if v is None:
+        return "null"
+    if v is True:
+        return "true"
+    if v is False:
+        return "false"
+    if isinstance(v, int):
+        # 2^53 − 1: the range where every implementation renders plain digits.
+        if abs(v) > 9007199254740991:
+            raise ValueError(f"{v} is not a safe integer")
+        return str(v)
+    if isinstance(v, float):
+        raise ValueError(f"{v} is not a safe integer")
+    if isinstance(v, str):
+        return json.dumps(v, ensure_ascii=False)
+    if isinstance(v, list):
+        return "[" + ",".join(canonical_json(x) for x in v) + "]"
+    if isinstance(v, dict):
+        keys = sorted(v, key=lambda k: k.encode("utf-8"))
+        return "{" + ",".join(
+            f"{json.dumps(k, ensure_ascii=False)}:{canonical_json(v[k])}" for k in keys) + "}"
+    raise ValueError(f"cannot serialize {type(v).__name__}")
+
+
+ad = load(ADDRESS_CASES)
+ad_cases = ad.get("cases", [])
+ad_prefix = ad.get("prefix")
+
+check(ad_prefix == "sha256:", f"{ADDRESS_CASES}: prefix is {ad_prefix!r}")
+# ⛔ THE EXCLUSION IS THE DESIGN. RFC-002 §4.1: the door takes {parents, ops} and
+# not provenance. If `surface` ever enters the pre-image, a click and a chat
+# authoring the same change stop being one proposal and §9.1 is silently false.
+check(ad.get("pre_image_keys") == ["author", "ops", "parent"],
+      f"{ADDRESS_CASES}: pre_image_keys is {ad.get('pre_image_keys')}")
+check(ad.get("not_in_the_pre_image") == ["surface", "intent"],
+      f"{ADDRESS_CASES}: not_in_the_pre_image is {ad.get('not_in_the_pre_image')}")
+check(len(ad_cases) >= 8, f"{ADDRESS_CASES}: only {len(ad_cases)} cases")
+check(len({c.get("name") for c in ad_cases}) == len(ad_cases),
+      f"{ADDRESS_CASES}: duplicate case names")
+
+ad_by_name = {}
+for c in ad_cases:
+    n = c.get("name", "?")
+    check(bool(c.get("why")), f"{ADDRESS_CASES}: {n}: no `why`")
+    pr = c.get("proposal") or {}
+    for key in ("author", "parent", "ops", "surface"):
+        check(key in pr, f"{ADDRESS_CASES}: {n}: proposal has no `{key}`")
+    try:
+        pre = canonical_json({"author": pr.get("author"), "ops": pr.get("ops"),
+                              "parent": pr.get("parent")})
+    except ValueError as e:
+        check(False, f"{ADDRESS_CASES}: {n}: pre-image is not canonicalizable ({e})")
+        continue
+    check(pre == c.get("pre_image"),
+          f"{ADDRESS_CASES}: {n}: pre-image re-derived here is\n    {pre}\n  fixture says\n    {c.get('pre_image')}")
+    addr = ad_prefix + hashlib.sha256(pre.encode("utf-8")).hexdigest()
+    check(addr == c.get("address"),
+          f"{ADDRESS_CASES}: {n}: address is {addr}, fixture says {c.get('address')}")
+    check(re.fullmatch(r"sha256:[0-9a-f]{64}", str(c.get("address"))) is not None,
+          f"{ADDRESS_CASES}: {n}: address is not a lower-case sha256 content address")
+    ad_by_name[n] = addr
+
+# The groups, which are where the DESIGN is asserted rather than the arithmetic.
+for group in ad.get("same_address", []):
+    names = group.get("cases", [])
+    check(len(names) >= 2, f"{ADDRESS_CASES}: same_address/{group.get('name')}: needs 2+ cases")
+    check(all(n in ad_by_name for n in names),
+          f"{ADDRESS_CASES}: same_address/{group.get('name')}: names a case that does not exist")
+    check(len({ad_by_name.get(n) for n in names}) == 1,
+          f"{ADDRESS_CASES}: same_address/{group.get('name')} — {group.get('why')}")
+    # …and the surfaces must actually differ, or the group proves nothing.
+    surfaces = {(next(c for c in ad_cases if c["name"] == n)["proposal"].get("surface"))
+                for n in names if n in ad_by_name}
+    check(len(surfaces) > 1,
+          f"{ADDRESS_CASES}: same_address/{group.get('name')}: every case uses the same "
+          f"surface, so it proves nothing about §9.1")
+for group in ad.get("different_address", []):
+    names = group.get("cases", [])
+    check(all(n in ad_by_name for n in names),
+          f"{ADDRESS_CASES}: different_address/{group.get('name')}: names a case that does not exist")
+    check(len({ad_by_name.get(n) for n in names}) == len(names),
+          f"{ADDRESS_CASES}: different_address/{group.get('name')} — {group.get('why')}")
+
+# Both directions, or the fixture is an assertion.
+check(bool(ad.get("same_address")), f"{ADDRESS_CASES}: no same_address group — §9.1 is unasserted")
+check(bool(ad.get("different_address")),
+      f"{ADDRESS_CASES}: no different_address group — a constant function would pass")
+
+# The prefix, in both sources.
+rs_proposal_src = read(RS_PROPOSAL)
+check(rust_str_const(rs_proposal_src, "ADDRESS_PREFIX") == ad_prefix,
+      f"{RS_PROPOSAL}: ADDRESS_PREFIX disagrees with {ADDRESS_CASES}")
+if os.path.exists(os.path.join(ROOT, TS_ADDRESS)):
+    ts_address_src = read(TS_ADDRESS)
+    check(ts_str_const(ts_address_src, "ADDRESS_PREFIX") == ad_prefix,
+          f"{TS_ADDRESS}: ADDRESS_PREFIX disagrees with {ADDRESS_CASES}")
+else:
+    check(False, f"{TS_ADDRESS} is missing or not staged")
+
+# ── 4b. one door, and one verdict that is honoured ───────────────────────────
+#
+# ⛔ The plugin's write path was retired because two doors are two
+# implementations of the pre-image above — and they had already diverged on
+# `bound_value`. If it comes back, the address stops meaning anything, quietly.
+rs_http = read(RS_HTTP)
+check("E_WRITE_PATH_RETIRED" in rs_http,
+      f"{RS_HTTP}: the retired write path's 410 is gone — if the plugin appends "
+      f"again there are two implementations of the content address")
+check("from_flat" not in strip_line_comments(rs_proposal_src),
+      f"{RS_PROPOSAL}: `from_flat` is back. The console does not coerce and this did "
+      f"(`bound_value` string vs f64), so the same submission gets two names")
+
+# A rejected proposal is never appended, so a record carrying that verdict came
+# from a hand-edited or restored log. Three readers refuse to replay one, and
+# each is here because the others can be bypassed.
+for path, needle in (
+    (TS_OVERLAY, 'rec.verdict === REJECTED'),
+    (RS_OVERLAY, 'Some("Rejected")'),
+    ("tools/proposals/materialize.py", 'rec.get("verdict") == "Rejected"'),
+):
+    check(needle in read(path),
+          f"{path}: no longer refuses to replay a Rejected record — the door's "
+          f"verdict would be a column nobody reads")
+
+# The database says the same thing about the address's SHAPE. A CHECK that
+# drifted from ADDRESS_PATTERN would admit a spelling the readers cannot match.
+_migration = read("console/db/migrations/0004_the_door.sql")
+check("^sha256:[0-9a-f]{64}$" in _migration,
+      "console/db/migrations/0004_the_door.sql: the address CHECK no longer pins "
+      "the lower-case 64-hex shape")
+
+# ── 5. the reader may not read a field the vocabulary does not declare ────────
+# ⛔ This is the check that would have caught two live bugs, and it is here
+# because they were both found by hand.
+#
+# `overlay.rs::read` pulled `discipline` off an amendNS and `project` off an
+# assertNS. `proposal.rs::OPS` declared neither, and `check_op` rejects unknown
+# fields — so every "reword" and every "write a new requirement" answered 422 and
+# appended nothing, while the overlay sat there expecting fields that could never
+# arrive. The two halves of the write path disagreed, in the direction where the
+# feature simply does not work, and nothing said so.
+#
+# Nothing in the type system connects a `s(op, "discipline")` to the OpSpec that
+# permits it. So the connection is made here.
+rs_proposal = strip_line_comments(read("services/spec/src/proposal.rs"))
+ops_block = re.search(r"pub const OPS:.*?\n\];", rs_proposal, re.S)
+check(ops_block is not None, "services/spec/src/proposal.rs: no OPS table")
+
+op_fields = {}
+if ops_block:
+    for chunk in ops_block.group(0).split("OpSpec {")[1:]:
+        kind = re.search(r'kind:\s*"(\w+)"', chunk)
+        if not kind:
+            continue
+        allowed = set()
+        for key in ("required", "optional", "exactly_one_of"):
+            m = re.search(rf"{key}:\s*&\[(.*?)\]", chunk, re.S)
+            if m:
+                allowed |= set(re.findall(r'"([^"]+)"', m.group(1)))
+        op_fields[kind.group(1)] = allowed
+    check(len(op_fields) == 17,
+          f"services/spec/src/proposal.rs: parsed {len(op_fields)} ops, expected 17")
+
+rs_overlay = strip_line_comments(read(RS_OVERLAY))
+read_fn = re.search(r"pub fn read\(.*?\n    \}", rs_overlay, re.S)
+check(read_fn is not None, f"{RS_OVERLAY}: no `pub fn read`")
+if read_fn and op_fields:
+    body = read_fn.group(0)
+    # Each arm runs from its `"kind" => {` marker to the next one.
+    marks = [(m.start(), m.group(1)) for m in re.finditer(r'"(\w+)"\s*=>\s*\{', body)]
+    for i, (pos, kind) in enumerate(marks):
+        end = marks[i + 1][0] if i + 1 < len(marks) else len(body)
+        arm = body[pos:end]
+        if kind not in op_fields:
+            check(False, f"{RS_OVERLAY}: replays `{kind}`, which is not in the OPS vocabulary")
+            continue
+        seen = set(re.findall(r's\(op,\s*"([^"]+)"\)', arm))
+        # `scope(op, k)` reads `project` as well as the named field.
+        for k in re.findall(r'scope\(op,\s*"([^"]+)"\)', arm):
+            seen |= {k, "project"}
+        for field in sorted(seen):
+            check(
+                field in op_fields[kind],
+                f"{RS_OVERLAY}: the `{kind}` arm reads `{field}`, which "
+                f"proposal.rs::OPS does not declare — the door would reject any op "
+                f"carrying it, so the overlay expects a field that can never arrive",
+            )
+
+# ── 6. the conformance package is actually in the CI allowlist ────────────────
+# ci.yml uses EXPLICIT package lists, not //..., so a gate can be added and never
+# run. That is the same class of gap as a test wired to nothing: coverage that
+# reads as coverage without touching the thing. Assert this package is named in
+# both steps.
+ci = read(".github/workflows/ci.yml")
+for step in ("build", "test"):
+    m = re.search(rf"- name: {step}\n\s+run: \|\n(.*?)(?=\n      - name:|\Z)", ci, re.S)
+    check(m is not None and "//conformance/..." in m.group(1),
+          f".github/workflows/ci.yml: the `{step}` step does not name //conformance/... "
+          f"— this gate would exist and never run")
+
+# ── 7. the pasteable bundle still matches the migrations ──────────────────────
+# `console/db/bootstrap.sql` is the three migrations as one script, for a SQL
+# console — the path someone takes when they have a database and not a checkout.
+# It embeds each migration's sha256 as a ledger row, so a later `migrate.mjs`
+# agrees they are applied. If a migration changes and the bundle is not
+# regenerated, the two paths produce DIFFERENT databases and the ledger lies
+# about which. Cheap to check, invisible when it breaks.
+import hashlib
+
+bundle_path = os.path.join(ROOT, "console/db/bootstrap.sql")
+check(os.path.exists(bundle_path),
+      "console/db/bootstrap.sql is missing or not staged — the two migration "
+      "paths could then build different databases with nothing to say so")
+if os.path.exists(bundle_path):
+    bundle = read("console/db/bootstrap.sql")
+    mig_dir = os.path.join(ROOT, "console/db/migrations")
+    for name in sorted(os.listdir(mig_dir)):
+        if not name.endswith(".sql"):
+            continue
+        with open(os.path.join(mig_dir, name), "rb") as fh:
+            sha = hashlib.sha256(fh.read()).hexdigest()
+        check(
+            f"('{name}', '{sha}')" in bundle,
+            f"console/db/bootstrap.sql is stale for {name} — re-run "
+            f"`node console/db/bundle.mjs > console/db/bootstrap.sql`",
+        )
+        check(name in bundle, f"console/db/bootstrap.sql does not contain {name}")
+
+# ── 8. the other two refusals still exist ─────────────────────────────────────
+# The door is one of three independent places a vacuous pass is refused, and each
+# is there because the others can be bypassed. Losing one silently is the failure.
+materialize = read("tools/proposals/materialize.py")
+check("DROPPED" in materialize and "is not a result" in materialize,
+      "tools/proposals/materialize.py: the vacuous drop is gone — promotion would "
+      "write the exact defect vacuous-invariant.rq exists to catch")
+vacuous_rq = read("rdf/lint/authoring/vacuous-invariant.rq")
+check("VACUOUS-PASS" in vacuous_rq and "NO-POPULATION" in vacuous_rq,
+      "rdf/lint/authoring/vacuous-invariant.rq: lost one of its two branches")
+
+# ⛔ THE GATE MUST NOT BE WEAKER THAN THE DOOR IT CONFIRMS.
+#
+# The door refuses every outcome in POSITIVE over a zero population. The gate
+# listed only two of the three: `au:Examined` was missing, so an Examined/0
+# record was refused at the write path and ADMITTED in the corpus. That is not a
+# redundant check disagreeing about style — it is the independent confirmation
+# being strictly weaker than the thing it confirms, which is the same shape as
+# no confirmation at all, and it survived because nothing compared the two lists.
+#
+# Compared as SETS: order is meaningless in a SPARQL IN clause and meaningful in
+# POSITIVE, so requiring a sequence here would fail for a reason that is not a
+# defect.
+m = re.search(r"FILTER\(\?outcome IN \(([^)]*)\)\)", vacuous_rq)
+check(m is not None,
+      "rdf/lint/authoring/vacuous-invariant.rq: no `FILTER(?outcome IN (...))` — "
+      "the positive-outcome set cannot be compared against the door's")
+if m is not None and fixture_positive:
+    gated = {t.strip().removeprefix("au:") for t in m.group(1).split(",") if t.strip()}
+    check(gated == set(fixture_positive),
+          f"rdf/lint/authoring/vacuous-invariant.rq refuses {sorted(gated)} over a zero "
+          f"population; the door refuses {sorted(fixture_positive)}. The gate that exists "
+          f"to confirm the refusal independently is weaker than the refusal")
+
+# ── 9. the decomposition rule, EXECUTED on both sides ─────────────────────────
+#
+# ⛔ This is the one rule in the repo where both implementations actually run the
+# shared cases on an ordinary PR. Everywhere else the Rust half needs a
+# credential that has been skipping (see the module docstring), so the fixtures
+# are executed once and cross-checked by parsing constants. Here the original is
+# stdlib Python, so it can simply be imported and called — no toolchain, no
+# credential, no parsing of anything.
+#
+# It matters because the console PREVIEWS this rule while an author is still
+# typing, and a preview that disagreed with the decomposer would be worse than no
+# preview: it would be believed. 22 of Studio's 23 undecomposed requirements
+# carry no markup at all, and nothing has ever told their authors that.
+import importlib.util
+
+DEC_CASES = "conformance/decomposition_cases.json"
+TS_DECOMPOSE = "console/lib/decompose.ts"
+
+dec = load(DEC_CASES)
+dec_cases = dec.get("cases", [])
+check(len(dec_cases) >= 10, f"{DEC_CASES}: only {len(dec_cases)} cases")
+
+# Both directions, or the suite is passed trivially by a decomposer that marks
+# everything — or by one that marks nothing, which is the actual failure mode.
+check(any(not c.get("terms") for c in dec_cases),
+      f"{DEC_CASES}: no case expects an EMPTY decomposition — the state 22 of "
+      f"Studio's 23 undecomposed requirements are in")
+check(any(c.get("terms") for c in dec_cases),
+      f"{DEC_CASES}: no case expects any terms")
+for c in dec_cases:
+    check(bool(c.get("why")), f"{DEC_CASES}: {c.get('name', '?')}: no `why`")
+
+# ⚠ Bytecode writing off BEFORE the import. Under `bazel test` the runfiles tree
+# is not a place to be creating `__pycache__`, and a checker that fails because it
+# tried to write next to the file it was reading would be an infuriating way to
+# learn that.
+sys.dont_write_bytecode = True
+_spec = importlib.util.spec_from_file_location("_decompose", os.path.join(ROOT, "tools/import/decompose.py"))
+_dec_mod = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_dec_mod)
+
+check(_dec_mod.MAX_TERM_WORDS == dec.get("max_term_words"),
+      f"tools/import/decompose.py: MAX_TERM_WORDS is {_dec_mod.MAX_TERM_WORDS}, "
+      f"{DEC_CASES} declares {dec.get('max_term_words')}")
+
+# The TypeScript constant is compared against the FIXTURE too, never against the
+# Python one. Two constants agreeing with a third is checkable from either side;
+# two agreeing with each other is a coincidence nobody re-checks.
+ts_dec = read(TS_DECOMPOSE)
+_ts_max = re.search(r"MAX_TERM_WORDS\s*=\s*(\d+)", ts_dec)
+check(_ts_max is not None, f"{TS_DECOMPOSE}: no MAX_TERM_WORDS")
+if _ts_max is not None:
+    check(int(_ts_max.group(1)) == dec.get("max_term_words"),
+          f"{TS_DECOMPOSE}: MAX_TERM_WORDS is {_ts_max.group(1)}, "
+          f"{DEC_CASES} declares {dec.get('max_term_words')}")
+
+for c in dec_cases:
+    got = [{"surface": s, "source": src} for s, src in _dec_mod.extract(c.get("predicate", ""))]
+    check(got == c.get("terms"),
+          f"tools/import/decompose.py disagrees with {DEC_CASES} on "
+          f"{c.get('name', '?')!r}: extracted {got}, fixture declares {c.get('terms')}")
+
+# ── report ────────────────────────────────────────────────────────────────────
+if failures:
+    print(f"FAIL — {len(failures)} of {checks} checks failed:\n", file=sys.stderr)
+    for f in failures:
+        print(f"  * {f}", file=sys.stderr)
+    sys.exit(1)
+print(f"OK — {checks} checks passed over {len(ev_names)} evaluation, "
+      f"{len(ov_names)} overlay and {len(ad_cases)} address cases")
+print(f"     outcomes: {', '.join(rs_outcomes or [])}")
+print(f"     positive: {', '.join(rs_positive or [])}  (zero makes every one of these meaningless)")
+print(f"     judgments: {', '.join(rs_judgments or [])}  (refused from a {rs_prefix or 'machine:'}… author — a machine reports, never judges)")
+print(f"     typescript: {'checked' if ts_present else 'not present yet — ' + TS_EVAL}")
+print(f"     address: {ad_prefix}… over {ad.get('pre_image_keys')}  "
+      f"(NOT {ad.get('not_in_the_pre_image')} — a click and a chat are one proposal)")

@@ -9,7 +9,7 @@ package(default_visibility = ["//visibility:public"])
 # as instances of the shared spec vocabulary, loaded into Jena and gated.
 #
 #   bazel build //corpus:ratio_corpus              # parse + fold in the vocab
-#   bazel test  //corpus:ratio_corpus_gates_...    # SHACL + 4 consistency gates
+#   bazel test  //corpus:ratio_corpus_gates_...    # SHACL + 5 consistency gates
 rdf_dataset(
     name = "ratio_corpus",
     srcs = [
@@ -20,9 +20,9 @@ rdf_dataset(
     deps = ["//rdf:vocab"],
 )
 
-# SHACL shapes + the four consistency invariants (dangling refs, dependency
-# cycles, diagnostic-code collisions, asymmetric inverse edges) over the real
-# graph. Green here means the seed is well-formed and internally consistent.
+# SHACL shapes + the five consistency invariants (dangling refs, dependency
+# cycles, diagnostic-code collisions, asymmetric inverse edges, untyped
+# documents) over the real graph. Green here means the seed is well-formed and internally consistent.
 spec_corpus_gates(
     name = "ratio_corpus_gates",
     dataset = ":ratio_corpus",

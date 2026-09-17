@@ -1,0 +1,244 @@
+# conflicts.ttl — the AMPERE corpus's cross-discipline conflicts as first-class
+# objects, with witnesses, owners, and (where adjudicated) resolutions.
+#
+# These are the payload. Two of them (INV-01, INV-03) are DERIVED — they were
+# found by rdf/lint/authoring/empty-envelope.rq over corpus.ttl rather than
+# hand-authored, and the witness strings below quote that query's output. The
+# rest are hand-recorded from the co-constraint candidates that
+# cross-discipline-coconstraint.rq surfaces.
+#
+# THE CENTRAL RESULT, stated once:
+#
+#   corpus.ttl + disciplines.ttl are SHACL-conformant and return ZERO rows from
+#   every pre-existing gate — claim-contradiction, modality-conflict,
+#   dangling-references, circular-deps, inverse-edges. The corpus is, by every
+#   check the spine had before RFC-002, clean.
+#
+#   It nevertheless contains two EMPTY FEASIBLE ENVELOPES.
+#
+#   modality-conflict.rq cannot see them because it requires byte-equal
+#   predicate text: "MUST deliver at least its committed capacity obligation of
+#   82 MW" and "MUST NOT exceed 55 MW ... for the remainder of the year" are not
+#   the same string, are not in the same document, are not in the same
+#   discipline, and do not cite each other. Nothing short of typed quantities
+#   with reified bounds finds them.
+#
+# CITATION POSTURE: see disciplines.ttl. Values are leads, not facts.
+#
+# Expected conflict-hygiene.rq output over this file: UNRESOLVED rows for every
+# conflict left open below. That is CORRECT — a real corpus has open conflicts,
+# and the gate's job is to make the count visible and owned, not zero.
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:   <https://aion.savvi.io/ontology/authoring#> .
+@prefix amp:  <https://ampere.example/corpus#> .
+
+# =============================================================================
+# INV-01 — the flagship. Empty envelope on sustained discharge power.
+# DERIVED by empty-envelope.rq. Five disciplines, deficit 27 MW.
+# =============================================================================
+
+amp:INV-01 a au:Conflict ;
+    rdfs:label "Feasible sustained-discharge envelope is empty on a hot afternoon" ;
+    au:conflictKind au:EmptyEnvelope ;
+    au:onQuantity amp:q-sustained-discharge ;
+    au:party amp:mkt-b-must-deliver ,          # market      MUST     >= 82 MW
+             amp:warranty-sustained-cap ,      # warranty    MUST NOT <= 55 MW
+             amp:ahj-derived-sustained-cap ,   # fire-safety MUST NOT <= 70 MW
+             amp:warranty-derate-curve ,       # thermal     MUST NOT <= 78 MW
+             amp:lgia-max-injection ,          # intercon.   MUST NOT <= 100 MW
+             amp:ctl-setpoint-clamp ;          # software    MUST clamp to the intersection
+    au:witness "empty-envelope.rq: greatest lower bound 82.0 MW > least upper bound 55.0 MW on q-sustained-discharge (unit MW, timeBase 4h-sustained); deficit 27.0 MW across 5 disciplines. Binding upper bound is amp:warranty-sustained-cap; required lower bound is amp:mkt-b-must-deliver. No party cites any other except the two derived caps citing their own premises." ;
+    au:detector "rdf/lint/authoring/empty-envelope.rq" ;
+    au:owner amp:p-asset-mgr ;
+    au:blocksWorkOrder "wo-041" , "wo-042" , "wo-046" ;
+    rdfs:comment "amp:ctl-setpoint-clamp is a party in a special sense: it REQUIRES the controller to clamp setpoints to the intersection of active limits. With an empty intersection the clamp has no value to choose, so that claim is unsatisfiable as written. This is what makes INV-01 an engineering problem rather than a paperwork problem." .
+
+# The adjudication. Recorded, expiring where it needs to, and honest about what
+# it costs.
+amp:INV-01-res a au:Resolution ;
+    au:outcome au:Narrow ;
+    au:decidedBy amp:p-asset-mgr ;
+    au:decidedAt "2026-08-04T15:40:00Z"^^xsd:dateTime ;
+    au:rationale "Re-offer the capacity commitment at 55 MW for the remainder of the delivery year and accept the reduced capacity revenue. Reasoning, in the order it was applied: (1) amp:ahj-derived-sustained-cap and amp:warranty-derate-curve are au:defeasible false — an authority-having-jurisdiction condition and a protective trip are not commercially breachable, so the 70 and 78 MW bounds are hard walls; (2) amp:mkt-b-must-deliver is defeasible via amp:def-nonperformance, a PRICED defeater, and amp:warranty-sustained-cap is defeasible via amp:def-warranty-ld, also priced; (3) at the current non-performance charge the market shortfall over the remaining assessment intervals exceeds the value of the cells whose coverage the warranty breach would void, so narrowing the market obligation is the cheaper breach; (4) narrowing is preferred to au:Exempt because a waiver would have to be renewed and would leave the empty envelope standing in the graph. The 27 MW deficit does not disappear — it is converted into a known revenue reduction with a named decision-maker." .
+
+amp:INV-01 au:resolvedBy amp:INV-01-res .
+
+# =============================================================================
+# INV-03 — second empty envelope, on TIME rather than power.
+# Also DERIVED by empty-envelope.rq, with no special handling. This is the
+# evidence that the mechanism generalises across dimensions.
+# =============================================================================
+
+amp:INV-03 a au:Conflict ;
+    rdfs:label "Cyber inspection floor exceeds the control-path latency budget" ;
+    au:conflictKind au:EmptyEnvelope ;
+    au:onQuantity amp:q-telemetry-latency ;
+    au:party amp:cip-inspect-control-traffic ,  # cyber      MUST inspect -> >= 180 ms
+             amp:ctl-agc-latency ;              # protection MUST NOT     <= 150 ms
+    au:witness "empty-envelope.rq: greatest lower bound 180.0 ms > least upper bound 150.0 ms on q-telemetry-latency (unit ms, timeBase per-scan); deficit 30.0 ms across 2 disciplines. The reliability standard mandates malicious-communications detection at the electronic access point and is silent on latency, because latency is not its concern; the control specification sets a 150 ms budget and is silent on inspection." ;
+    au:detector "rdf/lint/authoring/empty-envelope.rq" ;
+    au:owner amp:p-ciso ;
+    au:blocksWorkOrder "wo-046" ;
+    rdfs:comment "Both claims are au:defeasible false, so neither can be traded away commercially. The real fix is architectural — move inspection off the latency-critical path, or terminate the reliability function inside the perimeter — which means this conflict's resolution is a DESIGN change, not a decision. Left open deliberately: the corpus should be able to hold a conflict whose resolution is engineering work not yet done." .
+
+# =============================================================================
+# INV-02 — modality clash on the emergency override. Not an envelope: a direct
+# contradiction between a non-defeasible fire condition and a non-defeasible
+# market obligation.
+# =============================================================================
+
+amp:INV-02 a au:Conflict ;
+    rdfs:label "Market emergency override versus the AHJ no-override condition" ;
+    au:conflictKind au:ModalityClash ;
+    au:onQuantity amp:q-setpoint ;
+    au:party amp:mkt-a-emergency-override , amp:ahj-no-override , amp:ahj-soc-cap ;
+    au:witness "amp:mkt-a-emergency-override (market, MUST, au:defeasible false) requires following an emergency instruction without curtailment for contractual reasons; amp:ahj-no-override (fire-safety, MUST_NOT, au:defeasible false) forecloses overriding the accepted state-of-charge conditions by ANY operational, economic, or grid-emergency instruction. The scopes amp:s-market-a and amp:s-county-ahj both apply and au:precedes relates neither, so no derivation settles it." ;
+    au:detector "hand-recorded from cross-discipline-coconstraint.rq candidates" ;
+    au:owner amp:p-ahj ;
+    au:blocksWorkOrder "wo-041" .
+
+amp:INV-02-res a au:Resolution ;
+    au:outcome au:Narrow ;
+    au:decidedBy amp:p-ahj ;
+    au:decidedAt "2026-08-04T17:05:00Z"^^xsd:dateTime ;
+    au:rationale "Narrow amp:mkt-a-emergency-override with a carve-out for conditions imposed by an authority having jurisdiction, rather than adding a defeater to the fire condition. The fire marshal signed the carve-out; the asset manager could not have. Recorded here because the narrowing was authored as a SEPARATE proposal assigned to the fire marshal — the party with authority — and did not apply until they approved it." .
+
+amp:INV-02 au:resolvedBy amp:INV-02-res .
+
+# =============================================================================
+# INV-07 — mode exclusivity. The conflict that is currently decided in code.
+# =============================================================================
+
+amp:INV-07 a au:Conflict ;
+    rdfs:label "Wholesale dispatch and retail programme command the same interval" ;
+    au:conflictKind au:ModalityClash ;
+    au:onQuantity amp:q-setpoint ;
+    au:party amp:mkt-a-follow-dispatch , amp:der-mode-exclusivity , amp:ctl-mode-arbitration ;
+    au:witness "amp:mkt-a-follow-dispatch (market, MUST) requires following the operator's setpoint; amp:der-mode-exclusivity (interconnection, MUST_NOT) forbids executing a retail-programme control and a wholesale instruction for the same interval; amp:ctl-mode-arbitration (software, MUST) requires a documented deterministic priority and is at au:rung au:R3 with au:stalledOn \"the priority is not documented anywhere; it currently exists only as code in the controller\". The arbitration therefore HAPPENS, and its rule is unstated." ;
+    au:detector "hand-recorded from cross-discipline-coconstraint.rq candidates" ;
+    au:owner amp:p-controls-sw ;
+    au:blocksWorkOrder "wo-046" ;
+    rdfs:comment "The most instructive conflict in the corpus: it is already resolved in production, by whichever branch the controller happens to take, and nobody has written the decision down. The stall on amp:ctl-mode-arbitration is what makes that visible." .
+
+# =============================================================================
+# INV-11 — precedence undefined. Deliberately NOT auto-resolved.
+# =============================================================================
+
+amp:INV-11 a au:Conflict ;
+    rdfs:label "Firmware currency versus certified protection settings" ;
+    au:conflictKind au:PrecedenceUndefined ;
+    au:party amp:warranty-firmware-current , amp:lgia-protection-settings ;
+    au:witness "amp:warranty-firmware-current (warranty, MUST) requires running the manufacturer's current firmware to maintain coverage; amp:lgia-protection-settings (interconnection, MUST_NOT) forbids altering certified protection settings without written approval, and a firmware revision changes protective-function behaviour. Scopes amp:s-oem-warranty and amp:s-lgia: au:precedes relates neither, and neither is public law, so the s-federal-reliability precedence does not reach them." ;
+    au:detector "hand-recorded; scope-pair gap noted in disciplines.ttl" ;
+    au:owner amp:p-interconnection-eng ;
+    au:blocksWorkOrder "wo-041" ;
+    rdfs:comment "The system does NOT invent a ranking here. Two private contracts, neither subordinate to the other, both signed by the same operator. Resolving it means either obtaining written approval per revision or renegotiating one instrument — an owned decision, which is exactly what au:PrecedenceUndefined is for." .
+
+# =============================================================================
+# INV-16 — topology disagreement. Computable only because the nodes are explicit.
+# =============================================================================
+
+amp:INV-16 a au:Conflict ;
+    rdfs:label "Metering point and contractual delivery point differ by one winding" ;
+    au:conflictKind au:TopologyDisagreement ;
+    au:party amp:lgia-delivery-point , amp:settle-metering-point , amp:settle-loss-compensation ;
+    au:witness "amp:lgia-delivery-point places delivery at amp:n-mpt-hv (high side); amp:settle-metering-point reads at amp:n-mpt-lv (low side). Set difference over the topology nodes: one node, being the main power transformer winding. amp:settle-loss-compensation supplies a named loss factor bridging them, so the conflict is not that the two points differ — it is that no claim asserts the compensation factor used for settlement equals the one the interconnection agreement assumes." ;
+    au:detector "hand-recorded; node set difference over disciplines.ttl topology" ;
+    au:owner amp:p-settlement-analyst ;
+    rdfs:comment "The mild but expensive kind: a small persistent basis difference between what is metered and what is owed. Its resolution is an au:viaModel assertion tying the two, not a change to either claim." .
+
+amp:INV-16-res a au:Resolution ;
+    au:outcome au:Narrow ;
+    au:decidedBy amp:p-settlement-analyst ;
+    au:decidedAt "2026-08-05T09:15:00Z"^^xsd:dateTime ;
+    au:rationale "Assert the transformer loss model as an explicit au:viaModel on the delivered-energy quantity, versioned, so that revising it marks every downstream settlement claim stale rather than silently changing the basis. No claim text changed; the missing link was added." .
+
+amp:INV-16 au:resolvedBy amp:INV-16-res .
+
+# =============================================================================
+# INV-05 — noise limit versus fire separation. A real geometric squeeze.
+# =============================================================================
+
+amp:INV-05 a au:Conflict ;
+    rdfs:label "Enclosure separation pushes HVAC noise toward the property line" ;
+    au:conflictKind au:EmptyEnvelope ;
+    au:onQuantity amp:q-noise ;
+    au:party amp:fire-enclosure-separation , amp:permit-noise-limit , amp:permit-setback ;
+    au:witness "amp:fire-enclosure-separation (fire-safety, MUST) requires minimum separation between enclosures, which for a fixed site area moves enclosures outward; amp:permit-setback (permitting, MUST) requires a minimum distance from the property line; amp:permit-noise-limit (permitting, MUST_NOT) caps sound pressure at 45 dBA at that line. No bound is asserted on q-noise from the thermal side yet, so empty-envelope.rq does NOT currently fire on this — the HVAC acoustic contribution is unquantified." ;
+    au:detector "hand-recorded; NOT machine-derived" ;
+    au:owner amp:p-permit-mgr ;
+    rdfs:comment "Included deliberately as an example of a conflict the gate CANNOT yet see, because the acoustic model has no au:Bound. It is honest about the boundary of the decidable fragment: typing q-noise from the thermal side is what would move this conflict from hand-recorded to derived." .
+
+# =============================================================================
+# INV-10 — station power: gross versus net. A false positive, REFUTED.
+# =============================================================================
+
+amp:INV-10 a au:Conflict ;
+    rdfs:label "Station-power netting versus gross-versus-net presentation" ;
+    au:conflictKind au:ModalityClash ;
+    au:onQuantity amp:q-station-power ;
+    au:party amp:mkt-a-station-power-netting , amp:acct-gross-vs-net ;
+    au:witness "Both claims constrain q-station-power; the tariff requires netting at the metering point and the accounting standard requires net presentation of amounts collected on behalf of another party." ;
+    au:detector "rdf/lint/authoring/cross-discipline-coconstraint.rq" ;
+    au:owner amp:p-controller ;
+    au:resolvedBy amp:INV-10-res .
+
+# The expert refutation. A spec system that cannot be corrected by a domain
+# expert is worthless, so the refutation is recorded WITH the detector that
+# produced the false positive — the mechanism is what improves.
+amp:INV-10-res a au:Resolution ;
+    au:outcome au:Refute ;
+    au:decidedBy amp:p-controller ;
+    au:decidedAt "2026-08-05T11:30:00Z"^^xsd:dateTime ;
+    au:rationale "Not a conflict. The two claims are about different things that share a quantity: the tariff governs how station load is SETTLED (netted at the meter), the accounting standard governs how the resulting cash flow is PRESENTED (net of amounts collected for another party). Netting at the meter and net presentation are compatible and in fact aligned. The co-constraint detector was right that both claims touch q-station-power and correct to surface the pair; the inference that touching the same quantity implies incompatibility is the error, and it is mine to correct, not the detector's to suppress. Follow-up filed: q-station-power is doing two jobs (a physical power flow and a settlement line item) and should be split into two quantities with an au:viaModel between them, which would have prevented the pair being generated at all." .
+
+# =============================================================================
+# The remaining recorded conflicts, left open with owners.
+# =============================================================================
+
+amp:INV-12 a au:Conflict ;
+    rdfs:label "Placed in service versus lease commencement" ;
+    au:conflictKind au:Homonym ;
+    au:party amp:tax-placed-in-service , amp:acct-commencement ;
+    au:witness "amp:tax-placed-in-service requires the facility be placed in service in the credit year; amp:acct-commencement sets the commencement date as when the asset is made available to the counterparty. Both are predicates over a single calendar date and they can fall in different reporting periods; no quantity is declared for either, so neither is machine-comparable today." ;
+    au:detector "hand-recorded" ;
+    au:owner amp:p-tax-counsel ;
+    rdfs:comment "A homonym over a DATE rather than a measurement. The quantity registry as specified handles physical quantities well and temporal predicates poorly — filed against RFC-002 §13 item 4 as evidence for the next fragment increment." .
+
+amp:INV-13 a au:Conflict ;
+    rdfs:label "Domestic content versus local procurement preference" ;
+    au:conflictKind au:PrecedenceUndefined ;
+    au:onQuantity amp:q-domestic-content ;
+    au:party amp:tax-domestic-content , amp:permit-local-procurement ;
+    au:witness "amp:tax-domestic-content (tax, MUST, non-defeasible) sets a minimum domestic-content percentage of eligible cost; amp:permit-local-procurement (permitting, SHOULD) prefers local suppliers. 'Local' and 'domestic' are different predicates over one procurement decision and can pull apart. Scopes amp:s-tax-code and amp:s-county-permit are unranked. Note the asymmetry: the tax claim is a MUST and the permit claim a SHOULD, so this is near-conflict rather than conflict — but the SHOULD is a permit condition and permit conditions get audited." ;
+    au:detector "hand-recorded" ;
+    au:owner amp:p-tax-counsel ;
+    au:blocksWorkOrder "wo-057" ;
+    rdfs:comment "Blocks wo-057. The agent working that order raised a HumanPrompt for a different reason — amp:tax-cost-substantiation is at R3 with au:stalledOn \"no claim states which party is obligated to produce supplier certifications\" — so the obligation it was handed has no subject. Two distinct defects, one work order." .
+
+amp:INV-14 a au:Conflict ;
+    rdfs:label "Anti-islanding versus intentional island support" ;
+    au:conflictKind au:ModalityClash ;
+    au:party amp:der-anti-islanding , amp:ctl-island-support ;
+    au:witness "amp:der-anti-islanding (interconnection, MUST, non-defeasible) requires the inverter cease to energize the area network on loss of the utility source; amp:ctl-island-support (software, MUST) requires supporting an intentional island for site critical loads on the same trigger. Both are booleans about the same contactor. They are reconcilable ONLY if the island's electrical boundary is stated — no document in the corpus states it." ;
+    au:detector "hand-recorded" ;
+    au:owner amp:p-interconnection-eng ;
+    rdfs:comment "The resolution is not an adjudication but a MISSING CLAIM: assert the island boundary as a topology node, and the two obligations turn out to be about different networks. An au:openGap outcome would fit better than any of the five au:Outcome values — filed as evidence that the outcome vocabulary may need a sixth member." .
+
+amp:INV-19 a au:Conflict ;
+    rdfs:label "\"capacity\" resolves to five disjoint concepts" ;
+    au:conflictKind au:Homonym ;
+    au:party amp:mkt-b-accreditation , amp:permit-capacity-cap , amp:acct-capacity-revenue ;
+    au:witness "Five quantities in disciplines.ttl carry the surface term capacity and the unit MW while differing in measurement point, estimator, and time base: q-cap-nameplate, q-cap-accredited, q-cap-contracted, q-cap-insured, q-cap-permitted. All five pairs ARE asserted au:disjointQuantity, so homonym-unregistered.rq does not report them — the registry is complete for this family. This conflict object records the family itself so that a claim written against the wrong member is attributable." ;
+    au:detector "rdf/lint/authoring/homonym-unregistered.rq (family now registered)" ;
+    au:owner amp:p-market-ops ;
+    au:resolvedBy amp:INV-19-res .
+
+amp:INV-19-res a au:Resolution ;
+    au:outcome au:Narrow ;
+    au:decidedBy amp:p-market-ops ;
+    au:decidedAt "2026-07-28T14:00:00Z"^^xsd:dateTime ;
+    au:rationale "Registered all ten pairs of the capacity family as au:disjointQuantity and repointed each claim at the specific member it means. Cheapest possible fix, and the reason the family no longer appears in homonym-unregistered.rq output. The remaining unregistered MW pairs that gate DOES report are the work queue for the same treatment." .

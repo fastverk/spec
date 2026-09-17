@@ -1,0 +1,29 @@
+# ---
+# title: "Per-discipline coverage"
+# description: "For each discipline: claim count, how many carry a typed quantity, how many are non-defeasible, and how many sit below the binding rung."
+# severity: info
+# tier: 3
+# rationale: "Drives the atlas panel's discipline lattice (RFC-002 §8.2). The `typed` column is the leading indicator for conflict detection: a discipline whose claims do not constrain a declared au:Quantity cannot participate in empty-envelope detection at all, so a low typed/claims ratio means that discipline's conflicts are invisible rather than absent. The `dark` column is what an agent fleet may not bind against."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?discipline
+       (COUNT(DISTINCT ?claim) AS ?claims)
+       (COUNT(DISTINCT ?typedClaim) AS ?typed)
+       (COUNT(DISTINCT ?hardClaim) AS ?nonDefeasible)
+       (COUNT(DISTINCT ?darkClaim) AS ?dark)
+WHERE {
+  ?d a au:Discipline .
+  OPTIONAL { ?d rdfs:label ?discipline }
+  ?claim a rfc:NormativeStatement ; au:discipline ?d .
+  OPTIONAL { ?typedClaim au:discipline ?d ; au:constrains ?q }
+  OPTIONAL { ?hardClaim  au:discipline ?d ; au:defeasible false }
+  OPTIONAL {
+    ?darkClaim au:discipline ?d ; au:rung ?r .
+    FILTER(?r IN (au:R0, au:R1, au:R2, au:R3))
+  }
+}
+GROUP BY ?discipline
+ORDER BY DESC(?claims)

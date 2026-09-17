@@ -1,0 +1,14 @@
+{
+  "_comment": "One order over the fixture's OEM scope — the consumer half of spec#45. Ids, paths and budgets are the consumer's to choose; the corpus supplies everything else.",
+  "orders": [
+    {
+      "order_id": "wo-smoke-oem",
+      "scope": "https://aion.savvi.io/fixture/envelope-clean#scope-oem",
+      "discipline": "https://aion.savvi.io/fixture/envelope-clean#thermal",
+      "write_paths": ["src/thermal/**"],
+      "forbidden": ["src/market/**"],
+      "max_tokens": 500000,
+      "max_probes": 5
+    }
+  ]
+}

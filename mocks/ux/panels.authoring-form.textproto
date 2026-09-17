@@ -1,0 +1,384 @@
+# panels.authoring-form.textproto — DECLARATIVE WRITE affordances.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# THE FINDING THIS FILE EXISTS TO RECORD
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# RFC-002 §3.3 concluded that "the meridian descriptor vocabulary is `table` /
+# `lro` / `adhoc`" with no write primitive, and therefore that every authoring
+# write affordance needs an `ADHOC_HANDLERS` entry in botnoc-web — a change in
+# another repo — or an upstream `meridian_schemas` extension.
+#
+# THAT IS WRONG, and it was wrong when it was written. Reading
+# botnoc/web/static/assets/main.js at HEAD:
+#
+#   if (body.case === 'form') {
+#     await renderFormPanelInto(root, plugin, panel, body.value);
+#     return;
+#   }
+#
+# with the comment: "A FormPanel is a first-class plugin panel: render its fields
+# host-side (like the gallery) and submit via the panel's `submit` RpcCall through
+# the plugin invoker. This is what lets a plugin (e.g. plugin-integrations' admin
+# 'Define provider') own a native form without a meridian bundle rebuild."
+#
+# `renderFormPanelInto` builds each field, validates it, assembles
+# `{request_field: value}` from the descriptor's `bindings`, and POSTs it through
+# `makeInvoker(plugin).invoke(submit.service, submit.method, request)` — which
+# resolves the route from the plugin's OWN `web_routes`. So a write affordance needs
+# NO shell code and NO upstream change. It needs a `form` panel and a POST route.
+#
+# WHY §3.3 GOT IT WRONG: it measured the descriptor vocabulary against
+# **meridian_schemas 0.5.0**, which is what spec/MODULE.bazel pins. botnoc — the
+# repo that ships the shell doing the rendering — pins **0.19.0** (and meridian_web
+# 0.12.0 against spec's 0.5.0). §3.3 read the right file in the wrong version, and
+# concluded a cross-repo negotiation was needed for something already shipped.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# WHY THIS IS STILL A MOCK AND NOT IN services/spec/ui/panels.textproto
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# ONE prerequisite, and it is a version bump, not a design question:
+#
+#     spec/MODULE.bazel:  meridian_schemas 0.5.0 -> a version carrying FormPanel
+#                         meridian_web     0.5.0 -> the matching bundle rule
+#
+# `meridian_panel_bundle` compiles this textproto against
+# `@meridian_schemas//proto:uiview_proto` AT SPEC'S PIN. A `form { }` block under
+# 0.5.0 is a textproto parse failure, which fails the panel-bundle target, which
+# fails the whole plugin build — for everyone. So this file stays out of the shipped
+# bundle until somebody with a working Bazel does the bump and builds it.
+#
+# That is the same discipline the read-model panels followed: they went live because
+# `table` is in 0.5.0 (the three shipped panels prove it), and the compiled bundle
+# was verified byte-for-byte. Nothing here is verified, because nothing here can be
+# compiled in an environment without Bazel. Writing it anyway is how RFC-002 §12.1
+# happened.
+#
+# The routes these forms submit to ARE live and ARE tested:
+# `POST /proposal/op` (Authoring.SubmitOp) with 32 passing tests over the real
+# handler, including that a form's string values and an API client's real JSON
+# types produce IDENTICAL canonical bytes. See services/spec/src/proposal.rs.
+#
+# ══════════════════════════════════════════════════════════════════════════════
+# THREE LIMITATIONS FOUND BY WRITING THIS — the upstream asks, in priority order
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# 1. NO SERVER STATE CAN REACH A FORM FIELD. `bindings` sources are `form_field`
+#    (what the user typed) or `literal` (baked into the descriptor at build time).
+#    There is no third source. So `parent` — the bitemporal read point the author
+#    saw, which is the whole basis of conflict-free concurrent authoring — cannot be
+#    filled by the server. Below it is a visible text field the author must paste,
+#    which is a genuinely bad affordance and the most important thing to fix.
+#    Ask: a `context` binding source, or a `populate` on a form.
+#
+# 2. NO DECIMAL FIELD. The field kinds are `text`, `masked`, `integer`,
+#    `enum_selection`. Physical quantities are decimals (70.0 MW, 180.0 ms), so a
+#    bound has to be a pattern-validated `text` field and the server parses the
+#    string. It works — `proposal::from_flat` coerces exactly the declared numeric
+#    fields — but the validation is a regex where it should be a type.
+#    Ask: a `decimal` field kind with min/max/precision.
+#
+# 3. A FORM SUBMITS ONE FLAT RECORD. `buildRequestFromBindings` produces
+#    `{field: value}`, one level deep. A Proposal is `{parent, ops: [...]}`, so a
+#    form cannot post a multi-op proposal — which is why the plugin serves
+#    `POST /proposal/op` for the one-op case. Per-op accept/reject triage over a
+#    multi-op diff (RFC-002 §5's "review is at op granularity") remains an adhoc
+#    surface. That is the correct division: one-op writes are most writes, and
+#    reviewing a diff is genuinely not a form.
+#
+# All three are small, generic, and benefit every plugin in the estate — which is
+# the argument for asking rather than working around.
+
+# ============================================================
+# ASSERT A CLAIM — the core authoring act.
+#
+# Note what the form forces that prose does not: a discipline,
+# a rung, and (if the claim bounds anything) a declared
+# quantity. RFC-002's argument for the ladder is that
+# "captured but not yet formalized" needs a legal
+# representation; the rung dropdown is that argument as a UI
+# affordance. R4 is the default because R4 is what binds for
+# fanout, and defaulting lower would quietly produce claims
+# that cannot be used.
+# ============================================================
+panels {
+  panel_id: "author_claim"
+  title: "Assert claim"
+  form {
+    item_noun: "claim"
+    fields {
+      field_id: "parent"
+      label: "Read point"
+      description: "The bitemporal read point you authored against. LIMITATION 1: no binding source can supply this, so it has to be pasted. Copy it from the read-model header."
+      text { pattern: "^[A-Za-z0-9:._-]+$" pattern_error_msg: "a read-point handle, e.g. rm-2026-08-06T00:41Z" }
+    }
+    fields {
+      field_id: "subject"
+      label: "Claim id"
+      description: "Stable identifier. Lowercase, hyphenated — it becomes part of the graph, so it outlives the sentence."
+      text { pattern: "^[a-z][a-z0-9-]*$" pattern_error_msg: "lowercase letters, digits and hyphens; must start with a letter" }
+    }
+    fields {
+      field_id: "text"
+      label: "Normative statement"
+      description: "The claim itself, in the modal form the corpus uses: MUST / MUST NOT / SHOULD."
+      text {}
+    }
+    fields {
+      field_id: "discipline"
+      label: "Discipline"
+      description: "Which discipline owns this. An unowned claim has nobody to adjudicate it when it conflicts."
+      text {}
+    }
+    fields {
+      field_id: "rung"
+      label: "Rung"
+      description: "R0 utterance · R1 intent · R2 candidate · R3 grounded · R4 typed · R5 theorem-backed. Only R4+ binds agent fanout; R0-R3 arrive explicitly non-binding."
+      enum_selection {
+        allowed_values: "R0"
+        allowed_values: "R1"
+        allowed_values: "R2"
+        allowed_values: "R3"
+        allowed_values: "R4"
+        allowed_values: "R5"
+        default_value: "R4"
+      }
+    }
+    fields {
+      field_id: "quantity"
+      label: "Constrains quantity"
+      description: "The declared au:Quantity this claim bounds. Leave blank for an unquantified claim — but note that an unquantified claim cannot participate in empty-envelope detection at all, so its conflicts become invisible rather than absent."
+      text {}
+    }
+    fields {
+      field_id: "bound_kind"
+      label: "Bound"
+      enum_selection {
+        allowed_values: ""
+        allowed_values: "LowerBound"
+        allowed_values: "UpperBound"
+        default_value: ""
+      }
+    }
+    fields {
+      field_id: "bound_value"
+      label: "Value"
+      description: "LIMITATION 2: a decimal, carried as pattern-validated text because the field vocabulary has no decimal kind."
+      text { pattern: "^-?[0-9]+(\\.[0-9]+)?$" pattern_error_msg: "a number, e.g. 70 or 70.5" }
+    }
+    fields {
+      field_id: "guard"
+      label: "Applies when"
+      description: "The condition under which the bound applies, e.g. `ambient_c >= 45`. Narrowing a guard is the cheapest genuine conflict resolution — it makes two claims stop overlapping instead of ranking one over the other."
+      text {}
+    }
+    fields {
+      field_id: "defeasible"
+      label: "Defeasible"
+      description: "Can this be traded away at a price? A non-defeasible bound cannot, at any price — which is what makes a conflict witness actionable rather than merely alarming."
+      enum_selection {
+        allowed_values: "false"
+        allowed_values: "true"
+        default_value: "false"
+      }
+    }
+    submit {
+      service: "spec.v1.Authoring"
+      method: "SubmitOp"
+      bindings { request_field: "op" literal: "assertNS" }
+      bindings { request_field: "surface" literal: "Meridian" }
+      bindings { request_field: "parent" form_field: "parent" }
+      bindings { request_field: "subject" form_field: "subject" }
+      bindings { request_field: "text" form_field: "text" }
+      bindings { request_field: "discipline" form_field: "discipline" }
+      bindings { request_field: "rung" form_field: "rung" }
+      bindings { request_field: "quantity" form_field: "quantity" }
+      bindings { request_field: "bound_kind" form_field: "bound_kind" }
+      bindings { request_field: "bound_value" form_field: "bound_value" }
+      bindings { request_field: "guard" form_field: "guard" }
+      bindings { request_field: "defeasible" form_field: "defeasible" }
+    }
+  }
+}
+
+# ============================================================
+# ADJUDICATE A CONFLICT — the highest-value write on the board.
+#
+# The five outcomes are the closed au:Outcome set. `Refute` is
+# in the list on purpose: "this conflict rests on a claim that
+# is false" is a legitimate adjudication, and a system whose
+# only options are ranking and exemption forces experts to
+# pick a wrong one. AMPERE's INV-10 is exactly this case — a
+# false positive the domain expert refuted.
+#
+# A rationale is REQUIRED, not optional. An adjudication with
+# no stated ground is what `conflict-hygiene-strict` gates on:
+# a conflict that has been closed but cannot be acted on or
+# re-examined.
+#
+# Worth naming what this form CANNOT do: it cannot record that
+# the resolution is a MISSING CLAIM. AMPERE's INV-14 is that
+# case, and none of the five outcomes fits it. RFC-002 files it
+# as evidence the vocabulary needs a sixth value — and a
+# dropdown makes the gap visible in a way prose never did,
+# because you can see there is no option to pick.
+# ============================================================
+panels {
+  panel_id: "adjudicate"
+  title: "Adjudicate"
+  form {
+    item_noun: "adjudication"
+    fields {
+      field_id: "parent"
+      label: "Read point"
+      text { pattern: "^[A-Za-z0-9:._-]+$" pattern_error_msg: "a read-point handle" }
+    }
+    fields {
+      field_id: "conflict"
+      label: "Conflict"
+      description: "The conflict id from the Conflicts table, e.g. INV-01."
+      text { pattern: "^[A-Za-z0-9-]+$" pattern_error_msg: "a conflict id, e.g. INV-01" }
+    }
+    fields {
+      field_id: "outcome"
+      label: "Outcome"
+      description: "narrow (make the claims stop overlapping) · prioritize (rank one over the other) · exempt (a bounded waiver) · escalate (send it up) · refute (the conflict rests on a false claim)."
+      enum_selection {
+        allowed_values: "Narrow"
+        allowed_values: "Prioritize"
+        allowed_values: "Exempt"
+        allowed_values: "Escalate"
+        allowed_values: "Refute"
+        default_value: "Narrow"
+      }
+    }
+    fields {
+      field_id: "rationale"
+      label: "Rationale"
+      description: "Required. An adjudication nobody can re-examine is what conflict-hygiene-strict fails the build on."
+      text {}
+    }
+    fields {
+      field_id: "expires"
+      label: "Expires"
+      description: "For a waiver: when it lapses. An unbounded or expired waiver is a gate failure, so an Exempt outcome without a date will be caught by the build even though this field is optional here."
+      text {}
+    }
+    submit {
+      service: "spec.v1.Authoring"
+      method: "SubmitOp"
+      bindings { request_field: "op" literal: "adjudicate" }
+      bindings { request_field: "surface" literal: "Meridian" }
+      bindings { request_field: "parent" form_field: "parent" }
+      bindings { request_field: "conflict" form_field: "conflict" }
+      bindings { request_field: "outcome" form_field: "outcome" }
+      bindings { request_field: "rationale" form_field: "rationale" }
+      bindings { request_field: "expires" form_field: "expires" }
+    }
+  }
+}
+
+# ============================================================
+# NARROW A GUARD — the cheapest real conflict fix.
+#
+# Two claims that only overlap under a condition nobody wrote
+# down are not actually in conflict. Narrowing the guard is the
+# resolution that costs nothing and loses nothing, which is why
+# it is worth its own affordance rather than living inside the
+# adjudication form: it should be the first thing anyone tries.
+# ============================================================
+panels {
+  panel_id: "narrow_guard"
+  title: "Narrow guard"
+  form {
+    item_noun: "narrowing"
+    fields {
+      field_id: "parent"
+      label: "Read point"
+      text { pattern: "^[A-Za-z0-9:._-]+$" pattern_error_msg: "a read-point handle" }
+    }
+    fields {
+      field_id: "subject"
+      label: "Claim"
+      description: "The claim whose bound gets a narrower condition."
+      text { pattern: "^[a-z][a-z0-9-]*$" pattern_error_msg: "a claim id" }
+    }
+    fields {
+      field_id: "guard"
+      label: "Applies only when"
+      description: "e.g. `ambient_c >= 45`. The narrower this is, the less of the conflict remains."
+      text {}
+    }
+    fields {
+      field_id: "rationale"
+      label: "Why this is the real scope"
+      text {}
+    }
+    submit {
+      service: "spec.v1.Authoring"
+      method: "SubmitOp"
+      bindings { request_field: "op" literal: "narrowGuard" }
+      bindings { request_field: "surface" literal: "Meridian" }
+      bindings { request_field: "parent" form_field: "parent" }
+      bindings { request_field: "subject" form_field: "subject" }
+      bindings { request_field: "guard" form_field: "guard" }
+      bindings { request_field: "rationale" form_field: "rationale" }
+    }
+  }
+}
+
+# ============================================================
+# BIND A TERM — the one place the formal path is CHEAPER than
+# prose.
+#
+# Writing "state of charge" in a document takes one second and
+# silently commits you to one of three disjoint concepts. Here
+# it takes one extra field and commits you to the right one.
+# Prose does not avoid the decision; it defers it, and the
+# deferral is what makes cross-discipline conflict undetectable
+# later.
+#
+# RFC-002 has this op FORCED when a term typeahead finds no
+# match — the author does not choose to bind the term, they
+# choose between binding it and aligning it to one that exists.
+# ============================================================
+panels {
+  panel_id: "bind_term"
+  title: "Bind term"
+  form {
+    item_noun: "term"
+    fields {
+      field_id: "parent"
+      label: "Read point"
+      text { pattern: "^[A-Za-z0-9:._-]+$" pattern_error_msg: "a read-point handle" }
+    }
+    fields {
+      field_id: "term"
+      label: "Term"
+      text {}
+    }
+    fields {
+      field_id: "definition"
+      label: "Definition"
+      description: "Required. A term with a label and no definition is not a binding — it is the same ambiguity with an id attached, and the SHACL shape for rfc:Term rejects it."
+      text {}
+    }
+    fields {
+      field_id: "discipline"
+      label: "Discipline"
+      description: "Whose sense of the term this is. Two disciplines may legitimately bind the same word differently — that is a registered homonym, not an error, and registering it is what makes the difference queryable."
+      text {}
+    }
+    submit {
+      service: "spec.v1.Authoring"
+      method: "SubmitOp"
+      bindings { request_field: "op" literal: "bindTerm" }
+      bindings { request_field: "surface" literal: "Meridian" }
+      bindings { request_field: "parent" form_field: "parent" }
+      bindings { request_field: "term" form_field: "term" }
+      bindings { request_field: "definition" form_field: "definition" }
+      bindings { request_field: "discipline" form_field: "discipline" }
+    }
+  }
+}

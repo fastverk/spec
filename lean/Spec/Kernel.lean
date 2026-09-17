@@ -44,6 +44,13 @@ Cost of moving from 46 axioms to (5 K + a handful of primitives):
 -/
 
 import Spec.Predicates
+-- ⛔ MUST stay. `lean_test` DOES NOT CHECK PROOFS on its own: a `sorry` is a
+-- *warning* and `lean` exits 0, so a file proving anything `by sorry` passes a
+-- `lean_test` cleanly. Measured on this repo, not inferred. This option turns
+-- `declaration uses 'sorry'` into a hard error; //lean:audit_proofs_test asserts
+-- every source still carries it, so it cannot be removed one file at a time.
+set_option warningAsError true
+
 
 namespace Spec
 

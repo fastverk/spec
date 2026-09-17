@@ -1,0 +1,40 @@
+# ---
+# title: "Unregistered homonym"
+# description: "Two quantities share a unit and dimension but differ in referent (measurement point, estimator, or time base), and are NOT asserted au:disjointQuantity. A claim about one can be silently applied to the other."
+# severity: warning
+# tier: 3
+# rationale: "Most cross-domain errors in a multidisciplinary corpus are homonym errors, and they are invisible because both sides are locally correct. 'Capacity' resolves to nameplate, accredited, contracted, insured, and permitted values; 'state of charge' to BMS-reported, telemetered, and ISO-modelled; 'cycle' to equivalent-full, rainflow, and throughput-over-nameplate. Each pair shares a unit, so dimension checking passes. The fix is cheap — one au:disjointQuantity assertion — and the cost of missing it is a claim enforced against the wrong number. This gate is a warning rather than an error because the registry is built incrementally: it reports the unregistered pairs as a work queue, and the count going to zero is what 'the glossary is aligned' actually means. The severity should be promoted to error for a discipline once its registry is complete."
+# ---
+PREFIX au: <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?unit ?qA ?qB ?differsBy
+WHERE {
+  ?qA a au:Quantity ; au:unit ?unit .
+  ?qB a au:Quantity ; au:unit ?unit .
+  FILTER(STR(?qA) < STR(?qB))
+
+  # Same dimension too — otherwise the unit match is coincidental.
+  OPTIONAL { ?qA au:dimension ?dimA }
+  OPTIONAL { ?qB au:dimension ?dimB }
+  FILTER(!BOUND(?dimA) || !BOUND(?dimB) || ?dimA = ?dimB)
+
+  # Differing in at least one referent component is what makes them a homonym
+  # rather than duplicates.
+  OPTIONAL { ?qA au:estimator        ?estA }
+  OPTIONAL { ?qB au:estimator        ?estB }
+  OPTIONAL { ?qA au:measurementPoint ?mpA }
+  OPTIONAL { ?qB au:measurementPoint ?mpB }
+  OPTIONAL { ?qA au:timeBase         ?tbA }
+  OPTIONAL { ?qB au:timeBase         ?tbB }
+
+  BIND(IF(BOUND(?estA) && BOUND(?estB) && ?estA != ?estB, "estimator ", "") AS ?dEst)
+  BIND(IF(BOUND(?mpA)  && BOUND(?mpB)  && ?mpA  != ?mpB,  "point ",     "") AS ?dMp)
+  BIND(IF(BOUND(?tbA)  && BOUND(?tbB)  && ?tbA  != ?tbB,  "timeBase ",  "") AS ?dTb)
+  BIND(CONCAT(?dEst, ?dMp, ?dTb) AS ?differsBy)
+  FILTER(?differsBy != "")
+
+  # The whole point: no explicit non-identity assertion exists.
+  FILTER NOT EXISTS { ?qA au:disjointQuantity ?qB }
+  FILTER NOT EXISTS { ?qB au:disjointQuantity ?qA }
+}
+ORDER BY ?unit ?qA ?qB

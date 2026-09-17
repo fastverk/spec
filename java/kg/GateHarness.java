@@ -47,14 +47,15 @@ import org.apache.jena.shacl.ValidationReport;
  */
 public final class GateHarness {
 
-    /** The 4 generic RFC-corpus consistency gates — SPARQL bundled as
+    /** The 5 generic RFC-corpus consistency gates — SPARQL bundled as
      *  classpath resources with spec (not under the consumer kg-root).
      *  Resource path layout mirrors the source under rdf/queries/. */
     private static final Map<String, String> CONSISTENCY_RESOURCES = Map.of(
         "dangling",        "/queries/consistency/dangling-references.rq",
         "cycles",          "/queries/consistency/circular-deps.rq",
         "collisions",      "/queries/consistency/diagnostic-collisions.rq",
-        "inverse_edges",   "/queries/consistency/inverse-edges.rq"
+        "inverse_edges",   "/queries/consistency/inverse-edges.rq",
+        "untyped_documents", "/queries/consistency/untyped-documents.rq"
     );
 
     /** Domain zero-row gate(s) — SPARQL under the consumer's kg-root (the
@@ -72,10 +73,10 @@ public final class GateHarness {
      *  {@link Result} per gate in stable order. */
     public static List<Result> runAll(Dataset ds, Path kgRoot) {
         List<Result> out = new ArrayList<>();
-        // contradictions (domain, kg-root) then the 4 framework consistency
+        // contradictions (domain, kg-root) then the 5 framework consistency
         // gates (resources) — preserves the original declared order.
         out.add(runZeroRow(ds, kgRoot, "contradictions", DOMAIN_ZERO_ROW.get("contradictions")));
-        for (String name : List.of("dangling", "cycles", "collisions", "inverse_edges")) {
+        for (String name : List.of("dangling", "cycles", "collisions", "inverse_edges", "untyped_documents")) {
             out.add(runZeroRowResource(ds, name, CONSISTENCY_RESOURCES.get(name)));
         }
         out.add(runQuerySmoke(ds, kgRoot));

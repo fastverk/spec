@@ -1,0 +1,376 @@
+# disciplines.ttl — the AMPERE corpus's discipline map, quantity registry, and
+# scope registry.
+#
+# AMPERE: a 400 MWh / 100 MW grid-scale battery energy storage system plus an
+# aggregated distributed-energy virtual power plant, participating in two US
+# wholesale electricity markets, including its financing, safety case,
+# cybersecurity posture, and control software.
+#
+# This file carries the three registries that make cross-discipline incoherence
+# machine-detectable, in the vocabulary of rdf/ontology/authoring.ttl:
+#
+#   au:Discipline  — who authored a claim, and who has authority to adjudicate
+#   au:Quantity    — dimension AND REFERENT, so homonyms become type errors
+#   au:Scope       — jurisdiction / instrument / edition / effective interval
+#
+# The claims themselves are in corpus.ttl; the planted conflicts in conflicts.ttl.
+#
+# ============================ CITATION POSTURE ==============================
+# Every clause number, edition, and numeric value in this corpus is a LEAD, not
+# a fact. Nothing here was citation-verified against a primary source. Standard
+# and program names are used because they are the real names for these concerns;
+# the specific provisions attributed to them are illustrative reconstructions.
+# The corpus exists to exercise mechanisms, not to state facts about any real
+# asset, tariff, standard, or contract. Individual claims carry
+# `# UNVERIFIED-CITATION` where a specific provision is named.
+# ============================================================================
+
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix rfc:  <https://aion.savvi.io/ontology/rfc#> .
+@prefix au:   <https://aion.savvi.io/ontology/authoring#> .
+@prefix amp:  <https://ampere.example/corpus#> .
+
+# =============================================================================
+# 1. Disciplines — twelve, each with a steward
+#
+# The steward matters mechanically: conflict-hygiene.rq fails a cross-discipline
+# conflict with no au:owner, and an owner is only assignable if the disciplines
+# involved have stewards. A discipline without one cannot participate in
+# adjudication, only in detection.
+# =============================================================================
+
+amp:d-electrochem a au:Discipline ;
+    rdfs:label "electrochemistry & thermal" ;
+    rdfs:comment "Cell chemistry, degradation, thermal behaviour. Produces continuous constraints — derate curves, temperature limits, degradation models — which is why its claims most often need au:viaModel to be comparable with anything else." ;
+    au:stewardedBy amp:p-battery-eng .
+
+amp:d-interconnection a au:Discipline ;
+    rdfs:label "power-systems interconnection" ;
+    rdfs:comment "The interconnection agreement and the equipment standards governing how the plant attaches to the grid. Produces ride-through, protection-setting, and reactive-capability obligations." ;
+    au:stewardedBy amp:p-interconnection-eng .
+
+amp:d-market a au:Discipline ;
+    rdfs:label "market microstructure & tariff" ;
+    rdfs:comment "Wholesale market participation: resource models, offer parameters, capacity obligations, performance assessment. Produces the only claims in the corpus that are REQUIREMENTS on output rather than limits on it, which is why it appears on the lower-bound side of almost every empty envelope." ;
+    au:stewardedBy amp:p-market-ops .
+
+amp:d-protection a au:Discipline ;
+    rdfs:label "protection & controls" ;
+    rdfs:comment "Relaying, trip settings, and the real-time control path. Produces latency and coordination obligations — the tightest timing constraints in the corpus." ;
+    au:stewardedBy amp:p-protection-eng .
+
+amp:d-firesafety a au:Discipline ;
+    rdfs:label "fire & life safety" ;
+    rdfs:comment "Enclosure separation, hazard mitigation analysis, emergency response. Produces largely NON-DEFEASIBLE claims: no market emergency defeats an authority-having-jurisdiction condition, which is what makes its constraints the hard walls of every feasible envelope." ;
+    au:stewardedBy amp:p-ahj .
+
+amp:d-cyber a au:Discipline ;
+    rdfs:label "cybersecurity & reliability compliance" ;
+    rdfs:comment "Reliability-standard compliance: requirements decomposed into numbered obligations with prescribed evidence and severity grading. The most machine-friendly normative structure in the corpus, which is why it is the right tier to extract first when validating an ingest pipeline." ;
+    au:stewardedBy amp:p-ciso .
+
+amp:d-taxfinance a au:Discipline ;
+    rdfs:label "tax & project finance" ;
+    rdfs:comment "Investment-credit qualification, domestic-content and placed-in-service conditions, lender covenants. Produces claims whose subject is a PROCUREMENT or DOCUMENTATION fact rather than a physical one, so its co-constraints are usually with accounting and permitting rather than with physics." ;
+    au:stewardedBy amp:p-tax-counsel .
+
+amp:d-accounting a au:Discipline ;
+    rdfs:label "accounting & revenue recognition" ;
+    rdfs:comment "Lease classification, performance-obligation identification, revenue timing. Shares the term 'capacity' with market and insurance while meaning something different by it." ;
+    au:stewardedBy amp:p-controller .
+
+amp:d-permitting a au:Discipline ;
+    rdfs:label "environmental permitting & land use" ;
+    rdfs:comment "Conditional-use conditions, noise limits, setbacks. Produces the constraints most often discovered late, because they bind the site rather than the equipment." ;
+    au:stewardedBy amp:p-permit-mgr .
+
+amp:d-software a au:Discipline ;
+    rdfs:label "software & DER fleet control" ;
+    rdfs:comment "The plant controller, the DER management system, and the mode arbitration between them. Where several cross-discipline conflicts are actually DECIDED in code, whether or not anyone wrote the decision down." ;
+    au:stewardedBy amp:p-controls-sw .
+
+amp:d-settlement a au:Discipline ;
+    rdfs:label "metering & settlement" ;
+    rdfs:comment "Interval metering, accuracy class, loss compensation, reconciliation against telemetry. FIXES THE REFERENT for every energy and power quantity in the corpus — which is why au:measurementPoint is not optional metadata." ;
+    au:stewardedBy amp:p-settlement-analyst .
+
+amp:d-warranty a au:Discipline ;
+    rdfs:label "insurance, warranty & O&M" ;
+    rdfs:comment "Throughput and cycling budgets, availability guarantees, insured-value conditions. Its claims are DEFEASIBLE but priced — breach is a commercial choice, which is exactly the distinction au:BreachedButLiquidated exists to preserve." ;
+    au:stewardedBy amp:p-asset-mgr .
+
+# =============================================================================
+# 2. Topology — the measurement points
+#
+# Three invariants in this corpus are topology claims that separate documents
+# each describe in words. Making the nodes explicit is what turns "the documents
+# disagree" into a computable set difference.
+# =============================================================================
+
+amp:n-cell a rfc:Term ; rdfs:label "cell" ;
+    rfc:name "cell" ;
+    rfc:definition "An individual electrochemical cell. The referent for BMS-reported state of charge and for cell temperature." .
+
+amp:n-rack a rfc:Term ; rdfs:label "rack" ;
+    rfc:name "rack" ;
+    rfc:definition "A series-parallel assembly of modules within an enclosure. The referent for equivalent-full-cycle counting." .
+
+amp:n-enclosure a rfc:Term ; rdfs:label "enclosure" ;
+    rfc:name "enclosure" ;
+    rfc:definition "One containerised battery unit. The referent for fire-code separation, insured value, and acoustic emission." .
+
+amp:n-pcs a rfc:Term ; rdfs:label "power conversion system terminals" ;
+    rfc:name "pcs-terminals" ;
+    rfc:definition "The AC terminals of the power conversion system. The referent for nameplate rating and for integrated throughput." .
+
+amp:n-mv-bus a rfc:Term ; rdfs:label "medium-voltage collector bus" ;
+    rfc:name "mv-collector-bus" ;
+    rfc:definition "The medium-voltage bus collecting the power conversion systems. The referent for station auxiliary load." .
+
+amp:n-mpt-lv a rfc:Term ; rdfs:label "main power transformer, low side" ;
+    rfc:name "mpt-low-side" ;
+    rfc:definition "The low-voltage winding of the main power transformer. Where the revenue meter is installed." .
+
+amp:n-mpt-hv a rfc:Term ; rdfs:label "main power transformer, high side" ;
+    rfc:name "mpt-high-side" ;
+    rfc:definition "The high-voltage winding of the main power transformer. Where the interconnection agreement places the contractual delivery point." .
+
+amp:n-meter a rfc:Term ; rdfs:label "revenue metering point" ;
+    rfc:name "revenue-metering-point" ;
+    rfc:definition "The point at which settlement quantities are read, on the low side of the main power transformer. NOT the same node as the contractual delivery point — one winding of losses away, which is INV-16." .
+
+amp:n-delivery a rfc:Term ; rdfs:label "contractual delivery point" ;
+    rfc:name "contractual-delivery-point" ;
+    rfc:definition "The point at which title transfers under the interconnection and offtake agreements, on the high side of the main power transformer." .
+
+amp:n-poi a rfc:Term ; rdfs:label "point of interconnection" ;
+    rfc:name "point-of-interconnection" ;
+    rfc:definition "The electrical boundary between the facility and the transmission system. The referent for injection limits, accredited capacity, and permitted capacity." .
+
+# =============================================================================
+# 3. Quantity registry — dimension AND referent
+#
+# The homonym families are the point. Each family shares a unit, so dimension
+# checking passes; they are distinguished only by measurement point, estimator,
+# or time base, and asserted au:disjointQuantity so a claim about one cannot be
+# silently enforced against another. homonym-unregistered.rq reports any pair
+# that has NOT been so asserted.
+# =============================================================================
+
+# -- the flagship contested quantity ------------------------------------------
+
+amp:q-sustained-discharge a au:Quantity ;
+    rdfs:label "sustained discharge power over a four-hour window" ;
+    au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-poi ;
+    au:estimator "revenue-meter" ;
+    au:timeBase "4h-sustained" .
+
+# -- homonym family: "capacity" (five disjoint concepts, all MW) ---------------
+
+amp:q-cap-nameplate a au:Quantity ;
+    rdfs:label "capacity (nameplate)" ; au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-pcs ; au:estimator "equipment-rating" ; au:timeBase "instantaneous" ;
+    au:disjointQuantity amp:q-cap-accredited, amp:q-cap-contracted,
+                        amp:q-cap-insured, amp:q-cap-permitted .
+
+amp:q-cap-accredited a au:Quantity ;
+    rdfs:label "capacity (market-accredited)" ; au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-poi ; au:estimator "market-accreditation-model" ; au:timeBase "delivery-year" ;
+    au:disjointQuantity amp:q-cap-contracted, amp:q-cap-insured, amp:q-cap-permitted .
+
+amp:q-cap-contracted a au:Quantity ;
+    rdfs:label "capacity (contracted)" ; au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-delivery ; au:estimator "offtake-agreement" ; au:timeBase "delivery-year" ;
+    au:disjointQuantity amp:q-cap-insured, amp:q-cap-permitted .
+
+amp:q-cap-insured a au:Quantity ;
+    rdfs:label "capacity (insured value basis)" ; au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-enclosure ; au:estimator "insurance-binder" ; au:timeBase "policy-year" ;
+    au:disjointQuantity amp:q-cap-permitted .
+
+amp:q-cap-permitted a au:Quantity ;
+    rdfs:label "capacity (permitted)" ; au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-poi ; au:estimator "conditional-use-permit" ; au:timeBase "permanent" .
+
+# -- homonym family: "state of charge" (three disjoint concepts, all percent) --
+
+amp:q-soc-bms a au:Quantity ;
+    rdfs:label "state of charge (BMS-reported)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:measurementPoint amp:n-cell ; au:estimator "BMS" ; au:timeBase "instantaneous" ;
+    au:disjointQuantity amp:q-soc-telemetered, amp:q-soc-market-model .
+
+amp:q-soc-telemetered a au:Quantity ;
+    rdfs:label "state of charge (telemetered to the market operator)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:measurementPoint amp:n-poi ; au:estimator "plant-controller" ; au:timeBase "4s-scan" ;
+    au:disjointQuantity amp:q-soc-market-model .
+
+amp:q-soc-market-model a au:Quantity ;
+    rdfs:label "state of charge (market operator's model)" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:measurementPoint amp:n-poi ; au:estimator "market-state-estimator" ; au:timeBase "5min-interval" .
+
+# -- homonym family: "cycle" (three disjoint concepts, all count) --------------
+
+amp:q-cycle-efc a au:Quantity ;
+    rdfs:label "cycle (equivalent full cycle)" ;
+    au:dimension "count" ; au:unit "cycles" ;
+    au:measurementPoint amp:n-rack ; au:estimator "throughput-over-nameplate" ; au:timeBase "contract-year" ;
+    au:disjointQuantity amp:q-cycle-rainflow, amp:q-cycle-shallow .
+
+amp:q-cycle-rainflow a au:Quantity ;
+    rdfs:label "cycle (rainflow-counted)" ;
+    au:dimension "count" ; au:unit "cycles" ;
+    au:measurementPoint amp:n-cell ; au:estimator "rainflow-algorithm" ; au:timeBase "contract-year" ;
+    au:disjointQuantity amp:q-cycle-shallow .
+
+amp:q-cycle-shallow a au:Quantity ;
+    rdfs:label "cycle (shallow, regulation-service)" ;
+    au:dimension "count" ; au:unit "cycles" ;
+    au:measurementPoint amp:n-rack ; au:estimator "depth-weighted-count" ; au:timeBase "contract-year" .
+
+# -- other quantities ---------------------------------------------------------
+
+amp:q-throughput-annual a au:Quantity ;
+    rdfs:label "cumulative annual energy throughput" ;
+    au:dimension "energy" ; au:unit "MWh" ;
+    au:measurementPoint amp:n-pcs ; au:estimator "PCS-integrator" ; au:timeBase "contract-year" .
+
+amp:q-telemetry-latency a au:Quantity ;
+    rdfs:label "control-signal round-trip latency" ;
+    au:dimension "time" ; au:unit "ms" ;
+    au:measurementPoint amp:n-poi ; au:estimator "control-path-measurement" ; au:timeBase "per-scan" .
+
+amp:q-setpoint a au:Quantity ;
+    rdfs:label "active-power setpoint in the dispatch interval" ;
+    au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-poi ; au:estimator "plant-controller" ; au:timeBase "5min-interval" .
+
+amp:q-cell-temp a au:Quantity ;
+    rdfs:label "maximum cell temperature" ;
+    au:dimension "temperature" ; au:unit "degC" ;
+    au:measurementPoint amp:n-cell ; au:estimator "BMS" ; au:timeBase "instantaneous" .
+
+amp:q-noise a au:Quantity ;
+    rdfs:label "sound pressure level at the nearest property line" ;
+    au:dimension "sound-pressure" ; au:unit "dBA" ;
+    au:measurementPoint amp:n-enclosure ; au:estimator "acoustic-model" ; au:timeBase "1h-average" .
+
+amp:q-domestic-content a au:Quantity ;
+    rdfs:label "domestic content percentage of eligible project cost" ;
+    au:dimension "dimensionless" ; au:unit "percent" ;
+    au:measurementPoint amp:n-enclosure ; au:estimator "procurement-ledger" ; au:timeBase "placed-in-service" .
+
+amp:q-station-power a au:Quantity ;
+    rdfs:label "station auxiliary load (HVAC, controls, losses)" ;
+    au:dimension "power" ; au:unit "MW" ;
+    au:measurementPoint amp:n-mv-bus ; au:estimator "auxiliary-meter" ; au:timeBase "5min-interval" .
+
+# NOTE the deliberate omission: amp:q-reactive-power shares the dimension
+# "power" with the real-power quantities above while being physically
+# incomparable. Dimension checking alone would let a MW bound be applied to it.
+# It is asserted disjoint from the real-power family below, which is the fix.
+amp:q-reactive-power a au:Quantity ;
+    rdfs:label "reactive power at the point of interconnection" ;
+    au:dimension "power" ; au:unit "MVAr" ;
+    au:measurementPoint amp:n-poi ; au:estimator "revenue-meter" ; au:timeBase "5min-interval" .
+
+# =============================================================================
+# 4. Scope registry
+#
+# au:precedes is asserted ONLY where a real precedence exists. The gaps are
+# deliberate: an undefined pair produces an au:PrecedenceUndefined conflict with
+# an owner, not an invented ranking.
+# =============================================================================
+
+amp:s-federal-reliability a au:Scope ;
+    au:jurisdiction "united-states" ; au:issuingBody "electric-reliability-organization" ;
+    au:instrument "mandatory-reliability-standard" ; au:edition "2026" ;
+    au:effectiveFrom "2026-01-01"^^xsd:date .
+
+amp:s-market-a a au:Scope ;
+    au:jurisdiction "united-states" ; au:issuingBody "market-operator-a" ;
+    au:instrument "tariff" ; au:edition "2026-06" ;
+    au:effectiveFrom "2026-06-01"^^xsd:date .
+
+amp:s-market-b a au:Scope ;
+    au:jurisdiction "united-states" ; au:issuingBody "market-operator-b" ;
+    au:instrument "tariff" ; au:edition "2026-05" ;
+    au:effectiveFrom "2026-05-01"^^xsd:date .
+
+amp:s-state-puc a au:Scope ;
+    au:jurisdiction "state" ; au:issuingBody "public-utilities-commission" ;
+    au:instrument "interconnection-rule" ; au:edition "2025-rev2" ;
+    au:effectiveFrom "2025-07-01"^^xsd:date .
+
+amp:s-county-ahj a au:Scope ;
+    au:jurisdiction "county" ; au:issuingBody "authority-having-jurisdiction" ;
+    au:instrument "hazard-mitigation-acceptance" ; au:edition "2026-03" ;
+    au:effectiveFrom "2026-04-01"^^xsd:date .
+
+amp:s-county-permit a au:Scope ;
+    au:jurisdiction "county" ; au:issuingBody "planning-commission" ;
+    au:instrument "conditional-use-permit" ; au:edition "2025-08" ;
+    au:effectiveFrom "2025-08-15"^^xsd:date .
+
+amp:s-oem-warranty a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "equipment-manufacturer" ;
+    au:instrument "warranty-agreement" ; au:edition "rev-D" ;
+    au:effectiveFrom "2025-11-01"^^xsd:date .
+
+amp:s-insurance a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "insurer" ;
+    au:instrument "property-binder" ; au:edition "2026-policy-year" ;
+    au:effectiveFrom "2026-01-01"^^xsd:date .
+
+amp:s-tax-code a au:Scope ;
+    au:jurisdiction "united-states" ; au:issuingBody "revenue-authority" ;
+    au:instrument "statute-and-regulation" ; au:edition "2026" ;
+    au:effectiveFrom "2026-01-01"^^xsd:date .
+
+amp:s-accounting a au:Scope ;
+    au:jurisdiction "us-gaap" ; au:issuingBody "accounting-standards-board" ;
+    au:instrument "accounting-standard" ; au:edition "2026" ;
+    au:effectiveFrom "2026-01-01"^^xsd:date .
+
+amp:s-lgia a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "transmission-provider" ;
+    au:instrument "interconnection-agreement" ; au:edition "executed-2025-09" ;
+    au:effectiveFrom "2025-09-30"^^xsd:date .
+
+amp:s-offtake a au:Scope ;
+    au:jurisdiction "contract" ; au:issuingBody "offtaker" ;
+    au:instrument "capacity-and-energy-agreement" ; au:edition "executed-2025-10" ;
+    au:effectiveFrom "2025-10-15"^^xsd:date .
+
+# -- the precedences that genuinely exist -------------------------------------
+# Public law over private contract, and mandatory reliability standards over
+# market tariffs. Both are real and uncontroversial.
+
+amp:s-federal-reliability au:precedes amp:s-market-a , amp:s-market-b ,
+    amp:s-oem-warranty , amp:s-insurance , amp:s-offtake , amp:s-lgia .
+
+amp:s-county-ahj au:precedes amp:s-oem-warranty , amp:s-insurance , amp:s-offtake .
+
+amp:s-state-puc au:precedes amp:s-lgia .
+
+# -- the gaps, named so a reader does not mistake them for omissions ---------
+#
+#   s-county-ahj      ?  s-market-a        — a county fire condition vs. a
+#                                            federal-tariff obligation. Nobody
+#                                            has ruled. This is INV-01's reason
+#                                            for being unresolvable by
+#                                            derivation.
+#   s-oem-warranty    ?  s-market-a        — private contract vs. private
+#                                            tariff obligation; the operator
+#                                            chose both.
+#   s-county-permit   ?  s-oem-warranty    — a noise condition vs. a thermal
+#                                            management requirement (INV-05).
+#   s-tax-code        ?  s-county-permit   — domestic-content sourcing vs. local
+#                                            procurement conditions.
+#
+# Each unranked pair whose claims actually collide becomes an
+# au:PrecedenceUndefined conflict in conflicts.ttl with a named owner.

@@ -1,0 +1,77 @@
+# ---
+# title: "Empty feasible envelope"
+# description: "All bounds asserted on one quantity intersect to the empty set: the greatest lower bound exceeds the least upper bound. Every instrument is individually satisfiable; jointly they are not."
+# severity: error
+# tier: 3
+# rationale: "This is the payload gate of RFC-002. No document in a multidisciplinary corpus states the intersection of its own constraints with everyone else's, so an empty envelope is invisible to every reviewer and to every citation-following tool — but it is a two-line aggregation once bounds are data (au:Bound) rather than prose. Grouping is by quantity, and a quantity carries its own au:timeBase and au:estimator, so bounds on incomparable referents are never silently intersected. A hit does NOT mean an authoring error: it means the operator must choose which instrument to breach, which is what au:defeasible and the six au:ComplianceStatus values exist to inform."
+# ---
+PREFIX rfc: <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:  <https://aion.savvi.io/ontology/authoring#>
+
+# The lower and upper families are aggregated in SEPARATE sub-selects, and that
+# is load-bearing rather than stylistic.
+#
+# This was one flat pattern that split the families with an unbound sentinel:
+#
+#     BIND(IF(?kind = au:LowerBound, ?v, ?unbound) AS ?lo)
+#     BIND(IF(?kind = au:UpperBound, ?v, ?unbound) AS ?hi)
+#     ...
+#     HAVING (MAX(?lo) > MIN(?hi))
+#
+# so every solution left exactly one of ?lo / ?hi unbound. ARQ's MAX/MIN return
+# UNBOUND for a group in which any row lacks the variable, so both aggregates
+# came back empty, `HAVING` compared two unbounds, and the gate returned ZERO
+# rows against a fixture purpose-built to trip it. The payload gate of RFC-002
+# detected nothing, silently, under the only engine that runs it. (rdflib
+# evaluates the same query as intended and returns the expected row, which is
+# how the form survived review — it was validated against a different engine
+# than the one in the build.)
+#
+# Splitting into sub-selects means each aggregate only ever sees bound values,
+# which is portable and needs no error-to-unbound semantics at all. Verified
+# under ARQ: deficit 27.0 MW across 4 disciplines on the conflict fixture.
+SELECT ?quantity ?unit ?greatestLower ?leastUpper
+       (?greatestLower - ?leastUpper AS ?deficit)
+       ?disciplines
+WHERE {
+  # Greatest lower bound asserted on the quantity, across all disciplines.
+  {
+    SELECT ?quantity (MAX(?v) AS ?greatestLower)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound .
+      ?bound au:boundKind au:LowerBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # Least upper bound.
+  {
+    SELECT ?quantity (MIN(?v) AS ?leastUpper)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound .
+      ?bound au:boundKind au:UpperBound ; au:boundValue ?v .
+    }
+    GROUP BY ?quantity
+  }
+  # How many distinct disciplines assert a bound here — a 1-discipline conflict
+  # is an authoring slip; an n-discipline one is the finding this gate exists for.
+  {
+    SELECT ?quantity (COUNT(DISTINCT ?discipline) AS ?disciplines)
+    WHERE {
+      ?claim a rfc:NormativeStatement ;
+             au:constrains ?quantity ;
+             au:hasBound   ?bound ;
+             au:discipline ?discipline .
+    }
+    GROUP BY ?quantity
+  }
+
+  ?quantity a au:Quantity .
+  OPTIONAL { ?quantity au:unit ?unit }
+
+  FILTER(?greatestLower > ?leastUpper)
+}
+ORDER BY DESC(?deficit)

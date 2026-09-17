@@ -1,0 +1,128 @@
+{
+  "$comment": [
+    "The decomposition rule — which words in a requirement become named holes.",
+    "",
+    "⛔ ONE RULE, TWO RUNNERS, and unlike conformance/evaluation_cases.json BOTH of",
+    "them execute these cases on an ordinary PR: tools/import/decompose.py is",
+    "stdlib Python, so conformance/check_conformance.py imports `extract` and runs",
+    "it directly, and console/test/decompose.test.ts runs the TypeScript half.",
+    "Neither needs a toolchain or a credential.",
+    "",
+    "Why a second implementation exists at all: the corpus decomposer runs in a",
+    "batch job long after the sentence was written, so an author who marks nothing",
+    "gets no terms and no warning. 22 of Studio's 23 undecomposed requirements",
+    "carry zero markup. The console shows the author what their sentence WILL",
+    "decompose to while they are still writing it, which is only worth doing if it",
+    "is the same rule — a preview that disagreed with the decomposer would be worse",
+    "than no preview, because it would be believed.",
+    "",
+    "The rule, in full: `code spans` first, then **emphasis**; surfaces are",
+    "compared case-insensitively and the first occurrence wins; an emphasis span",
+    "longer than max_term_words is a bolded sentence fragment rather than a term",
+    "and is dropped; the length limit does NOT apply to code spans, because a",
+    "backtick is unambiguous where bold is also used for stress."
+  ],
+  "max_term_words": 4,
+  "sources": ["code-span", "emphasis"],
+  "cases": [
+    {
+      "name": "no markup yields nothing",
+      "why": "The case that matters most. 22 of Studio's 23 undecomposed requirements are here, and the author was never told. Nothing is inferred from prose — a decomposer that guessed noun phrases would produce a list nobody can audit.",
+      "predicate": "Teams are flat (no nesting).",
+      "terms": []
+    },
+    {
+      "name": "a code span is a term",
+      "why": "A backtick is the author saying `this word carries weight`.",
+      "predicate": "A user with `sponsor:edit` may edit the sponsor.",
+      "terms": [{ "surface": "sponsor:edit", "source": "code-span" }]
+    },
+    {
+      "name": "emphasis is a term",
+      "why": "Bold is the other mark an author already uses for the same purpose.",
+      "predicate": "Only an **org admin** may remove a member.",
+      "terms": [{ "surface": "org admin", "source": "emphasis" }]
+    },
+    {
+      "name": "code spans are all read before emphasis",
+      "why": "Order is not cosmetic: it decides which source label a surface marked both ways gets, and the queue is rendered in it.",
+      "predicate": "An **org admin** holds `sponsor:edit` and `deploy:*`.",
+      "terms": [
+        { "surface": "sponsor:edit", "source": "code-span" },
+        { "surface": "deploy:*", "source": "code-span" },
+        { "surface": "org admin", "source": "emphasis" }
+      ]
+    },
+    {
+      "name": "a surface marked both ways is one term, and the code span wins",
+      "why": "Two rows for one word would put the same hole in the queue twice and let a person bind it to two different populations.",
+      "predicate": "`public` means the same thing as **public** here.",
+      "terms": [{ "surface": "public", "source": "code-span" }]
+    },
+    {
+      "name": "duplicates are compared case-insensitively, first occurrence wins",
+      "why": "`Public` and `public` are one hole. The surface recorded is the one the author wrote FIRST, not a normalized form — normalizing would silently rewrite the author's vocabulary.",
+      "predicate": "A `Public` sponsor is visible; `public` is not a role.",
+      "terms": [{ "surface": "Public", "source": "code-span" }]
+    },
+    {
+      "name": "a bolded sentence fragment is not a term",
+      "why": "Longer than max_term_words. Authors bold for stress as well as for vocabulary, and a decomposer that took every bolded clause would fill the queue with noise people learn to ignore.",
+      "predicate": "This **must never happen under any circumstances** in production.",
+      "terms": []
+    },
+    {
+      "name": "exactly max_term_words is kept",
+      "why": "The boundary, pinned. An off-by-one here silently drops or admits a whole class of term.",
+      "predicate": "Only a **platform reseller broker admin** may do this.",
+      "terms": [{ "surface": "platform reseller broker admin", "source": "emphasis" }]
+    },
+    {
+      "name": "the length limit does not apply to code spans",
+      "why": "A backtick is unambiguous. Bold is overloaded; backticks are not, so a long code span is still deliberate.",
+      "predicate": "The check is `role = 'deployer' AND team_id IS NOT NULL AND active`.",
+      "terms": [
+        { "surface": "role = 'deployer' AND team_id IS NOT NULL AND active", "source": "code-span" }
+      ]
+    },
+    {
+      "name": "surrounding whitespace is stripped",
+      "why": "` public ` and `public` are the same hole; a surface that differed only by padding would never match a binding.",
+      "predicate": "A sponsor may be ` public ` or private.",
+      "terms": [{ "surface": "public", "source": "code-span" }]
+    },
+    {
+      "name": "an empty mark is not a term",
+      "why": "Produces no hole rather than a blank one. A blank surface in the queue can never be bound and can never be cleared.",
+      "predicate": "Nothing marked here: `` and ****.",
+      "terms": []
+    },
+    {
+      "name": "a mark containing only whitespace is not a term",
+      "why": "The span is non-empty to the regex and empty to a reader. Stripping first, then testing, is what makes those agree.",
+      "predicate": "A stray pair ` ` names nothing.",
+      "terms": []
+    },
+    {
+      "name": "an odd number of backticks pairs the wrong two, and that is visible",
+      "why": "⚠ Pinned as BEHAVIOUR, not endorsed. `[^`]+` cannot match an empty span, so a stray backtick pairs with the NEXT one and swallows the prose between them. In the batch decomposer this surfaces as an inexplicable term hours later; in the console preview the author sees `swallowed prose` appear as they type and fixes the backtick. That difference is the entire argument for previewing the real rule rather than a friendlier one.",
+      "predicate": "A `sponsor may hold `deploy:*` here.",
+      "terms": [{ "surface": "sponsor may hold", "source": "code-span" }]
+    },
+    {
+      "name": "AUTH-24, the motivating requirement",
+      "why": "The claim this whole system exists for: grounded on a deployer role that examines zero records in Studio. Both its terms are code spans, which is why a deterministic matcher can dispose of it without a model.",
+      "predicate": "`sponsor:edit` never implies deploy. Public baseline never includes `deploy:*` (AUTH-41).",
+      "terms": [
+        { "surface": "sponsor:edit", "source": "code-span" },
+        { "surface": "deploy:*", "source": "code-span" }
+      ]
+    },
+    {
+      "name": "AUTH-1, prose with one marked term",
+      "why": "A real requirement from the corpus. Long, full of parenthetical citations and commas, and exactly one word the author marked — which is the usual shape and the reason inference would be guesswork.",
+      "predicate": "Every organization kind (§2.1) may authenticate through SSO, email domain, or email invite. Each platform-owning org, reseller, broker, sponsor organization, and SAVVI is a distinct **WorkOS Organization**.",
+      "terms": [{ "surface": "WorkOS Organization", "source": "emphasis" }]
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "claims": [
+    {
+      "claim_id": "ahj-soc-cap",
+      "discipline": "fire & life safety",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "acceptance-letter",
+      "defeasible": "false",
+      "predicate": "BMS-reported state of charge MUST NOT exceed 85 percent nor fall below 15 percent.",
+      "project": "fixture"
+    },
+    {
+      "claim_id": "warranty-throughput",
+      "discipline": "insurance / warranty",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "warranty-agreement",
+      "defeasible": "true",
+      "predicate": "Cumulative annual throughput MUST NOT exceed the warranted budget for the contract year.",
+      "project": "fixture"
+    },
+    {
+      "claim_id": "cap-must-deliver",
+      "discipline": "market microstructure / tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "tariff",
+      "defeasible": "true",
+      "predicate": "The resource MUST deliver at least its re-offered capacity obligation for four continuous hours when called.",
+      "project": "fixture"
+    },
+    {
+      "claim_id": "cap-notice-window",
+      "discipline": "market microstructure / tariff",
+      "modality": "MUST",
+      "rung": "R4",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Every contracted resource MUST receive an outage notice at least 30 days before a planned derate.",
+      "project": "fixture"
+    },
+    {
+      "claim_id": "oem-derate",
+      "discipline": "thermal / electrochemistry",
+      "modality": "MUST_NOT",
+      "rung": "R4",
+      "quantity": "q-sustained-discharge",
+      "instrument": "warranty-agreement",
+      "defeasible": "false",
+      "predicate": "Continuous discharge MUST NOT exceed the ambient-derated rating at 45 C.",
+      "project": "fixture"
+    },
+    {
+      "claim_id": "pending-efficiency",
+      "discipline": "thermal / electrochemistry",
+      "modality": "MUST",
+      "rung": "R2",
+      "quantity": "",
+      "instrument": "",
+      "defeasible": "",
+      "predicate": "Round-trip efficiency MUST be recomputed after each firmware revision.",
+      "project": "fixture"
+    }
+  ],
+  "corpus_version": "corpus:73b24f9938dc48f4",
+  "unreachable_repos": []
+}

@@ -1,0 +1,25 @@
+# ---
+# title: "The glossary: every term surface, bound or open, and what waits on it"
+# description: "The `terms` rows of the terms read-model route."
+# severity: info
+# tier: 3
+# rationale: "A term with no binding is a NAMED HOLE, which is the point — decomposition names what is missing so the frontier can rank it. `open` is derived from the absence of au:boundTo."
+# ---
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX rfc:  <https://aion.savvi.io/ontology/rfc#>
+PREFIX au:   <https://aion.savvi.io/ontology/authoring#>
+
+SELECT ?claim ?term ?surface ?source ?bound ?demoted
+WHERE {
+  ?claim a rfc:NormativeStatement ; au:hasTerm ?term .
+  ?term au:surface ?surface .
+  OPTIONAL { ?term au:termSource ?source }
+  # Absent, not empty. An open hole and a term bound to nothing are different
+  # facts, and the UI must be able to tell them apart.
+  OPTIONAL { ?term au:boundTo ?bound }
+  # A term someone cleared as "not a term". Projected so adopting a retraction
+  # has a VISIBLE effect — without it the noise stays in the grounding queue
+  # after the corpus already agreed it is not vocabulary.
+  OPTIONAL { ?term au:demotedBy ?demoted }
+}
+ORDER BY ?claim ?surface

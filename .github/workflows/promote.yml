@@ -1,0 +1,218 @@
+name: promote
+
+# The export half of promotion, automated. Neon → logs/*.jsonl → proposals.ttl →
+# the read model → a pull request. It opens a PR; a human merges.
+#
+# ⛔ THE WORKFLOW IS NOT AN AGENT (RFC-004 §3.3). It never decides anything: it
+# snapshots the append-only logs through a pinned high-water mark, runs the two
+# generators that already exist, runs the gates over the result, and puts the
+# diff in front of a person. The diff — appended log lines, regenerated
+# proposals.ttl, regenerated payloads, a new corpus_version — IS the reviewable
+# step between "someone clicked a button" and "the specification changed", and
+# this file exists so that step stops depending on a human remembering five
+# psql and python invocations (console/DEPLOY.md §5).
+#
+# ⛔ WHY THIS RUNS IN CI AND NOT ON VERCEL, like migrate.yml: the credential. It
+# is SELECT-only (spec_export — console/db/migrations/0003_grants.sql), so the
+# blast radius is small, but it is still a database credential and it lives in
+# a GitHub Environment, not in a web tier that every preview build can read.
+#
+# ⚠ workflow_dispatch and schedule ONLY. Never pull_request: a PR can come from
+# a fork, and a workflow holding a database credential that runs on untrusted PR
+# code hands that credential to anyone who opens one.
+#
+# ⚠ The Environment `corpus-production` carries the credential and a required
+# reviewer, the same posture as migrate.yml's database-production. A scheduled
+# run therefore WAITS for the reviewer like any other deployment, every day. That
+# is the posture #49 asked for; if a daily approval tap turns out to be noise
+# rather than a control, the reviewer is removed in Settings → Environments, not
+# here — the credential cannot write, so the reviewer is guarding the opening
+# of a PR, not a change to the record.
+#
+# One commit carries both halves. //corpus/studio:proposals_ttl_matches_the_log
+# re-materializes from the committed log and fails if the TTL disagrees, so a
+# promotion that forgets the log is caught rather than merged. The gates run
+# here too, before the PR opens, so a person never reviews a diff the gates
+# have already rejected.
+
+on:
+  workflow_dispatch:
+    inputs:
+      through_proposal:
+        description: "Pin: export spec.proposal_log through this seq (blank = the current max)"
+        type: string
+        default: ""
+      through_evaluation:
+        description: "Pin: export spec.evaluation_log through this seq (blank = the current max)"
+        type: string
+        default: ""
+  schedule:
+    # Daily, off the hour so it does not queue behind everyone else's cron.
+    - cron: "23 5 * * *"
+
+permissions:
+  contents: read
+
+# One promotion at a time, and never cancelled mid-flight: two exports racing
+# would open two PRs against the same log, and the second would be noise.
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: export, materialize, gate, open the PR
+    runs-on: ubuntu-latest
+    environment: corpus-production
+    permissions:
+      contents: write        # push the promotion branch
+      pull-requests: write   # open the PR (fallback token; see below)
+      actions: write         # dispatch ci.yml on the branch (fallback only)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # emit_readmodel.py reads the corpus with rdflib; materialize.py is stdlib.
+      - name: install rdflib
+        run: python3 -m pip install --quiet "rdflib>=7,<8"
+
+      # ubuntu-latest ships psql; this is belt and braces, not a dependency we
+      # expect to install.
+      - name: psql
+        run: command -v psql >/dev/null || (sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client)
+
+      # The one script the manual path also runs. Pins default to the current
+      # max seq of each log, taken once, before either export.
+      - name: export, materialize, re-emit
+        id: promote
+        env:
+          NEON_EXPORT_URL: ${{ secrets.NEON_EXPORT_URL }}
+          THROUGH_PROPOSAL: ${{ inputs.through_proposal }}
+          THROUGH_EVALUATION: ${{ inputs.through_evaluation }}
+        run: tools/proposals/promote.sh
+
+      # Empty is not a failure. An export that changes nothing means nobody has
+      # written since the last promotion, and the honest outcome is no PR.
+      - name: anything to promote?
+        id: diff
+        run: |
+          if git diff --quiet -- logs corpus services/spec/readmodel; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Nothing to promote: the logs through proposal seq ${{ steps.promote.outputs.through_proposal }} / evaluation seq ${{ steps.promote.outputs.through_evaluation }} are what is already committed."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat -- logs corpus services/spec/readmodel
+          fi
+
+      # ── The gates, over the result, before anyone is asked to review it ──────
+
+      - name: set up JDK
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: bazel-contrib/setup-bazel@0.9.1
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      # The same packages console/DEPLOY.md §5 names. //corpus/... includes
+      # proposals_ttl_matches_the_log — the assertion that this run invented
+      # nothing — and //conformance/... is the cross-check of the safety rules.
+      # --nohome_rc as in ci.yml: the registries are pinned in //.bazelrc.
+      - name: gates
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          bazel --nohome_rc test --keep_going --test_output=errors \
+            //corpus/... //rdf/... //conformance/...
+
+      # ── The PR ───────────────────────────────────────────────────────────────
+      #
+      # A PR opened with GITHUB_TOKEN does not trigger pull_request workflows, so
+      # it would sit there with no CI. An installation token from the org's App
+      # does trigger them; ci.yml already mints one for the private crates. If
+      # the App is not installed on this repository the mint fails, and the
+      # fallback is GITHUB_TOKEN plus an explicit dispatch of ci.yml on the
+      # branch — its check runs attach to the same commit.
+      - name: mint a token for the PR
+        id: app_token
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.FASTVERK_APP_ID }}
+          private-key: ${{ secrets.FASTVERK_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
+      - name: commit, push, open the PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          P: ${{ steps.promote.outputs.through_proposal }}
+          E: ${{ steps.promote.outputs.through_evaluation }}
+          NP: ${{ steps.promote.outputs.proposal_lines }}
+          NE: ${{ steps.promote.outputs.evaluation_lines }}
+          APP_TOKEN: ${{ steps.app_token.outputs.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          before=$(git show HEAD:services/spec/readmodel/requirements.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["corpus_version"])')
+          after=$(python3 -c 'import json; print(json.load(open("services/spec/readmodel/requirements.json"))["corpus_version"])')
+          branch="promote/$(date -u +%Y-%m-%d)-p${P}-e${E}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add logs corpus services/spec/readmodel
+          git commit -q -F - <<MSG
+          promote: through proposal seq ${P}, evaluation seq ${E}
+
+          ${NP} proposal line(s) and ${NE} evaluation line(s), exported from Neon
+          with the SELECT-only credential through the pinned seqs above;
+          corpus/*/proposals.ttl and the read model regenerated from them by
+          tools/proposals/promote.sh. corpus_version ${before} → ${after}.
+
+          Opened by .github/workflows/promote.yml. A human merges.
+          MSG
+          git push -q origin "$branch"
+
+          body="Through **proposal seq ${P}** and **evaluation seq ${E}**: ${NP} proposal line(s), ${NE} evaluation line(s) in \`logs/\`, \`proposals.ttl\` and the read model regenerated from them. \`corpus_version\` \`${before}\` → \`${after}\`.
+
+          The gates passed over this exact tree before the PR opened (\`//corpus/... //rdf/... //conformance/...\`, including \`proposals_ttl_matches_the_log\` — the assertion that the workflow invented nothing). Merging and redeploying is what advances the read point the console serves; until then every open tab is behind, and the console says so.
+
+          Opened by \`promote.yml\`. A human merges."
+          if [ -n "${APP_TOKEN:-}" ]; then
+            GH_TOKEN="$APP_TOKEN" gh pr create --base main --head "$branch" \
+              --title "promote: through proposal seq ${P}, evaluation seq ${E}" --body "$body"
+          else
+            GH_TOKEN="$GITHUB_TOKEN" gh pr create --base main --head "$branch" \
+              --title "promote: through proposal seq ${P}, evaluation seq ${E}" --body "$body"
+            # GITHUB_TOKEN-opened PRs trigger no workflows; run CI on the branch
+            # by hand so the PR carries its checks anyway.
+            GH_TOKEN="$GITHUB_TOKEN" gh workflow run ci.yml --ref "$branch"
+            echo "::notice::PR opened with GITHUB_TOKEN (the App token did not mint); ci.yml dispatched on $branch explicitly."
+          fi
+
+      - name: summary
+        if: always()
+        run: |
+          {
+            echo "### Promotion"
+            echo ""
+            echo "Pinned through proposal seq \`${{ steps.promote.outputs.through_proposal }}\`, evaluation seq \`${{ steps.promote.outputs.through_evaluation }}\`;"
+            echo "exported ${{ steps.promote.outputs.proposal_lines }} proposal line(s), ${{ steps.promote.outputs.evaluation_lines }} evaluation line(s)."
+            echo ""
+            if [ "${{ steps.diff.outputs.changed }}" = "true" ]; then
+              echo "A PR is open. A human merges it."
+            else
+              echo "Nothing to promote — the committed snapshot already covers these seqs."
+            fi
+            echo ""
+            echo "⚠ \`seq\` is ordered, not contiguous — a refused insert still consumes a value, so a pin is a high-water mark, never a count."
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -34,4 +34,134 @@ discharger (*
 *
 Sorriessorry_count *
 Specs
-spec_count 
+spec_count º
+	conflicts	Conflicts£
+"
+spec.v1.AuthoringListConflicts	conflicts	conflicts"'No cross-discipline conflicts recorded.*
+Projectproject 
+*
+
+IDid 
+*
+Kindkind *
+Disciplinesdisciplines ,*
+Partiesparty_count *
+Blocksblocked_orders *
+Ownerowner *
+Statestate 	*
+Outcomeoutcome 
+·
+	envelopes	Envelopes»
+"
+spec.v1.AuthoringListEnvelopes	envelopesempty envelopes"BNo empty feasible envelopes ‚Äî every quantity's bounds intersect.*
+Projectproject 
+*
+Quantityquantity *
+Unitunit * 
+Requires ‚â•greatest_lower *
+Permits ‚â§least_upper 
+*
+Deficitdeficit 	*
+Disc.disciplines *
+Recordedrecorded 	ó
+frontierFrontierÄ
+
+spec.v1.Authoring
+ListStallsstallsstalls"?No open stalls ‚Äî every claim is at or above the binding rung.*
+Projectproject 
+*
+Claimclaim_id *
+Rungrung *
+
+Discipline
+discipline *
+
+Blocked on
+stalled_on 8*
+Depsdependent_count ¶
+disciplinesDisciplinesâ
+$
+spec.v1.AuthoringListDisciplinesdisciplinesdisciplines"No disciplines declared.*
+Projectproject 
+*
+
+Discipline
+discipline "*
+Stewardsteward *
+Claimsclaim_count *
+Typed %	typed_pct *
+Hardnon_defeasible_count *
+Dark %dark_pct •
+claimsClaimsí
+
+spec.v1.Authoring
+ListClaimsclaimsclaims" No normative statements indexed.*
+Projectproject 
+*
+Claimclaim_id *
+
+Discipline
+discipline *
+Modalitymodality 
+*
+Rungrung *
+Quantityquantity *
+
+Instrument
+instrument *
+
+Defeasible
+defeasible 
+Í
+witness	Witnesses”
+'
+spec.v1.AuthoringGetConflictWitnesspartieswitness parties"No conflict parties to witness.*
+Projectproject 
+*
+Conflictconflict_id 
+*
+Quantityquantity *
+Claimclaim_id *
+
+Discipline
+discipline *
+Modalitymodality 
+*
+Bound
+bound_kind *
+Valuebound_value *
+Guardguard *
+
+Defeasible
+defeasible 
+›
+requirementsRequirementsæ
+%
+spec.v1.AuthoringListRequirementsrequirementsrequirements"No requirements indexed.*
+Projectproject 
+*
+Requirementrequirement_id *
+Area
+discipline *
+Modalitymodality 
+*
+Rungrung *
+
+Checked byimplementation *
+Examined
+population 	*
+Outcomeoutcome *
+
+Blocked on
+blocked_on (Å
+
+workordersFanoutÍ
+#
+spec.v1.AuthoringListWorkOrdersorderswork orders"No work orders derived.*
+Orderorder_id 
+*
+Scopescope  *
+Obl.obligation_count *"
+Disciplines bounddisciplines (*
+Writeswrite_capability *
+Statestate 
