@@ -1,10 +1,10 @@
 /-
-Spec.Axioms — the spec's foundational propositions, ALL DERIVED
-from the 7-axiom kernel in `Spec.Kernel`.
+Spec.Axioms — named foundational propositions for `Spec.Kernel`.
 
-Each `theorem ax_AX_NNN` projects exactly one field of one of the
-seven K-axioms (k1..k7). The kernel is the irreducible commitment;
-this file is the reader-friendly catalog of named projections.
+Some theorems project accepted kernel commitments; others are structural
+proofs or consequences of explicit local-validity/population certificates.
+The names form the reader-friendly catalog. AX-016/AX-045 deliberately
+require same-population evidence rather than quantifying over all raw values.
 
 Legacy: this file used to declare 45 individual `axiom ax_AX_NNN`
 declarations. The kernel-consolidation refactor (PR after #85)
@@ -13,16 +13,16 @@ any downstream artifact:
 
   * TTL :mechanizedAs cross-references — names unchanged.
   * Generated.lean / Proofs.lean / Theorems.lean — refer to
-    ax_AX_NNN by name; theorem syntax is interchangeable with axiom
-    syntax at the call site.
+    ax_AX_NNN by name. The validity/admission repair intentionally changes
+    AX-016/AX-045 signatures; a stable name cannot supply missing evidence.
 
 Single exception: AX-024 was promoted to a real proof (not a
 projection) in PR #75 once `Layer` became an inductive enum and
 `declaredAt` a definition. It stays as `theorem ax_AX_024 := fun _ => rfl`.
 
-Net effect: 5 propositions are accepted (k1..k5); 45 named theorems
-project from them; 1 (AX-024) is proved from refined types. The
-audit surface is 5 paragraphs.
+The remaining accepted premises are counted in `lean/axiom_baseline.txt`.
+Compilation checks implications relative to those premises, not complete
+framework consistency or runtime conformance.
 -/
 
 import Spec.Kernel
@@ -68,25 +68,30 @@ theorem ax_AX_011 :
   -- These are distinct constructors of `EntityId`, so equality is impossible.
   exact EntityId.noConfusion h
 
-/-- AX-016 — Statement bitemporal uniqueness. -/
+/-- AX-016 — Statement bitemporal uniqueness within one admitted
+    population, with both membership witnesses required. -/
 theorem ax_AX_016 :
-    ∀ (s1 s2 : Statement),
+    ∀ (population : AdmittedStatementPopulation) (s1 s2 : Statement),
+      population.members s1 → population.members s2 →
       stmtSubject s1 = stmtSubject s2 →
       stmtPredicate s1 = stmtPredicate s2 →
       stmtObject s1 = stmtObject s2 →
       stmtValidFrom s1 = stmtValidFrom s2 →
       s1 = s2 :=
-  k1.statementUniqueness
+  fun population => population.statementUniqueness
 
-/-- AX-045 — Statement triple uniqueness via interval non-overlap. -/
+/-- AX-045 — Statement triple non-overlap relative to an explicit
+    same-population overlap certificate. -/
 theorem ax_AX_045 :
-    ∀ (s1 s2 : Statement),
+    ∀ (population : AdmittedStatementPopulation),
+      StatementOverlapCertificate population → ∀ (s1 s2 : Statement),
+      population.members s1 → population.members s2 →
       s1 ≠ s2 →
       stmtSubject s1 = stmtSubject s2 →
       stmtPredicate s1 = stmtPredicate s2 →
       stmtObject s1 = stmtObject s2 →
       ¬ overlap (intervalOf s1) (intervalOf s2) :=
-  k1.noTripleOverlap
+  fun _ certificate => certificate.noTripleOverlap
 
 -- ============================================================================
 -- K2 — Boundary fidelity
@@ -262,8 +267,8 @@ theorem ax_AX_007 :
   · exact ⟨canonicalAsOfValidAtOp b, canonicalAsOfValidAtOp_kind b,
            canonicalAsOfValidAtOp_accepted b⟩
 
-/-- AX-009 — Resource shape minimum. PROVED via the smaller named
-    axiom `kindNonempty` (left conjunct) plus the impl-layer
+/-- AX-009 — Resource shape minimum. PROVED via each Resource's
+    local nonempty-kind certificate (left conjunct) plus the impl-layer
     commitment `kindOpaqueStipulated` (right conjunct: no Operation
     interprets the kind text). -/
 theorem ax_AX_009 :

@@ -29,13 +29,13 @@
 # modelled — so a textual match is a guaranteed false positive. The tactic of
 # the same name is already caught by layer 1.
 #
-# `axiom` is NOT banned. This repo declares 93 of them on purpose: the universe
+# `axiom` is NOT banned. This repo declares 92 of them on purpose: the universe
 # of discourse is deliberately opaque (Spec/Universe.lean), and Spec/Predicates
 # states the predicates over it. Banning them would make the gate impossible to
 # turn on, and an un-turn-on-able gate is no gate.
 #
 # Instead the axiom base is RATCHETED. Every proof in this tree is relative to
-# those 93 statements, which are believed rather than proven — so what must not
+# those 92 statements, which are believed rather than proven — so what must not
 # happen is the set growing quietly. Adding an axiom is a real decision; it
 # should cost a line in lean/axiom_baseline.txt and be visible in review.
 #

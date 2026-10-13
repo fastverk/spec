@@ -1,24 +1,24 @@
 /-
 Spec.Kernel — the foundational 7-pillar core of the Aion framework.
-                   K1..K5 axiomatic; K6..K7 fully proved.
+                   K1..K3 axiomatic; K4..K7 constructed.
 
-Every fine-grained `theorem ax_AX_NNN` in `Spec.Axioms` projects
-exactly one field of one of these 7 K-pillars. The catalog of 55
-spec-level commitments collapses to:
+The named propositions in `Spec.Axioms` either project a K-pillar,
+prove a structural consequence, or consume explicit certificates:
 
   K1 Identity & uniqueness invariants     (5 fields, k1 axiom)
   K2 Boundary fidelity                    (6 fields, k2 axiom)
   K3 Mediated state & authorization       (10 fields, k3 axiom)
-  K4 Bitemporal totality + types          (9 fields, k4 axiom)
-  K5 Spec discipline & vocabulary         (15 fields, k5 axiom)
+  K4 Bitemporal totality + types          (9 fields, k4 constructed)
+  K5 Spec discipline & vocabulary         (15 fields, k5 constructed)
   K6 Optimizable substrate                (4 fields, k6 PROVED)
   K7 Aesthetic floor                      (7 fields, k7 PROVED)
 
-K1..K5 are *invariant* commitments and remain axiomatic — `axiom k1
-.. axiom k5`. They say "this stays true"; their fields range over
-opaque domain types (Resource, Statement, Operation, etc.) where
-the structural promotion that would make them provable is its own
-domain refactor.
+K1..K3 retain accepted commitments. AX-016 and AX-045 are now guarded
+by a shared admitted population and explicit certificates; their named
+theorems project those certificates without depending on `k1`.
+Resource's nonempty kind is a local value certificate, not an axiom
+about every constructible raw record. Other commitments remain relative
+to the trusted base listed in `lean/axiom_baseline.txt`.
 
 K6 and K7 are *direction* commitments — K6 says "things improve
 monotonically and the framework can leverage itself"; K7 says
@@ -34,8 +34,8 @@ constructors, not about what properties hold. They are the
 irreducible primitives the K6/K7 proofs are built from.
 
 Cost of moving from 46 axioms to (5 K + a handful of primitives):
-  * No proof breakage: every existing hand-written theorem still
-    type-checks because they refer to `ax_AX_NNN` by name.
+  * Names remain stable, but AX-016/AX-045 callers must now supply
+    population membership and the applicable explicit certificate.
   * Smaller audit surface: a reviewer inspects 5 K propositions
     plus a handful of named primitives, vs. ~55 individual axiom
     statements.
@@ -73,7 +73,8 @@ structure K1_Identity : Prop where
   idSpaceDisjoint : ∀ (r : Resource) (s : Statement),
     resourceId r ≠ statementId s
   /-- AX-016 — Statement bitemporal uniqueness. -/
-  statementUniqueness : ∀ (s1 s2 : Statement),
+  statementUniqueness : ∀ (population : AdmittedStatementPopulation) (s1 s2 : Statement),
+    population.members s1 → population.members s2 →
     stmtSubject s1 = stmtSubject s2 →
     stmtPredicate s1 = stmtPredicate s2 →
     stmtObject s1 = stmtObject s2 →
@@ -81,7 +82,9 @@ structure K1_Identity : Prop where
     s1 = s2
   /-- AX-045 — No two distinct Statements with the same SPO have
       overlapping validity intervals. -/
-  noTripleOverlap : ∀ (s1 s2 : Statement),
+  noTripleOverlap : ∀ (population : AdmittedStatementPopulation),
+    StatementOverlapCertificate population → ∀ (s1 s2 : Statement),
+    population.members s1 → population.members s2 →
     s1 ≠ s2 →
     stmtSubject s1 = stmtSubject s2 →
     stmtPredicate s1 = stmtPredicate s2 →
@@ -225,8 +228,8 @@ structure K4_BitemporalTypes : Prop where
     fields are theorems with proof bodies. The structural promotions
     of `Workspace`, `Statement`, `Boundary`, `PermissionBits`, and
     `Endpoint` (Sprints 5+6) discharge the existence/decidability
-    obligations; AX-009's nonempty conjunct is delegated to the
-    smaller named axiom `kindNonempty`. -/
+    obligations; AX-009's nonempty conjunct is carried by each locally
+    certified Resource and projected by the theorem `kindNonempty`. -/
 def k4 : K4_BitemporalTypes where
   workspaceReachable := by
     intro _r _t _h

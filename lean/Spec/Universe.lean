@@ -2,10 +2,10 @@
 Spec.Universe — minimal types for encoding the spec's axioms
 as Lean propositions.
 
-This is the universe of discourse. Each type is opaque — its
-internal structure is hidden, only its identity and the predicates
-that operate on it are observable. The axioms in Spec.Axioms
-state properties about these types and predicates.
+This is the universe of discourse. Some carriers are opaque; Resources
+and Statements have constructible raw input shapes and locally certified
+value types. Shared population constraints require explicit admission
+certificates. The axioms in Spec.Axioms state properties at these boundaries.
 
 Why opaque? We are not trying to fully formalize Aion's runtime
 in Lean — that would require a complete operational semantics
@@ -58,7 +58,7 @@ abbrev Time : Type := Nat
     "one ID space, two table types" half of the lowercase-aion
     definition — proved structurally because `EntityId` has disjoint
     constructors for Resource ids and Statement ids. -/
-structure Resource where
+structure RawResource where
   /-- The raw integer identifier, shared with the actual `db.graph`
       Snowflake-encoded BIGINT. Resources of any kind use the
       Resource constructor of `EntityId`; the underlying integer is
@@ -71,6 +71,46 @@ structure Resource where
       column's nullable semantics). -/
   externalId : String
 deriving Inhabited, DecidableEq
+
+/-- A locally valid Resource. Raw inputs remain constructible as
+    `RawResource`; admission to this value type requires the AX-009
+    nonempty-kind certificate. This does not certify backend membership,
+    an ltree grammar, wire encoding, or ID allocation. -/
+structure Resource extends RawResource where
+  kindValid : toRawResource.kind ≠ ""
+deriving DecidableEq
+
+/-- A constructive valid witness; the raw default still has an empty kind. -/
+instance : Inhabited Resource := ⟨{
+  rawId := 0
+  kind := "graph.resource"
+  externalId := ""
+  kindValid := by decide
+}⟩
+
+/-- A caller can certify one raw Resource without asserting that all raw
+    values are valid. -/
+def Resource.ofRaw (r : RawResource) (valid : r.kind ≠ "") : Resource :=
+  { toRawResource := r, kindValid := valid }
+
+/-- Raw Statement input. Local interval/resource certificates and shared
+    population admission are separate obligations. -/
+structure RawStatement where
+  rawId : Nat
+  subject : RawResource
+  predicate : RawResource
+  object : RawResource
+  validFrom : Time
+  validTo : Time
+deriving Inhabited, DecidableEq
+
+/-- Local validity for one raw input, retaining the existing ordinal-time
+    interval rule. This is neither population admission nor a write outcome. -/
+structure RawStatement.LocalValidity (s : RawStatement) : Prop where
+  subjectKind : s.subject.kind ≠ ""
+  predicateKind : s.predicate.kind ≠ ""
+  objectKind : s.object.kind ≠ ""
+  intervalOk : s.validFrom ≤ s.validTo
 
 /-- A Statement — the triple (subject, predicate, object) plus
     bitemporal extent. The other half of the lowercase "aion"
@@ -86,9 +126,8 @@ deriving Inhabited, DecidableEq
     Note: AX-016 (statement bitemporal uniqueness) and AX-045 (no
     overlapping intervals on the same SPO) are *global* constraints
     on the population of Statements, not per-Statement properties —
-    they remain axioms because Lean's structure equality requires
-    matching on every field, including `validTo`, `rawId`, and
-    `intervalOk`. -/
+    they require certificates over one shared admitted population,
+    rather than assertions about every constructible Statement. -/
 structure Statement where
   rawId : Nat
   subject : Resource
@@ -112,6 +151,47 @@ instance : Inhabited Statement := ⟨{
   validTo := 0
   intervalOk := Nat.le_refl 0
 }⟩
+
+/-- Certify a raw Statement using only its local validity evidence. -/
+def Statement.ofRaw (s : RawStatement) (valid : s.LocalValidity) : Statement := {
+  rawId := s.rawId
+  subject := Resource.ofRaw s.subject valid.subjectKind
+  predicate := Resource.ofRaw s.predicate valid.predicateKind
+  object := Resource.ofRaw s.object valid.objectKind
+  validFrom := s.validFrom
+  validTo := s.validTo
+  intervalOk := valid.intervalOk
+}
+
+/-- Forget local certificates to recover the raw input shape. -/
+def Statement.toRawStatement (s : Statement) : RawStatement := {
+  rawId := s.rawId
+  subject := s.subject.toRawResource
+  predicate := s.predicate.toRawResource
+  object := s.object.toRawResource
+  validFrom := s.validFrom
+  validTo := s.validTo
+}
+
+/-- One shared admitted population. Membership alone is not admission:
+    the caller must supply pair uniqueness for this population. Resource
+    and interval validity are already carried by each `Statement`.
+    This certificate selects no write/create policy or collection encoding. -/
+structure AdmittedStatementPopulation where
+  members : Statement → Prop
+  statementUniqueness : ∀ (s1 s2 : Statement),
+    members s1 → members s2 →
+    s1.subject = s2.subject →
+    s1.predicate = s2.predicate →
+    s1.object = s2.object →
+    s1.validFrom = s2.validFrom → s1 = s2
+
+/-- A nonempty population witness exists without a universal admission axiom. -/
+def AdmittedStatementPopulation.singleton (s : Statement) : AdmittedStatementPopulation where
+  members := fun candidate => candidate = s
+  statementUniqueness := by
+    intro first second firstMember secondMember _ _ _ _
+    exact firstMember.trans secondMember.symm
 
 /-- A version string. Opaque carrier; we add a default witness below
     so that `Module` (which has `version : Version` as a field) is
@@ -738,7 +818,7 @@ axiom interpretsKind : Operation → Resource → Prop
 
 /-- AX-009 (right conjunct) — the impl-layer commitment that no
     operation interprets a Resource's kind text. Pairs with
-    `kindNonempty` to discharge AX-009 in full. -/
+    each Resource's local validity certificate to discharge AX-009 in full. -/
 axiom kindOpaqueStipulated :
   ∀ (r : Resource) (o : Operation), ¬ interpretsKind o r
 

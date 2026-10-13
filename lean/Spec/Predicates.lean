@@ -262,12 +262,10 @@ def kindOf (r : Resource) : String := r.kind
 def kindIsOpaque (r : Resource) : Prop :=
   ∀ o : Operation, ¬ interpretsKind o r
 
-/-- A Resource's kind is non-empty. The structural Resource accepts
-    any String for `kind`, so this is the smaller named axiom that
-    discharges the AX-009 left conjunct (paired with `kindIsOpaque`'s
-    vacuous right conjunct). Concretely the impl enforces this by
-    requiring kind to be a populated ltree path. -/
-axiom kindNonempty : ∀ r : Resource, kindOf r ≠ ""
+/-- AX-009's nonempty-kind component is carried by a locally certified
+    Resource. It is not an assertion about every constructible RawResource. -/
+theorem kindNonempty : ∀ r : Resource, kindOf r ≠ "" :=
+  fun r => r.kindValid
 
 -- AX-010 — External identity is permanent
 axiom externalIdAllocated : ExternalId → Resource → Time → Prop
@@ -630,6 +628,27 @@ axiom isPredicateKind : String → Prop
     via `UNIQUE (subject_id, predicate_id, object_id)` plus upsert
     semantics; AX-045 captures this at the proof layer. -/
 axiom overlap : BitemporalInterval → BitemporalInterval → Prop
+
+/-- AX-045 certificate for one admitted population and the existing
+    uninterpreted overlap relation. This is supplied explicitly; neither
+    raw construction nor independent row validity supplies this invariant.
+    No concrete interval or write policy is chosen here. -/
+structure StatementOverlapCertificate (population : AdmittedStatementPopulation) : Prop where
+  noTripleOverlap : ∀ (s1 s2 : Statement),
+    population.members s1 → population.members s2 →
+    s1 ≠ s2 →
+    stmtSubject s1 = stmtSubject s2 →
+    stmtPredicate s1 = stmtPredicate s2 →
+    stmtObject s1 = stmtObject s2 →
+    ¬ overlap (intervalOf s1) (intervalOf s2)
+
+/-- A singleton has no distinct admitted pair, independently of the chosen
+    overlap relation. -/
+theorem singletonOverlapCertificate (s : Statement) :
+    StatementOverlapCertificate (AdmittedStatementPopulation.singleton s) := by
+  constructor
+  intro first second firstMember secondMember different _ _ _
+  exact False.elim (different (firstMember.trans secondMember.symm))
 
 /-- A path string is a syntactically valid ltree path per the spec's
     grammar (`label{.label}*` where `label = [A-Za-z_][A-Za-z0-9_]*`).
