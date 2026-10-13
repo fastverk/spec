@@ -18,7 +18,7 @@ Modules in this git vehicle today:
 
 | Path | `module(name)` | `module(version)` | Notes |
 | --- | --- | --- | --- |
-| `./MODULE.bazel` (repo root) | `spec` | `0.8.3` | published framework (`registry.tbzl.dev` `spec`); do not rename |
+| `./MODULE.bazel` (repo root) | `spec` | `0.9.0` | published framework (`registry.tbzl.dev` `spec`); do not rename |
 | `smoke/consumer/MODULE.bazel` | `spec_smoke_consumer` | `0.0.0` | in-repo registry-consumer smoke only; not a published product; do not rename |
 
 Status (same vocabulary as other vehicles):
@@ -43,17 +43,17 @@ Present in this repository. Not lockstepped with
 
 | Dir | Status | Source | SHA | `module(name)` | `module(version)` | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| lean | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | Lean spec libs (`Spec.Kernel`, grounding write-door, compaction, authoring); `//lean:audit_proofs_test` is the sorry/axiom ratchet |
-| crank | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | E(G)-descent harness (RFC-001b); belongs here, not on the platform vehicle |
-| rdf | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | RDF ontology, SPARQL gates, authoring lint, `rdf/readmodel` queries |
-| corpus | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | flagship corpora + gate data; the corpus directory is the corpus |
-| grounding | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | `grounding_verified` + adversarial gate; `:provenBy` must resolve to a sorry-free Lean theorem |
-| console | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | hosted grounding / authoring console (Next.js); not the desktop or plugin-shell vehicles |
-| agent | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | Eve markup assistant (`preview_decomposition` / `read_corpus` / `propose_requirement`); not the private `fastverk/agents` fleet |
-| conformance | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | shared JSON cases every implementation executes |
+| lean | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | Lean spec libs (`Spec.Kernel`, grounding write-door, compaction, authoring); `//lean:audit_proofs_test` is the sorry/axiom ratchet |
+| crank | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | E(G)-descent harness (RFC-001b); belongs here, not on the platform vehicle |
+| rdf | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | RDF ontology, SPARQL gates, authoring lint, `rdf/readmodel` queries |
+| corpus | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | flagship corpora + gate data; the corpus directory is the corpus |
+| grounding | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | `grounding_verified` + adversarial gate; `:provenBy` must resolve to a sorry-free Lean theorem |
+| console | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | hosted grounding / authoring console (Next.js); not the desktop or plugin-shell vehicles |
+| agent | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | Eve markup assistant (`preview_decomposition` / `read_corpus` / `propose_requirement`); not the private `fastverk/agents` fleet |
+| conformance | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | shared JSON cases every implementation executes |
 | smoke | imported | native (`fastverk/spec`) | native | spec_smoke_consumer | 0.0.0 | nested Bazel module at `smoke/consumer`; pins published `spec` from the registry |
-| java | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | Jena/RDF corpus toolkit (`kg.Loader`, gates, `kg.edit`) |
-| services | imported | native (`fastverk/spec`) | native | spec | 0.8.3 | Rust spec plugin + materialized readmodel payloads |
+| java | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | Jena/RDF corpus toolkit (`kg.Loader`, gates, `kg.edit`) |
+| services | imported | native (`fastverk/spec`) | native | spec | 0.9.0 | Rust spec plugin + materialized readmodel payloads |
 
 Also native (not a separate vehicle; not subtree-imported): `proto/`, `tools/`,
 `docs/`, `examples/`, `graph/`, `deck/`, `paper/`, `impact/`, `deploy/`,
