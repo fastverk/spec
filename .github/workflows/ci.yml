@@ -7,10 +7,10 @@ name: ci
 # merged without any automated signal — for a repo whose entire job is gating
 # other people's builds.
 #
-# This does not replace the build plane. It is a signal that exists today, on
-# Linux, which is the point: everything here was previously verified only on a
-# maintainer's macOS laptop, and this estate has a documented history of
-# darwin-green / linux-red.
+# These are the required source-release checks under docs/releasing.md. They
+# do not certify the hosted build plane's unrecovered runner/configuration,
+# self-reification, image/publish or deployed runtime behavior. Existing hosted
+# failures remain recorded; no failed check is rewritten as success.
 #
 # What it gates:
 #
@@ -116,13 +116,13 @@ jobs:
       # never `conclusion`: continue-on-error rewrites `conclusion` to success, so
       # the jobs API shows this green while it is failing.
       #
-      # continue-on-error is kept deliberately. If the credential breaks again the
-      # gate stays green on everything else and only the Rust step skips — a
-      # permanently red required check trains people to merge through it, which is
-      # how #16 and #17 landed unverified.
+      # Required source-release coverage includes the private-plugin tests.
+      # Credential failure must fail this existing job instead of silently
+      # skipping that scope. A reviewed maintainer context is required for forks
+      # without secrets; do not expose credentials through pull_request_target.
       - name: mint a token for the private plugin crates
         id: crates_token
-        continue-on-error: true
+        continue-on-error: false
         uses: actions/create-github-app-token@v2
         with:
           app-id: ${{ secrets.FASTVERK_APP_ID }}

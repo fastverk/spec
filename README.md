@@ -70,7 +70,8 @@ The nested `spec_smoke_consumer` module is unpublished (`0.0.0`).
 2. Bump **this** module's `module(version = ...)` in the root `MODULE.bazel`
    (and the matching [LEDGER.md](LEDGER.md) include rows). Do not rename
    `spec`. Do not bump `spec_smoke_consumer` into a published identity.
-3. Merge to this repo's default branch.
+3. Satisfy [release admission](docs/releasing.md), then merge to this repo's
+   default branch.
 4. Tag the merge commit `vX.Y.Z` and publish the registry entry from a
    bazel-registry checkout, as today.
 5. Bump the pin in `smoke/consumer/MODULE.bazel` **after** the registry
