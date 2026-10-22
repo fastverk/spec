@@ -14,7 +14,7 @@ them.
 modules. Consumers keep writing whichever module they actually depend on:
 
 ```python
-bazel_dep(name = "spec", version = "0.8.3")
+bazel_dep(name = "spec", version = "0.9.0")
 ```
 
 The nested registry-consumer smoke is a second module
@@ -22,7 +22,7 @@ The nested registry-consumer smoke is a second module
 and versions are **not** rewritten to a vehicle-wide number.
 
 Published framework identity lives in the root
-[`MODULE.bazel`](MODULE.bazel) (`module(name = "spec", version = "0.8.3")`).
+[`MODULE.bazel`](MODULE.bazel) (`module(name = "spec", version = "0.9.0")`).
 See [LEDGER.md](LEDGER.md) for every include / absorb / exclude row.
 
 ## Layout
@@ -31,7 +31,7 @@ See [LEDGER.md](LEDGER.md) for every include / absorb / exclude row.
 spec/
   README.md                 # this file — spine vehicle
   LEDGER.md                 # every include / optional / absorb / exclude row
-  MODULE.bazel              # module(name = "spec", version = "0.8.3")
+  MODULE.bazel              # module(name = "spec", version = "0.9.0")
   tools/ledger-check.sh     # CI: LEDGER include dirs exist; excludes do not
   lean/                     # Lean spec libs + proof ratchet
   crank/                    # E(G)-descent harness
@@ -55,7 +55,7 @@ The published module is the **root** `spec` module. Tags stay repo-root
 `vX.Y.Z` and must match `module(version = ...)` in `MODULE.bazel`:
 
 ```
-v0.8.3
+v0.9.0
 ```
 
 Do not tag a vehicle-wide version that implies platform / desktop /
@@ -70,7 +70,8 @@ The nested `spec_smoke_consumer` module is unpublished (`0.0.0`).
 2. Bump **this** module's `module(version = ...)` in the root `MODULE.bazel`
    (and the matching [LEDGER.md](LEDGER.md) include rows). Do not rename
    `spec`. Do not bump `spec_smoke_consumer` into a published identity.
-3. Merge to this repo's default branch.
+3. Satisfy [release admission](docs/releasing.md), then merge to this repo's
+   default branch.
 4. Tag the merge commit `vX.Y.Z` and publish the registry entry from a
    bazel-registry checkout, as today.
 5. Bump the pin in `smoke/consumer/MODULE.bazel` **after** the registry
@@ -117,4 +118,4 @@ and which other vehicle an exclude belongs to.
   modules this spine depends on).
 - Not [fastverk/botnoc](https://github.com/fastverk/botnoc) (private shell /
   control plane).
-- Not a rewrite of `module(name = "spec")` or `module(version = "0.8.3")`.
+- Module identity remains `spec`; each release updates its own module version.

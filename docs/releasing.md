@@ -22,9 +22,52 @@ Both were invisible from inside this repository, and both shipped green:
 Neither is a subtle bug. Both are simply unreachable from the position this
 repo's own CI stands in, which is why the checklist below ends where it does.
 
+## Source admission checks
+
+The existing GitHub Actions workflow supplies four source-admission checks:
+`ledger check`, `bazel build + test`, `registry consumer smoke`, and
+`console typecheck + conformance + build`. Require success from GitHub Actions
+for the actual reviewed source tree; inspect step outcomes as well as job
+conclusions. The Bazel job must actually run the proof audit, build/test lists,
+and private-plugin services tests. A skipped plugin step is incomplete coverage.
+The published-pin and current-source consumer positions remain distinct; a
+current-source pass does not prove that the new version is published.
+
+The image job is not a PR source-admission check: it is skipped on PRs. Merging
+main can trigger the existing Java gate-image publication after the Bazel job;
+that known side effect still requires explicit publication authority. The
+service image, hosted runner/configuration/self-reification and deployed runtime
+are separate scopes, not inferred from these four green checks.
+
+## Hosted build policy: source-release requirement replaced
+
+For this repository's source-release admission, the four existing GitHub Actions
+checks above replace `fastverk/build` as the required source gates. This is an
+explicit coverage-policy change, not a finding that the hosted failure was an
+infrastructure problem or that the two execution systems are equivalent.
+
+Preserve the failed check at
+`9d5f72c3df348d579b7e22d8a5fe4669bedb1a1f` (check116996977424,
+BuildRun `spec-9d5f72c3df34`) as failed with unclassified cause. Do not rewrite,
+dismiss, delete, or synthesize success for it. It may continue reporting as a
+nonrequired external observation. No administrator bypass is part of this policy.
+
+The hosted request's exact runner image/configuration, selected targets,
+self-reification, image/publish and deployed runtime behaviors were not recovered.
+They are intentionally not certified by this source-release gate. No hosted
+service, webhook, App installation, credential, image workflow, deployment or
+registry publisher is disabled by this policy. Publishing a runtime artifact
+or claiming those behaviors still requires its actual separately scoped owner.
+
+The existing Bazel job must fail if private-plugin credentials are unavailable;
+it must not conclude green by skipping services tests. Forks without that
+credential need a maintainer-controlled, reviewed source context with the real
+plugin step before source-release admission. Do not expose secrets to untrusted
+fork code or turn on `pull_request_target` to evade that requirement.
+
 ## The checklist
 
-1. **Merge to main, green.** The `gate` job builds the working tree; the
+1. **Pass the source and hosted-policy admission above, then merge to main.** The `gate` job builds the working tree; the
    `consumer` job builds `smoke/consumer` twice — once against the published
    pin, once against the commit under review. The second is what catches a
    consumer-visible break *before* it is published.

@@ -8,7 +8,7 @@
 # makes the axioms structurally manipulable, which is the point.
 
 lean/Spec/Kernel.lean 3
-lean/Spec/Predicates.lean 63
+lean/Spec/Predicates.lean 62
 lean/Spec/Universe.lean 27
 
-TOTAL 93
+TOTAL 92

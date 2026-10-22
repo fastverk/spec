@@ -7,6 +7,7 @@ the emitters are independent roots). Not exported for consumers — it only
 exists to give the lean_test a root entry.
 -/
 import Spec.Axioms
+import Spec.AdmissionCheck
 import Spec.Corpus.Schema
 import Spec.Corpus.Inference
 import Spec.Emit.TtlEmit
@@ -21,4 +22,3 @@ import Spec.Logic.InferenceRulesProofs
 -- `declaration uses 'sorry'` into a hard error; //lean:audit_proofs_test asserts
 -- every source still carries it, so it cannot be removed one file at a time.
 set_option warningAsError true
-
