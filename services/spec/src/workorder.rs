@@ -148,8 +148,8 @@ pub fn orders(payload: &Value) -> HashMap<String, Order> {
 ///
 /// Append-only, so the log carries `dispatched` and `closed` records and the
 /// running set is their fold — the same shape as `Evaluated`'s replay next
-/// door. A malformed line is skipped rather than fatal: one bad record must not
-/// hide the good ones after it.
+/// door. A malformed line fails closed: silently dropping a live dispatch could
+/// free its scope while its worker is still writing.
 #[derive(Debug, Default)]
 pub struct Running {
     by_id: HashMap<String, Value>,
