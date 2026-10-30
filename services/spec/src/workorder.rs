@@ -153,6 +153,7 @@ pub fn orders(payload: &Value) -> HashMap<String, Order> {
 #[derive(Debug, Default)]
 pub struct Running {
     by_id: HashMap<String, Value>,
+    reservations: HashMap<String, Value>,
     /// Cumulative reported spend per order, and where the last report came
     /// from. Kept for CLOSED orders too — the ledger's question is "where did
     /// this week's tokens go", and dropping an order's spend when it finishes
@@ -217,13 +218,32 @@ impl Running {
                     index + 1
                 ));
             }
+            if let Some(reservation) = rec.get("reservation") {
+                if rec.get("event").and_then(Value::as_str) != Some("dispatched")
+                    || !crate::workorder_reservation::valid_receipt(reservation)
+                    || reservation.pointer("/request/order_id").and_then(Value::as_str) != Some(id)
+                {
+                    return Err(format!("dispatch log line {} has an invalid reservation", index + 1));
+                }
+                let key = crate::proposal::canonical_json(&json!([
+                    reservation["approved_by_uid"], reservation["request"]["idempotency_key"]
+                ]));
+                if out.reservations.get(&key).is_some_and(|old| old != reservation) {
+                    return Err("reservation replay key has conflicting durable records".into());
+                }
+                out.reservations.insert(key, reservation.clone());
+            }
             out.records += 1;
             match rec.get("event").and_then(Value::as_str).unwrap_or("dispatched") {
                 "closed" => {
-                    out.by_id.remove(id);
+                    // A source stop/close event cannot prove a bound fleet task
+                    // drained. Keep its scope occupied until a verified release.
+                    if out.reservation(id).is_none() { out.by_id.remove(id); }
                 }
                 "stopped" => {
-                    out.by_id.remove(id);
+                    // A source stop/close event cannot prove a bound fleet task
+                    // drained. Keep its scope occupied until a verified release.
+                    if out.reservation(id).is_none() { out.by_id.remove(id); }
                     if let Some(cause) = rec.get("cause").and_then(Value::as_str) {
                         out.stops.insert(id.to_string(), cause.to_string());
                     }
@@ -251,6 +271,13 @@ impl Running {
             }
         }
         Ok(out)
+    }
+
+    pub fn reservation(&self, order_id: &str) -> Option<&Value> {
+        self.reservations.values().find(|r| r["request"]["order_id"] == order_id)
+    }
+    pub fn reservation_replay(&self, approver: &str, key: &str) -> Option<&Value> {
+        self.reservations.get(&crate::proposal::canonical_json(&json!([approver, key])))
     }
 
     pub fn is_running(&self, order_id: &str) -> bool {
@@ -327,6 +354,9 @@ pub fn check_close(
             "`{order_id}` is not running — there is no thread to end. Closing a stopped \
              order would write a second terminal event over the first"
         ));
+    }
+    if running.reservation(&order_id).is_some() {
+        return Err("bound fleet execution requires observed drain before source release".into());
     }
     let cause = match obj.get("cause").and_then(Value::as_str).unwrap_or("").trim() {
         "" | "completed" | "COMPLETED" | STOP_COMPLETED => STOP_COMPLETED,

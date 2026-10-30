@@ -880,6 +880,34 @@ impl ProposalLog {
         self.path.as_deref()
     }
 
+    /// Cross-process native dispatch transaction lock. Every native read/check/
+    /// append route takes this before inspecting the shared log. The returned
+    /// file releases its advisory OS lock on drop; unsupported locking fails closed.
+    pub fn transaction_guard(&self) -> Result<std::fs::File, String> {
+        let path = self.path.as_ref().ok_or("the write path is disabled")?;
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
+        let mut lock_path = path.as_os_str().to_owned(); lock_path.push(".lock");
+        let f = std::fs::OpenOptions::new().read(true).write(true).create(true).truncate(false)
+            .open(std::path::PathBuf::from(lock_path)).map_err(|e| e.to_string())?;
+        f.lock().map_err(|e| e.to_string())?;
+        Ok(f)
+    }
+
+    /// Reconfirm durability before replaying an acknowledged source reservation.
+    pub fn sync_existing(&self) -> Result<(), String> {
+        let path = self.path.as_ref().ok_or("the write path is disabled")?;
+        let f = std::fs::OpenOptions::new().read(true).write(true).open(path)
+            .map_err(|e| format!("{}: {e}", path.display()))?;
+        f.sync_all().map_err(|e| format!("{}: {e}", path.display()))?;
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::File::open(parent).and_then(|d| d.sync_all())
+                .map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
+        Ok(())
+    }
+
     /// Append one record. Returns the byte offset it was written at — the only
     /// stable handle this plugin can hand back, since it cannot compute the address.
     pub fn append(&self, record: &Value) -> Result<u64, String> {
@@ -894,9 +922,16 @@ impl ProposalLog {
             .append(true)
             .open(path)
             .map_err(|e| format!("{}: {e}", path.display()))?;
-        let offset = f.metadata().map(|m| m.len()).unwrap_or(0);
+        let offset = f.metadata().map_err(|e| format!("{}: {e}", path.display()))?.len();
         writeln!(f, "{line}").map_err(|e| format!("{}: {e}", path.display()))?;
         f.flush().map_err(|e| format!("{}: {e}", path.display()))?;
+        f.sync_all().map_err(|e| format!("{}: {e}", path.display()))?;
+        // Persist a newly created file's directory entry before acknowledging.
+        // Deployment must provision the durable parent directory beforehand.
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::File::open(parent).and_then(|d| d.sync_all())
+                .map_err(|e| format!("{}: {e}", parent.display()))?;
+        }
         Ok(offset)
     }
 }

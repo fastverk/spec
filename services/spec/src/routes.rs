@@ -88,6 +88,7 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // Dispatch is neither a judgement nor a measurement: it authorizes writes.
     // Its own method, its own log — `crate::workorder`.
     ("DispatchWorkOrder", "POST", "workorder/dispatch"),
+    ("ReserveWorkOrder", "POST", "workorder/reserve"),
     // A measurement, like SubmitEvaluation — a machine reports what the
     // platform metered. It rides the dispatch log because spend is only
     // meaningful against the thread that was authorized.
