@@ -295,9 +295,18 @@ message ReportSpendResponse {
   StopCause stop_cause = 4;
 }
 
+// Read-only current native gate observation. This is not a dispatch receipt.
+message ObserveWorkOrderResponse {
+  WorkOrderView view = 1;
+  DispatchVerdict verdict = 2;
+  repeated string because = 3;
+  uint64 dispatch_records = 4;
+}
+
 service Authoring {
   rpc ListWorkOrders(ListWorkOrdersRequest) returns (ListWorkOrdersResponse);
   rpc GetWorkOrder(GetWorkOrderRequest) returns (WorkOrderView);
+  rpc ObserveWorkOrder(GetWorkOrderRequest) returns (ObserveWorkOrderResponse);
   rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
   rpc ReportSpend(SpendReport) returns (ReportSpendResponse);
   rpc ListLedger(ListLedgerRequest) returns (ListLedgerResponse);

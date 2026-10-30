@@ -190,13 +190,33 @@ impl Running {
                 ))
             }
         };
-        for line in body.lines().filter(|l| !l.trim().is_empty()) {
-            let Ok(rec) = serde_json::from_str::<Value>(line) else {
-                continue;
-            };
-            let Some(id) = rec.get("order_id").and_then(Value::as_str) else {
-                continue;
-            };
+        for (index, line) in body
+            .lines()
+            .enumerate()
+            .filter(|(_, l)| !l.trim().is_empty())
+        {
+            let rec = serde_json::from_str::<Value>(line).map_err(|_| {
+                format!(
+                    "dispatch log line {} is malformed; current running scopes are unknown",
+                    index + 1
+                )
+            })?;
+            let id = rec
+                .get("order_id")
+                .and_then(Value::as_str)
+                .filter(|id| !id.trim().is_empty())
+                .ok_or_else(|| format!("dispatch log line {} has no order identity", index + 1))?;
+            if !matches!(
+                rec.get("event")
+                    .and_then(Value::as_str)
+                    .unwrap_or("dispatched"),
+                "dispatched" | "closed" | "stopped" | "spend"
+            ) {
+                return Err(format!(
+                    "dispatch log line {} has an unsupported event",
+                    index + 1
+                ));
+            }
             out.records += 1;
             match rec.get("event").and_then(Value::as_str).unwrap_or("dispatched") {
                 "closed" => {
@@ -860,7 +880,7 @@ mod tests {
     }
 
     #[test]
-    fn a_malformed_log_line_does_not_hide_the_records_after_it() {
+    fn a_malformed_log_line_makes_running_scopes_unknown() {
         let dir = std::env::temp_dir().join(format!("wo-log-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("dispatch.jsonl");
@@ -869,9 +889,8 @@ mod tests {
             "{\"order_id\":\"wo-042\",\"agents\":2}\nnot json\n{\"order_id\":\"wo-046\",\"agents\":1}\n",
         )
         .unwrap();
-        let r = Running::read(Some(&path)).unwrap();
-        assert_eq!(r.ids(), vec!["wo-042", "wo-046"]);
-        assert_eq!(r.records, 2);
+        let error = Running::read(Some(&path)).unwrap_err();
+        assert!(error.contains("line 2"));
         std::fs::remove_dir_all(&dir).ok();
     }
 

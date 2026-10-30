@@ -1,0 +1,20 @@
+load("@rules_rdf//rdf:dataset.bzl", "rdf_dataset")
+load("//rdf/fanout:fanout.bzl", "spec_workorders")
+
+package(default_visibility = ["//visibility:public"])
+
+SAMPLE_CORPUS = ["corpus.ttl"]
+
+rdf_dataset(
+    name = "corpus",
+    srcs = SAMPLE_CORPUS,
+    in_format = "turtle",
+    deps = ["//rdf:authoring_vocab"],
+)
+
+spec_workorders(
+    name = "workorders",
+    srcs = SAMPLE_CORPUS,
+    config = "fanout.json",
+    dataset = ":corpus",
+)

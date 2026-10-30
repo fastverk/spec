@@ -1,0 +1,12 @@
+{
+  "orders": [{
+    "order_id": "agora-sample-file-edit",
+    "scope": "urn:agora:sample:scope",
+    "discipline": "urn:agora:sample:discipline",
+    "write_paths": ["sample/"],
+    "forbidden": [".git/", ".claude/"],
+    "max_tokens": 1000,
+    "max_probes": 0,
+    "acceptance": ["file-tree-equals-approved-edits/v1"]
+  }]
+}

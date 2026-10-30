@@ -1,0 +1,17 @@
+# Synthetic file-edit obligation for the authenticated WorkOrder integration.
+# It makes no statement about a customer migration, model or market advantage.
+@prefix rfc: <https://aion.savvi.io/ontology/rfc#> .
+@prefix au: <https://aion.savvi.io/ontology/authoring#> .
+@prefix sample: <urn:agora:sample:> .
+
+sample:scope a au:Scope .
+sample:discipline a au:Discipline .
+sample:proposal a au:Proposal ;
+    au:proposalId "p:agora-sample-file-edit" .
+sample:desired-file a rfc:NormativeStatement ;
+    rfc:modality rfc:MUST ;
+    rfc:predicate "The sample/value.txt artifact MUST contain the approved sample bytes after the bounded file-edit task." ;
+    au:scopedBy sample:scope ;
+    au:discipline sample:discipline ;
+    au:rung au:R4 ;
+    au:promotedBy sample:proposal .
