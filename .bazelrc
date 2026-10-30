@@ -63,3 +63,15 @@ build:linux --action_env=TECTONIC_CACHE_DIR=/tmp/xdg-cache/Tectonic
 # passed in the startup-option position (that is what --nohome_rc is), and
 # putting it here means both places get it the same way.
 common --repo_env=CARGO_NET_GIT_FETCH_WITH_CLI=true
+
+# Native fleet CI: defining this profile avoids the build runner's stale
+# explicit-remote fallback. The scheduler property must exactly match the live
+# Boston RbeCluster worker platform (verified 2026-10-30). Runner CLI arguments
+# provide the actual endpoint and short-lived credential; no secret lives here.
+build:rbe --remote_executor=grpc://localhost:8980
+build:rbe --remote_cache=grpc://localhost:8980
+build:rbe --remote_instance_name=
+build:rbe --remote_timeout=600
+build:rbe --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=0
+build:rbe --remote_default_exec_properties=OSFamily=linux
+build:rbe --remote_default_exec_properties=container-image=docker://394050190195.dkr.ecr.us-east-1.amazonaws.com/tbzl-rbe-worker:act-22.04-libtinfo5-py3

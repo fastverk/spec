@@ -1,0 +1,10 @@
+"""Platform for the isolated Apple Silicon Kubernetes integration environment."""
+
+platform(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:aarch64",
+    ],
+    visibility = ["//visibility:public"],
+)

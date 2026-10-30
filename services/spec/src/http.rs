@@ -146,6 +146,7 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/evaluations", get(list_evaluations))
         .route("/evaluation", post(submit_evaluation))
         .route("/workorders", get(list_work_orders))
+        .route("/workorder/gate", get(observe_work_gate))
         .route("/workorder/dispatch", post(dispatch_work_order))
         .route("/workorder/spend", post(report_spend))
         .route("/workorder/close", post(close_work_order))
@@ -441,6 +442,87 @@ async fn list_work_orders(State(s): State<HttpState>) -> ApiResult {
     .await
 }
 
+/// Fresh, read-only observation of the actual dispatch predicate. This is not
+/// dispatch or fleet admission, and the observer cannot turn a refusal into READY.
+#[derive(Deserialize)]
+struct WorkGateQuery {
+    order_id: String,
+}
+async fn observe_work_gate(
+    State(s): State<HttpState>,
+    Query(q): Query<WorkGateQuery>,
+) -> ApiResult {
+    if q.order_id.trim().is_empty() || q.order_id.len() > 256 {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({"error":"E_MALFORMED"})),
+        );
+    }
+    if !s.agents_enabled || !s.dispatches.enabled() {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_DISPATCH_DISABLED"})),
+        );
+    }
+    let _guard = match s.dispatch_gate.lock() {
+        Ok(g) => g,
+        Err(p) => p.into_inner(),
+    };
+    let payload = match s.readmodel.current_workorders() {
+        Ok(v) => v,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error":"E_READMODEL_UNAVAILABLE","message":why})),
+            )
+        }
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(v) => v,
+        Err(why) => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(json!({"error":"E_LOG_UNREADABLE","message":why})),
+            )
+        }
+    };
+    let orders = workorder::orders(&payload);
+    let verdict = workorder::check(&q.order_id, &orders, &running);
+    if !orders.contains_key(&q.order_id) {
+        return (StatusCode::NOT_FOUND, Json(verdict.to_json()));
+    }
+    let packet = payload["orders"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["order_id"] == q.order_id)
+        .and_then(|row| row.get("order"))
+        .cloned();
+    let Some(packet) = packet else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_PACKET_UNAVAILABLE"})),
+        );
+    };
+    // Overlap can refuse an otherwise hold-free order. Do not copy the stale
+    // derivation's READY label over the authoritative dispatch predicate.
+    let state = if running.is_running(&q.order_id) {
+        workorder::STATE_RUNNING
+    } else if verdict.is_dispatched() {
+        workorder::STATE_READY
+    } else {
+        workorder::STATE_HELD
+    };
+    (
+        StatusCode::OK,
+        Json(json!({
+            "view":{"order":packet,"state":state,"agents":running.agents(&q.order_id)},
+            "verdict":verdict.verdict,"because":verdict.because,
+            "dispatch_records":running.records,
+        })),
+    )
+}
+
 /// `POST /workorder/dispatch` — authorize agents to build against one order.
 ///
 /// ⛔ Refuses before appending, and the refusals are not overridable here:
@@ -510,7 +592,11 @@ async fn dispatch_work_order(
     }
     let agents = body.get("agents").and_then(Value::as_i64).unwrap_or(0);
 
-    let payload = s.readmodel.route("workorders");
+    let payload = match s.readmodel.current_workorders() {
+        Ok(v) => v,
+        Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_READMODEL_UNAVAILABLE", "message":why}))),
+    };
     let orders = workorder::orders(&payload);
 
     // ⛔ Everything from here to the append is one critical section — see
@@ -1193,9 +1279,9 @@ mod tests {
                 continue;
             }
             let path = r["path"].as_str().unwrap();
-            // The two index routes that take required query params are not part of
-            // this assertion; everything else must answer without arguments.
-            if matches!(path, "spec" | "contract") {
+            // Required-query index and authority-observation endpoints have
+            // dedicated tests; collection reads must answer without arguments.
+            if matches!(path, "spec" | "contract" | "workorder/gate") {
                 continue;
             }
             let (status, body) = request(&addr, "GET", &format!("/{path}"), None).await;
@@ -1452,6 +1538,67 @@ mod tests {
         assert_eq!(rows.len(), 2);
         assert_eq!(body["dispatch_enabled"], json!(false));
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[tokio::test]
+    async fn gate_observation_uses_live_dispatch_state_and_refuses_corrupt_logs() {
+        let dir = workorders_fixture("observe-live");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let before = get_json(&addr, "/workorder/gate?order_id=wo-ready").await;
+        assert_eq!(before["view"]["state"], workorder::STATE_READY);
+        assert_eq!(before["verdict"], workorder::DISPATCHED);
+        assert!(!log.exists(), "observing must not append a dispatch");
+        assert_eq!(
+            dispatch(
+                &addr,
+                "u-approver",
+                json!({"order_id":"wo-ready","agents":1})
+            )
+            .await
+            .0,
+            202
+        );
+        let running = get_json(&addr, "/workorder/gate?order_id=wo-ready").await;
+        assert_eq!(running["view"]["state"], workorder::STATE_RUNNING);
+        assert_eq!(running["verdict"], workorder::REFUSED_ALREADY_RUNNING);
+        let mut bytes = std::fs::read(&log).unwrap();
+        bytes.extend_from_slice(b"not-json\n");
+        std::fs::write(&log, bytes).unwrap();
+        assert_eq!(
+            request(&addr, "GET", "/workorder/gate?order_id=wo-ready", None)
+                .await
+                .0,
+            503
+        );
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn gate_observation_bypasses_the_readmodel_ui_cache() {
+        let dir = workorders_fixture("observe-fresh");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        let cached = get_json(&addr, "/workorders").await;
+        let mut changed = cached.clone();
+        let row = changed["orders"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|r| r["order_id"] == "wo-ready")
+            .unwrap();
+        row["order"]["conflict_holds"] = json!(["new-live-conflict"]);
+        std::fs::write(
+            dir.join("workorders.json"),
+            serde_json::to_vec(&changed).unwrap(),
+        )
+        .unwrap();
+        let fresh = get_json(&addr, "/workorder/gate?order_id=wo-ready").await;
+        assert_eq!(fresh["view"]["state"], workorder::STATE_HELD);
+        assert_eq!(fresh["verdict"], workorder::REFUSED_HELD);
+        assert_eq!(dispatch(&addr, "u-approver", json!({"order_id":"wo-ready","agents":1})).await.0, 409);
+        assert!(!log.exists(), "a fresh hold must prevent an append despite the warm UI cache");
+        std::fs::remove_dir_all(dir).ok();
     }
 
     #[tokio::test]

@@ -56,6 +56,7 @@ bazel_dep(name = "rules_jvm_external", version = "6.5")
 # cache paths for the LLM-response cache). Coordinates mirror Aion +
 # mycelium so the lifted sources build unchanged.
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+
 # The GATE RUNNER's Jena, pinned to rules_jena's exact version (5.2.0) rather
 # than spec_maven's (5.0.0).
 #
@@ -91,9 +92,6 @@ maven.install(
         "dev.dirs:directories:26",
     ],
     fetch_sources = False,
-    repositories = [
-        "https://repo1.maven.org/maven2",
-    ],
     # Pinned so the fetch REPLAYS a lockfile instead of resolving. Coursier runs
     # as a repository rule, i.e. outside the build's Java toolchain, so the
     # `remotejdk_21` pin in .bazelrc never reaches it and `--repo_env=JAVA_HOME`
@@ -117,6 +115,9 @@ maven.install(
     # Regenerate with:  bazel run @spec_maven//:pin  (then rename the emitted
     # rules_jvm_external++maven+spec_maven_install.json to maven_install.json)
     lock_file = "//:maven_install.json",
+    repositories = [
+        "https://repo1.maven.org/maven2",
+    ],
 )
 use_repo(maven, "spec_maven")
 
@@ -303,9 +304,13 @@ oci.pull(
     name = "java_base",
     digest = "sha256:7e37784d94dccbf5ccb195c73b295f5ad00cd266512dfbac12eb9c3c28f8077d",
     image = "gcr.io/distroless/java21-debian12",
-    platforms = ["linux/amd64", "linux/arm64/v8"],
+    platforms = [
+        "linux/amd64",
+        "linux/arm64/v8",
+    ],
 )
 use_repo(oci, "java_base", "java_base_linux_amd64")
+
 bazel_dep(name = "rules_pkg", version = "1.0.1", dev_dependency = True)
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5", dev_dependency = True)
 
@@ -323,8 +328,12 @@ rust = use_extension(
     "rust",
     dev_dependency = True,
 )
+
+bazel_dep(name = "platforms", version = "1.0.0", dev_dependency = True)
+
 rust.toolchain(
     edition = "2021",
+    extra_target_triples = ["aarch64-unknown-linux-gnu"],
     versions = ["1.95.0"],
 )
 use_repo(rust, "rust_toolchains")

@@ -52,6 +52,7 @@ pub const AUTHORING_READS: &[(&str, &str, &str)] = &[
     // (service, method) pair since the mock was written; #45 is where it stops
     // resolving to nothing.
     ("ListWorkOrders", "GET", "workorders"),
+    ("ObserveWorkOrder", "GET", "workorder/gate"),
     // The account, not the meter: spec records reported spend against the
     // budgets it allocated, and the platform enforces (#46).
     ("ListLedger", "GET", "ledger"),

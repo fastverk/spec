@@ -176,6 +176,11 @@ impl ReadModel {
         }
     }
 
+    /// Authority observations must not use the UI's time-based payload cache.
+    pub fn current_workorders(&self) -> Result<Value, String> {
+        self.load("workorders", "orders")
+    }
+
     /// Every route's row count, for `GET /readmodel` — the operator's answer to "is
     /// the read model deployed, and does it have anything in it". Worth having as a
     /// route because "the corpus is clean" and "the payload never shipped" render
@@ -231,7 +236,7 @@ fn degraded(field: &str, why: &str) -> Value {
 /// to `ROUTES` — doing so would make it try to load a file that will never exist
 /// and degrade every request. It is still asserted to be DECLARED below, so a
 /// log-backed route cannot quietly go missing from /describe either.
-pub const LOG_BACKED_ROUTES: &[&str] = &["proposals", "evaluations", "ledger"];
+pub const LOG_BACKED_ROUTES: &[&str] = &["workorder/gate", "proposals", "evaluations", "ledger"];
 
 /// Routes whose payload is derived by the BUILD rather than emitted by
 /// `tools/readmodel/emit_readmodel.py` — the fanout derivation runs under ARQ
