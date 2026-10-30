@@ -55,9 +55,14 @@ pass. These are implementation checks, not theorem or production claims.
 
 Remaining work for the full sample:
 
-1. Connect an authenticated reservation bridge to the immutable approved intent,
-   persist ADMITTING before source reserve, and reconcile partial failures into
-   exactly one native reservation and one stable fleet run/task.
+1. Connect the trusted approval publisher to the immutable approved intent.
+   The dependent fastverk/agents#45 implementation commits the exact grant, then
+   claims the native order with that namespace-scoped grant as replay key.
+   Fleet submission must require that exact active reservation and persist
+   ADMITTING before creating the stable fleet run/task. Retry each durable step
+   without appending another source dispatch. A reservation may precede fleet
+   submission; abandoned reservations retain their scope and also require an
+   observed, safe release rather than silently expiring.
 2. Extend the source observer and worker gate to authorize only that exact active
    reservation; changed cursor, stop intent, or mismatched binding must refuse.
 3. Replace the preparatory emptyDir source log with durable storage. Execute the
