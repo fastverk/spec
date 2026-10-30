@@ -296,17 +296,37 @@ message ReportSpendResponse {
 }
 
 // Read-only current native gate observation. This is not a dispatch receipt.
+// Native source-side reservation; the exact intent digest is opaque to Spec.
+// The authorized fleet bridge must bind it to an immutable approved intent.
+message ReserveWorkOrderRequest {
+  string order_id = 1;
+  string as_of = 2;
+  string intent_sha256 = 3; // 64 lowercase hexadecimal characters
+  string requester_uid = 4;
+  string idempotency_key = 5;
+}
+message WorkOrderReservation {
+  ReserveWorkOrderRequest request = 1;
+  string approved_by_uid = 2; // authenticated gateway subject, not issue author
+  string reservation_id = 3; // SHA-256 of canonical request + approving subject
+}
+message ReserveWorkOrderResponse { WorkOrderReservation reservation = 1; }
+
+// Read-only current native gate observation. This is not a dispatch receipt.
 message ObserveWorkOrderResponse {
   WorkOrderView view = 1;
   DispatchVerdict verdict = 2;
   repeated string because = 3;
   uint64 dispatch_records = 4;
+  WorkOrderReservation reservation = 5;
+  bool reservation_stop_requested = 6;
 }
 
 service Authoring {
   rpc ListWorkOrders(ListWorkOrdersRequest) returns (ListWorkOrdersResponse);
   rpc GetWorkOrder(GetWorkOrderRequest) returns (WorkOrderView);
   rpc ObserveWorkOrder(GetWorkOrderRequest) returns (ObserveWorkOrderResponse);
+  rpc ReserveWorkOrder(ReserveWorkOrderRequest) returns (ReserveWorkOrderResponse);
   rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
   rpc ReportSpend(SpendReport) returns (ReportSpendResponse);
   rpc ListLedger(ListLedgerRequest) returns (ListLedgerResponse);

@@ -148,6 +148,9 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
         .route("/workorders", get(list_work_orders))
         .route("/workorder/gate", get(observe_work_gate))
         .route("/workorder/dispatch", post(dispatch_work_order))
+        .route("/workorder/reserve", post(reserve_work_order).layer(from_fn_with_state(
+            gateway_token.clone(), require_reservation_gateway,
+        )))
         .route("/workorder/spend", post(report_spend))
         .route("/workorder/close", post(close_work_order))
         .route("/ledger", get(list_ledger))
@@ -468,6 +471,10 @@ async fn observe_work_gate(
         Ok(g) => g,
         Err(p) => p.into_inner(),
     };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_LOG_LOCK","message":why}))),
+    };
     let payload = match s.readmodel.current_workorders() {
         Ok(v) => v,
         Err(why) => {
@@ -513,14 +520,74 @@ async fn observe_work_gate(
     } else {
         workorder::STATE_HELD
     };
-    (
-        StatusCode::OK,
-        Json(json!({
-            "view":{"order":packet,"state":state,"agents":running.agents(&q.order_id)},
-            "verdict":verdict.verdict,"because":verdict.because,
-            "dispatch_records":running.records,
-        })),
-    )
+    let mut observation = json!({
+        "view":{"order":packet,"state":state,"agents":running.agents(&q.order_id)},
+        "verdict":verdict.verdict,"because":verdict.because,"dispatch_records":running.records,
+    });
+    if let Some(reservation) = running.reservation(&q.order_id) {
+        observation["reservation"] = reservation.clone();
+        observation["reservation_stop_requested"] = json!(running.stop_cause(&q.order_id) != "");
+    }
+    (StatusCode::OK, Json(observation))
+}
+
+/// Reserve one native order under the same lock and predicate as legacy dispatch.
+/// Receipt replay is an immutable historical fact, not fresh write permission.
+async fn reserve_work_order(
+    State(s): State<HttpState>, headers: HeaderMap, Json(body): Json<Value>,
+) -> ApiResult {
+    let Some(who) = principal(&headers) else { return no_principal() };
+    if who.agent {
+        return (StatusCode::FORBIDDEN, Json(json!({"error":"E_AGENT_MAY_NOT_DISPATCH"})));
+    }
+    if !s.dispatches.enabled() {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_DISPATCH_DISABLED"})));
+    }
+    if let Err(why) = crate::workorder_reservation::validate(&body) {
+        return (StatusCode::UNPROCESSABLE_ENTITY, Json(json!({"error":"E_MALFORMED","message":why})));
+    }
+    let _guard = match s.dispatch_gate.lock() { Ok(g) => g, Err(p) => p.into_inner() };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_LOG_LOCK","message":why}))),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(v) => v, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_LOG_UNREADABLE","message":why}))),
+    };
+    let receipt = crate::workorder_reservation::receipt(&body, &who.sub);
+    if let Some(old) = running.reservation_replay(&who.sub, body["idempotency_key"].as_str().unwrap()) {
+        return if old == &receipt {
+            if let Err(why) = s.dispatches.sync_existing() {
+                return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_SYNC","message":why})));
+            }
+            (StatusCode::ACCEPTED, Json(json!({"reservation":old})))
+        } else {
+            (StatusCode::CONFLICT, Json(json!({"error":"E_REPLAY_CONFLICT"})))
+        };
+    }
+    if !s.agents_enabled {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_AGENTS_DISABLED"})));
+    }
+    let payload = match s.readmodel.current_workorders() {
+        Ok(v) => v, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_READMODEL_UNAVAILABLE","message":why}))),
+    };
+    let id = body["order_id"].as_str().unwrap();
+    let orders = workorder::orders(&payload);
+    let verdict = workorder::check(id, &orders, &running);
+    if !verdict.is_dispatched() { return (StatusCode::CONFLICT, Json(verdict.to_json())) }
+    let as_of = payload["orders"].as_array().and_then(|rows| rows.iter()
+        .find(|row| row["order_id"] == id)).and_then(|row| row.pointer("/order/as_of"));
+    if as_of != Some(&body["as_of"]) {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_CURSOR_CHANGED"})));
+    }
+    let mut record = workorder::record(&orders[id], body["as_of"].as_str().unwrap(), &who.email, 1);
+    record["reservation"] = receipt.clone();
+    match s.dispatches.append(&record) {
+        Ok(_) => (StatusCode::ACCEPTED, Json(json!({"reservation":receipt}))),
+        Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_WRITE","message":why}))),
+    }
 }
 
 /// `POST /workorder/dispatch` — authorize agents to build against one order.
@@ -606,6 +673,10 @@ async fn dispatch_work_order(
     let _gate = match s.dispatch_gate.lock() {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
+    };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_LOG_LOCK","message":why}))),
     };
     let running = match Running::read(s.dispatches.path()) {
         Ok(r) => r,
@@ -695,6 +766,10 @@ async fn report_spend(
     let _gate = match s.dispatch_gate.lock() {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
+    };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_LOG_LOCK","message":why}))),
     };
     let running = match Running::read(s.dispatches.path()) {
         Ok(r) => r,
@@ -810,6 +885,10 @@ async fn close_work_order(
     let _gate = match s.dispatch_gate.lock() {
         Ok(g) => g,
         Err(poisoned) => poisoned.into_inner(),
+    };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_LOG_LOCK","message":why}))),
     };
     let running = match Running::read(s.dispatches.path()) {
         Ok(r) => r,
@@ -1118,6 +1197,19 @@ fn parse_langs(s: Option<String>) -> Vec<i32> {
         .collect()
 }
 
+// Bound source reservations never accept caller-supplied identity headers in
+// standalone unauthenticated mode. The configured gateway authenticates the
+// forwarding service; that trusted service must verify its approving subject.
+async fn require_reservation_gateway(
+    State(expected): State<Option<String>>, req: Request, next: Next,
+) -> Response {
+    match expected.filter(|s| !s.is_empty()) {
+        Some(token) => require_gateway_token(State(Arc::new(token)), req, next).await,
+        None => (StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error":"E_RESERVATION_GATEWAY_REQUIRED"}))).into_response(),
+    }
+}
+
 /// Reject any request whose bearer token doesn't match the shared gateway token
 /// (the secret the shell's gateway injects). Mirrors fastverk-plugin-server.
 async fn require_gateway_token(
@@ -1184,6 +1276,17 @@ mod tests {
         dispatch_log: Option<&str>,
         agents_enabled: bool,
     ) -> String {
+        serve_inner_gateway(readmodel_dir, log, dispatch_log, agents_enabled, None).await
+    }
+
+    async fn serve_reserving(readmodel_dir: &str, dispatch_log: Option<&str>) -> String {
+        serve_inner_gateway(readmodel_dir, None, dispatch_log, true, Some("reservation-test-token".into())).await
+    }
+
+    async fn serve_inner_gateway(
+        readmodel_dir: &str, log: Option<&str>, dispatch_log: Option<&str>,
+        agents_enabled: bool, gateway_token: Option<String>,
+    ) -> String {
         let backend = Arc::new(crate::SpecBackend::from_env());
         // Constructed directly, never through the env: these tests run in parallel
         // threads of one process, so `set_var` here would race every other test.
@@ -1206,7 +1309,7 @@ mod tests {
                 dispatch_gate: Arc::new(std::sync::Mutex::new(())),
                 panels: None,
             },
-            None,
+            gateway_token,
         );
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap().to_string();
@@ -1527,6 +1630,115 @@ mod tests {
         let (status, raw) = request(addr, "GET", path, None).await;
         assert_eq!(status, 200, "GET {path} -> {status}: {raw}");
         serde_json::from_str(&raw).expect(&raw)
+    }
+
+    async fn reserve(addr: &str, actor: &str, body: &Value) -> (u16, Value) {
+        let headers = format!("authorization: Bearer reservation-test-token\r\nx-fastverk-user-sub: {actor}\r\nx-fastverk-user-email: sample@example.com\r\n");
+        let payload = body.to_string();
+        let (code, raw) = request(addr, "POST", "/workorder/reserve", Some((&headers, &payload))).await;
+        (code, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+    async fn reserved_observation(addr: &str) -> Value {
+        let (code, raw) = request(addr, "GET", "/workorder/gate?order_id=wo-ready",
+            Some(("authorization: Bearer reservation-test-token\r\n", ""))).await;
+        assert_eq!(code, 200, "{raw}"); serde_json::from_str(&raw).unwrap()
+    }
+    fn reservation_request(key: &str) -> Value {
+        json!({"order_id":"wo-ready","as_of":"sha256:0000000000000001",
+            "intent_sha256":"11".repeat(32),"requester_uid":"sample-requester-uid",
+            "idempotency_key":key})
+    }
+
+    #[tokio::test]
+    async fn reservation_replays_after_lost_reply_and_router_restart_without_rearming() {
+        let dir = workorders_fixture("reserve-replay");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let body = reservation_request("once");
+        let (code, receipt) = reserve(&addr, "sample-approver-uid", &body).await;
+        assert_eq!(code, 202, "{receipt}");
+        let bytes = std::fs::read(&log).unwrap();
+        let observation = reserved_observation(&addr).await;
+        assert_eq!(observation["view"]["state"], workorder::STATE_RUNNING);
+        assert_eq!(observation["reservation"], receipt["reservation"]);
+        // Receipt recovery must not require a healthy current read model.
+        std::fs::write(dir.join("workorders.json"), "invalid json").unwrap();
+        let restarted = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(reserve(&restarted, "sample-approver-uid", &body).await, (202, receipt));
+        assert_eq!(std::fs::read(&log).unwrap(), bytes);
+        let mut changed = body.clone(); changed["intent_sha256"] = json!("22".repeat(32));
+        assert_eq!(reserve(&restarted, "sample-approver-uid", &changed).await.0, 409);
+        assert_eq!(std::fs::read(&log).unwrap(), bytes);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn concurrent_reservations_commit_one_and_native_stop_does_not_release_scope() {
+        let dir = workorders_fixture("reserve-race");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let a = reservation_request("first"); let b = reservation_request("second");
+        let (left, right) = tokio::join!(reserve(&addr, "approver", &a), reserve(&addr, "approver", &b));
+        let mut codes = vec![left.0, right.0]; codes.sort(); assert_eq!(codes, [202, 409]);
+        assert_eq!(Running::read(Some(&log)).unwrap().records, 1);
+        proposal::AppendLog::new(Some(log.clone())).append(&json!({
+            "event":"stopped","order_id":"wo-ready","cause":workorder::STOP_WITHDRAWN})).unwrap();
+        let observation = reserved_observation(&addr).await;
+        assert_eq!(observation["view"]["state"], workorder::STATE_RUNNING);
+        assert_eq!(observation["reservation_stop_requested"], true);
+        let running = Running::read(Some(&log)).unwrap();
+        let payload: Value = serde_json::from_slice(&std::fs::read(dir.join("workorders.json")).unwrap()).unwrap();
+        assert!(workorder::check_close(&json!({"order_id":"wo-ready"}), &workorder::orders(&payload), &running)
+            .unwrap_err().contains("observed drain"));
+        assert_eq!(reserve(&addr, "approver", &reservation_request("third")).await.0, 409);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn independent_native_servers_share_the_source_reservation_lock() {
+        let dir = workorders_fixture("reserve-independent");
+        let log = dir.join("dispatch.jsonl");
+        let first = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let second = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let a = reservation_request("independent-a"); let b = reservation_request("independent-b");
+        let (left, right) = tokio::join!(reserve(&first, "approver", &a), reserve(&second, "approver", &b));
+        let mut codes = vec![left.0, right.0]; codes.sort(); assert_eq!(codes, [202, 409]);
+        assert_eq!(Running::read(Some(&log)).unwrap().records, 1);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn reservation_refuses_agent_stale_cursor_unknown_fields_and_corrupt_receipts() {
+        let dir = workorders_fixture("reserve-refusal");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let body = reservation_request("no-append");
+        assert_eq!(reserve(&addr, "agent:sample", &body).await.0, 403);
+        let mut bad = body.clone(); bad["as_of"] = json!("stale");
+        assert_eq!(reserve(&addr, "approver", &bad).await.0, 409);
+        bad = body.clone(); bad["override"] = json!(true);
+        assert_eq!(reserve(&addr, "approver", &bad).await.0, 422);
+        assert!(!log.exists());
+        let mut receipt = crate::workorder_reservation::receipt(&body, "approver");
+        receipt["request"]["intent_sha256"] = json!("33".repeat(32));
+        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"dispatched",
+            "order_id":"wo-ready","agents":1,"reservation":receipt})).unwrap();
+        assert!(Running::read(Some(&log)).is_err());
+        assert_eq!(reserve(&addr, "approver", &body).await.0, 503);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn reservation_requires_configured_gateway_and_correct_bearer() {
+        let dir = workorders_fixture("reserve-gateway"); let log = dir.join("dispatch.jsonl");
+        let plain = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(reserve(&plain, "forged-approver", &reservation_request("forged")).await.0, 503);
+        let guarded = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let payload = reservation_request("no-token").to_string();
+        let (code, _) = request(&guarded, "POST", "/workorder/reserve",
+            Some(("x-fastverk-user-sub: forged-approver\r\n", &payload))).await;
+        assert_eq!(code, 401); assert!(!log.exists());
+        std::fs::remove_dir_all(dir).ok();
     }
 
     #[tokio::test]

@@ -54,3 +54,5 @@ pub mod derivation_proto {
 }
 
 pub use backend::SpecBackend;
+
+pub mod workorder_reservation;
