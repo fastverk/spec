@@ -312,6 +312,29 @@ message WorkOrderReservation {
 }
 message ReserveWorkOrderResponse { WorkOrderReservation reservation = 1; }
 
+// Trusted-gateway attestation for the supported canceled no-provider worker.
+// Before forwarding, the gateway must authenticate the original approving UID
+// and verify the actual fleet CANCELED execution, FINAL zero-provider usage,
+// original binding, and matching retained drain/fence evidence over fleet TLS.
+// These hashes bind that observation; they are not independently checked fleet
+// proofs by this import-free native service. Success/failed/nonzero release is
+// deliberately unsupported. This does not reclaim the native Job barrier.
+message ReleaseCanceledWorkOrderRequest {
+  string order_id = 1;
+  string reservation_id = 2;
+  string execution_id = 3;
+  uint64 fence_epoch = 4;
+  string drain_receipt_sha256 = 5;
+  string fence_evidence_sha256 = 6;
+  string idempotency_key = 7;
+}
+message CanceledWorkOrderRelease {
+  ReleaseCanceledWorkOrderRequest request = 1;
+  string released_by_uid = 2;
+  string release_id = 3;
+}
+message ReleaseCanceledWorkOrderResponse { CanceledWorkOrderRelease release = 1; }
+
 // Read-only current native gate observation. This is not a dispatch receipt.
 message ObserveWorkOrderResponse {
   WorkOrderView view = 1;
@@ -327,6 +350,7 @@ service Authoring {
   rpc GetWorkOrder(GetWorkOrderRequest) returns (WorkOrderView);
   rpc ObserveWorkOrder(GetWorkOrderRequest) returns (ObserveWorkOrderResponse);
   rpc ReserveWorkOrder(ReserveWorkOrderRequest) returns (ReserveWorkOrderResponse);
+  rpc ReleaseCanceledWorkOrder(ReleaseCanceledWorkOrderRequest) returns (ReleaseCanceledWorkOrderResponse);
   rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
   rpc ReportSpend(SpendReport) returns (ReportSpendResponse);
   rpc ListLedger(ListLedgerRequest) returns (ListLedgerResponse);

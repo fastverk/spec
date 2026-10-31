@@ -89,6 +89,7 @@ pub const AUTHORING_WRITES: &[(&str, &str, &str)] = &[
     // Its own method, its own log — `crate::workorder`.
     ("DispatchWorkOrder", "POST", "workorder/dispatch"),
     ("ReserveWorkOrder", "POST", "workorder/reserve"),
+    ("ReleaseCanceledWorkOrder", "POST", "workorder/release-canceled"),
     // A measurement, like SubmitEvaluation — a machine reports what the
     // platform metered. It rides the dispatch log because spend is only
     // meaningful against the thread that was authorized.
