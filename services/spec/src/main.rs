@@ -137,6 +137,7 @@ async fn main() -> Result<()> {
                 std::env::var("SPEC_AGENT_ENABLED").unwrap_or_default().trim(),
                 "1" | "true" | "TRUE" | "yes"
             ),
+            canceled_release_token: std::env::var("SPEC_WORK_RELEASE_TOKEN").ok().filter(|t| !t.is_empty()),
             dispatch_gate: Arc::new(std::sync::Mutex::new(())),
             panels: panels.clone(),
         },

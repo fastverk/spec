@@ -331,6 +331,7 @@ check(
         # gate says no. See services/spec/src/workorder.rs.
         "DispatchWorkOrder",
         "ReserveWorkOrder",
+        "ReleaseCanceledWorkOrder",
         # A measurement, like SubmitEvaluation: the platform meters the spend
         # and reports it; spec keeps the account (#46).
         "ReportSpend",

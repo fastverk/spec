@@ -154,6 +154,7 @@ pub fn orders(payload: &Value) -> HashMap<String, Order> {
 pub struct Running {
     by_id: HashMap<String, Value>,
     reservations: HashMap<String, Value>,
+    releases: HashMap<String, Value>,
     /// Cumulative reported spend per order, and where the last report came
     /// from. Kept for CLOSED orders too — the ledger's question is "where did
     /// this week's tokens go", and dropping an order's spend when it finishes
@@ -211,12 +212,38 @@ impl Running {
                 rec.get("event")
                     .and_then(Value::as_str)
                     .unwrap_or("dispatched"),
-                "dispatched" | "closed" | "stopped" | "spend"
+                "dispatched" | "closed" | "stopped" | "spend" | "released"
             ) {
                 return Err(format!(
                     "dispatch log line {} has an unsupported event",
                     index + 1
                 ));
+            }
+            if rec.get("event").and_then(Value::as_str) == Some("released") {
+                let release = &rec["release"];
+                if !crate::workorder_reservation::valid_release_receipt(release)
+                    || release.pointer("/request/order_id").and_then(Value::as_str) != Some(id)
+                { return Err("invalid canceled release record".into()); }
+                let key = crate::proposal::canonical_json(&json!([
+                    release["released_by_uid"], release["request"]["idempotency_key"]
+                ]));
+                if let Some(old) = out.releases.get(&key) {
+                    if old != release { return Err("conflicting canceled release replay".into()) }
+                    // A duplicate historical release must not free a later attempt.
+                    out.records += 1;
+                    continue;
+                }
+                let active = out.reservation(id).ok_or("release has no active reservation")?;
+                if active["reservation_id"] != release["request"]["reservation_id"]
+                    || active["approved_by_uid"] != release["released_by_uid"]
+                { return Err("release does not match active reservation/approver".into()); }
+                out.releases.insert(key, release.clone());
+                out.by_id.remove(id);
+                out.stops.insert(id.to_owned(), STOP_WITHDRAWN.into());
+                // This supported execution spent zero provider tokens. Preserve
+                // every prior cumulative measurement; releasing is not a refund.
+                out.records += 1;
+                continue;
             }
             if let Some(reservation) = rec.get("reservation") {
                 if rec.get("event").and_then(Value::as_str) != Some("dispatched")
@@ -266,6 +293,9 @@ impl Running {
                     }
                 }
                 _ => {
+                    // A newly authorized thread starts without an old thread's
+                    // stop intent. Historical stop/release rows remain durable.
+                    out.stops.remove(id);
                     out.by_id.insert(id.to_string(), rec);
                 }
             }
@@ -274,10 +304,14 @@ impl Running {
     }
 
     pub fn reservation(&self, order_id: &str) -> Option<&Value> {
-        self.reservations.values().find(|r| r["request"]["order_id"] == order_id)
+        self.by_id.get(order_id).and_then(|record| record.get("reservation"))
     }
     pub fn reservation_replay(&self, approver: &str, key: &str) -> Option<&Value> {
         self.reservations.get(&crate::proposal::canonical_json(&json!([approver, key])))
+    }
+
+    pub fn release_replay(&self, actor: &str, key: &str) -> Option<&Value> {
+        self.releases.get(&crate::proposal::canonical_json(&json!([actor, key])))
     }
 
     pub fn is_running(&self, order_id: &str) -> bool {

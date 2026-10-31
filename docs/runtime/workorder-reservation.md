@@ -37,8 +37,9 @@ proved by these tests.
 
 A native stop record for a reserved order retains its occupied scope and reports
 `reservation_stop_requested`. Closing through the legacy close endpoint refuses
-until an observed fleet drain/release path exists. That release path is not yet
-implemented. In particular, native stop intent, worker completion, and A2A
+until an observed fleet drain/release path exists. The default-disabled [canceled zero-provider release](canceled-workorder-release.md)
+now implements the native transaction; its trusted fleet-verifying bridge and
+real release remain pending. Successful/nonzero release remains unsupported. In particular, native stop intent, worker completion, and A2A
 terminal status are not evidence of stopped resources or FINAL usage.
 
 Gate observations add `reservation` and `reservation_stop_requested` only when a
