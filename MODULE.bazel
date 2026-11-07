@@ -129,7 +129,7 @@ use_repo(maven, "spec_maven")
 # compile identically whether built here or as srcs in an Aion lean_test.
 # 0.3.6 ships the dep-free-lake-workspace relaxation this repo's empty
 # `require` list needs.
-bazel_dep(name = "rules_lean", version = "0.3.6")
+bazel_dep(name = "rules_lean", version = "0.7.2")
 
 lake = use_extension("@rules_lean//lean:lake.bzl", "lake")
 lake.workspace(
