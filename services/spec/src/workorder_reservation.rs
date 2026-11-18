@@ -185,3 +185,74 @@ pub fn valid_completed_release_receipt(value: &Value) -> bool {
         && validate_completed_release(&value["request"]).is_ok()
         && completed_release_receipt(&value["request"], actor) == *value
 }
+
+pub const TERMINAL_CANCELED: &str = "EXECUTION_STATE_CANCELED";
+
+/// `spec.v1.ReleaseStrandedWorkOrderRequest`: an administrator releases a
+/// reservation whose original approver can no longer act (its identity was
+/// recreated or retired). It changes WHO may release, never WHAT evidence is
+/// required: the same terminal/fence/FINAL/drain attestation as the normal
+/// doors, the same spend coverage, plus the original approver it supersedes and
+/// a mandatory reason, all kept in the receipt.
+pub fn validate_stranded_release(body: &Value) -> Result<(), &'static str> {
+    let o = body.as_object().ok_or("release must be an object")?;
+    let fields = ["order_id", "reservation_id", "execution_id", "terminal_state", "fence_epoch",
+        "final_consumed_tokens", "drain_receipt_sha256", "original_approver_uid", "reason",
+        "idempotency_key"];
+    if o.len() != fields.len() || !o.keys().all(|k| fields.contains(&k.as_str())) {
+        return Err("exact stranded release fields required");
+    }
+    for field in fields {
+        let value = body[field].as_str().ok_or("release fields must be strings")?;
+        let max = if field == "reason" { 512 } else { 256 };
+        if value.is_empty() || value.len() > max || value.trim() != value || value.chars().any(char::is_control) {
+            return Err("invalid stranded release field");
+        }
+    }
+    for field in ["reservation_id", "drain_receipt_sha256"] {
+        let hash = body[field].as_str().unwrap();
+        if hash.len() != 64 || !hash.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)) {
+            return Err("lowercase SHA-256 release references required");
+        }
+    }
+    let terminal = body["terminal_state"].as_str().unwrap();
+    if !matches!(terminal, TERMINAL_SUCCEEDED | TERMINAL_FAILED | TERMINAL_CANCELED) {
+        return Err("terminal state must be EXECUTION_STATE_SUCCEEDED, _FAILED or _CANCELED");
+    }
+    let epoch = body["fence_epoch"].as_str().unwrap();
+    let Some(epoch) = epoch.parse::<u64>().ok().filter(|n| n.to_string() == epoch) else {
+        return Err("canonical drain fence required");
+    };
+    let tokens = body["final_consumed_tokens"].as_str().unwrap();
+    let Some(tokens) = tokens.parse::<i64>().ok().filter(|n| *n >= 0 && n.to_string() == tokens) else {
+        return Err("canonical nonnegative FINAL consumed tokens required");
+    };
+    // The canceled door's own evidence rule: a canceled attempt was fenced and
+    // its supported measurement is FINAL zero.
+    if terminal == TERMINAL_CANCELED && (epoch == 0 || tokens != 0) {
+        return Err("a canceled attempt requires a positive fence and FINAL zero");
+    }
+    let key = body["idempotency_key"].as_str().unwrap();
+    if key.len() > 128 || !key.bytes().all(|c| c.is_ascii_alphanumeric() || b"_-".contains(&c)) {
+        return Err("invalid release replay key");
+    }
+    Ok(())
+}
+
+pub fn normalize_stranded_release(body: &Value) -> Value {
+    normalize_completed_release(body)
+}
+
+pub fn stranded_release_receipt(body: &Value, actor: &str) -> Value {
+    let identity = crate::proposal::canonical_json(
+        &json!({"kind":"stranded","request":body,"released_by_uid":actor}));
+    json!({"request":body,"released_by_uid":actor,
+        "release_id":format!("{:x}", Sha256::digest(identity.as_bytes()))})
+}
+
+pub fn valid_stranded_release_receipt(value: &Value) -> bool {
+    let Some(actor) = value["released_by_uid"].as_str() else { return false };
+    !actor.is_empty() && !actor.chars().any(char::is_control)
+        && validate_stranded_release(&value["request"]).is_ok()
+        && stranded_release_receipt(&value["request"], actor) == *value
+}

@@ -141,6 +141,15 @@ async fn main() -> Result<()> {
             // A separate verifier credential: the completed-release verifier
             // checks different evidence, and holding one must not grant the other.
             completed_release_token: std::env::var("SPEC_WORK_COMPLETED_RELEASE_TOKEN").ok().filter(|t| !t.is_empty()),
+            // Stranded-release administrators: their own credential plus an
+            // explicit principal allowlist (comma-separated). Unset disables it.
+            admin_release_token: std::env::var("SPEC_WORK_ADMIN_RELEASE_TOKEN").ok().filter(|t| !t.is_empty()),
+            admin_release_uids: std::env::var("SPEC_WORK_ADMIN_RELEASE_UIDS")
+                .unwrap_or_default()
+                .split(',')
+                .map(|u| u.trim().to_string())
+                .filter(|u| !u.is_empty())
+                .collect(),
             dispatch_gate: Arc::new(std::sync::Mutex::new(())),
             panels: panels.clone(),
         },
