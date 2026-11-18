@@ -81,6 +81,7 @@ pub struct HttpState {
     /// Dedicated verifier credential. Absent disables canceled release; generic
     /// shell gateway authentication alone must never authorize an attestation.
     pub canceled_release_token: Option<String>,
+    pub completed_release_token: Option<String>,
     /// Serializes read-check-append on the dispatch log.
     ///
     /// ⛔ The gate's decision is made from a SNAPSHOT of the log and then
@@ -155,6 +156,9 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
             gateway_token.clone(), require_reservation_gateway,
         )))
         .route("/workorder/release-canceled", post(release_canceled_work_order).layer(from_fn_with_state(
+            gateway_token.clone(), require_reservation_gateway,
+        )))
+        .route("/workorder/release-completed", post(release_completed_work_order).layer(from_fn_with_state(
             gateway_token.clone(), require_reservation_gateway,
         )))
         .route("/workorder/spend", post(report_spend))
@@ -641,6 +645,69 @@ async fn release_canceled_work_order(
         return (StatusCode::CONFLICT, Json(json!({"error":"E_RESERVATION_CHANGED"})));
     }
     match s.dispatches.append(&json!({"event":"released","order_id":id,"release":receipt})) {
+        Ok(_) => (StatusCode::ACCEPTED, Json(json!({"release":receipt}))),
+        Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_WRITE","message":why}))),
+    }
+}
+
+/// `POST /workorder/release-completed` — free a reservation whose bound
+/// execution reached SUCCEEDED or FAILED with authoritative FINAL usage.
+///
+/// Same verifier/original-approver/replay discipline as the canceled door, plus
+/// the one rule this service can check itself: spend recorded since the
+/// reservation must cover the FINAL figure, so capacity is never freed while
+/// metered usage is missing from the ledger. Verdict-independent by design.
+async fn release_completed_work_order(
+    State(s): State<HttpState>, headers: HeaderMap, Json(body): Json<Value>,
+) -> (StatusCode, Json<Value>) {
+    let body = crate::workorder_reservation::normalize_completed_release(&body);
+    let Some(expected) = s.completed_release_token.as_ref().filter(|t| !t.is_empty()) else {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_RELEASE_VERIFIER_REQUIRED"})));
+    };
+    if headers.get("x-fastverk-work-completed-release-token").and_then(|v| v.to_str().ok()) != Some(expected.as_str()) {
+        return (StatusCode::UNAUTHORIZED, Json(json!({"error":"E_RELEASE_VERIFIER_AUTH"})));
+    }
+    let Some(who) = principal(&headers) else { return no_principal() };
+    if who.agent { return (StatusCode::FORBIDDEN, Json(json!({"error":"E_AGENT_MAY_NOT_DISPATCH"}))); }
+    if !s.dispatches.enabled() { return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_DISPATCH_DISABLED"}))); }
+    if let Err(why) = crate::workorder_reservation::validate_completed_release(&body) {
+        return (StatusCode::UNPROCESSABLE_ENTITY, Json(json!({"error":"E_MALFORMED","message":why})));
+    }
+    let _guard = match s.dispatch_gate.lock() { Ok(g) => g, Err(p) => p.into_inner() };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_LOCK","message":why}))),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(v) => v, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_UNREADABLE","message":why}))),
+    };
+    let receipt = crate::workorder_reservation::completed_release_receipt(&body, &who.sub);
+    if let Some(old) = running.release_replay(&who.sub, body["idempotency_key"].as_str().unwrap()) {
+        return if old == &receipt {
+            match s.dispatches.sync_existing() {
+                Ok(()) => (StatusCode::ACCEPTED, Json(json!({"release":old}))),
+                Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_SYNC","message":why}))),
+            }
+        } else { (StatusCode::CONFLICT, Json(json!({"error":"E_REPLAY_CONFLICT"}))) };
+    }
+    let id = body["order_id"].as_str().unwrap();
+    let Some(active) = running.reservation(id) else {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_NO_ACTIVE_RESERVATION"})));
+    };
+    if active["approved_by_uid"] != who.sub {
+        return (StatusCode::FORBIDDEN, Json(json!({"error":"E_ORIGINAL_APPROVER_REQUIRED"})));
+    }
+    if active["reservation_id"] != body["reservation_id"] {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_RESERVATION_CHANGED"})));
+    }
+    let need = crate::workorder_reservation::final_tokens(&body);
+    let recorded = running.spent_since_reservation(id).unwrap_or(0);
+    if recorded < need {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_SPEND_NOT_RECORDED",
+            "message":"report the FINAL usage through /workorder/spend before releasing; \
+                       the ledger must account for what this attempt consumed",
+            "final_consumed_tokens":need.to_string(),"recorded_since_reservation":recorded.to_string()})));
+    }
+    match s.dispatches.append(&json!({"event":"released_completed","order_id":id,"release":receipt})) {
         Ok(_) => (StatusCode::ACCEPTED, Json(json!({"release":receipt}))),
         Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_WRITE","message":why}))),
     }
@@ -1363,6 +1430,7 @@ mod tests {
                 dispatches,
                 agents_enabled,
                 canceled_release_token: gateway_token.as_ref().map(|_| "release-test-token".into()),
+                completed_release_token: gateway_token.as_ref().map(|_| "completed-release-test-token".into()),
                 dispatch_gate: Arc::new(std::sync::Mutex::new(())),
                 panels: None,
             },
@@ -1834,6 +1902,158 @@ mod tests {
         assert_eq!(release_canceled(&restarted, "approver", &changed).await.0, 409);
         std::fs::remove_dir_all(dir).ok();
     }
+    async fn release_completed(addr: &str, actor: &str, body: &Value) -> (u16, Value) {
+        let headers = format!("authorization: Bearer reservation-test-token\r\nx-fastverk-work-completed-release-token: completed-release-test-token\r\nx-fastverk-user-sub: {actor}\r\n");
+        let payload = body.to_string();
+        let (code, raw) = request(addr, "POST", "/workorder/release-completed", Some((&headers, &payload))).await;
+        (code, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+    fn completed_release(reservation: &Value, state: &str, tokens: &str) -> Value {
+        json!({"order_id":"wo-ready","reservation_id":reservation["reservation_id"],
+            "execution_id":"sample-execution.two","terminal_state":state,"fence_epoch":"3",
+            "final_consumed_tokens":tokens,"drain_receipt_sha256":"77".repeat(32),
+            "idempotency_key":"release_completed_one"})
+    }
+    /// The real spend door, through the configured gateway, as the meter.
+    async fn gateway_spend(addr: &str, tokens: i64) -> u16 {
+        let payload = json!({"order_id":"wo-ready","tokens":tokens,"source":"fleet-final-meter"}).to_string();
+        request(addr, "POST", "/workorder/spend", Some((
+            "authorization: Bearer reservation-test-token\r\nx-fastverk-user-sub: machine:fleet-meter\r\nx-fastverk-user-email: meter@example.com\r\n",
+            &payload))).await.0
+    }
+    /// Append a spend row directly, for history the door would refuse to
+    /// write (spend from before this reservation existed).
+    fn append_spend(log: &std::path::Path, tokens: i64) {
+        proposal::AppendLog::new(Some(log.to_path_buf())).append(&json!({"event":"spend",
+            "order_id":"wo-ready","tokens":tokens,"source":"fleet-final-meter"})).unwrap();
+    }
+
+    #[tokio::test]
+    async fn completed_release_requires_spend_recorded_after_the_reservation() {
+        let dir = workorders_fixture("completed-release-spend"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        // Spend from an earlier attempt predates this reservation and must not
+        // count toward it: the baseline is the high-water mark at reservation.
+        append_spend(&log, 100);
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("attempt")).await;
+        let body = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "40");
+        let (code, refused) = release_completed(&addr, "approver", &body).await;
+        assert_eq!((code, refused["error"].as_str()), (409, Some("E_SPEND_NOT_RECORDED")), "{refused}");
+        assert_eq!(refused["recorded_since_reservation"], "0");
+        // A stale cumulative snapshot below the high-water mark adds nothing.
+        assert_eq!(gateway_spend(&addr, 90).await, 202);
+        assert_eq!(gateway_spend(&addr, 120).await, 202);
+        assert_eq!(release_completed(&addr, "approver", &body).await.1["recorded_since_reservation"], "20");
+        assert_eq!(gateway_spend(&addr, 140).await, 202);
+        let (code, released) = release_completed(&addr, "approver", &body).await;
+        assert_eq!(code, 202, "{released}");
+        let running = Running::read(Some(&log)).unwrap();
+        assert!(running.reservation("wo-ready").is_none());
+        // Release is not a refund, and the thread ends with a named cause.
+        assert_eq!(running.spent("wo-ready").0, 140);
+        assert_eq!(running.stop_cause("wo-ready"), workorder::STOP_COMPLETED);
+        assert_eq!(reserved_observation(&addr).await["view"]["state"], workorder::STATE_READY);
+        // Exact replay after restart returns the original receipt and appends nothing.
+        let (_, next) = reserve(&addr, "approver", &reservation_request("attempt-two")).await;
+        let before = std::fs::read(&log).unwrap();
+        let restarted = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(release_completed(&restarted, "approver", &body).await, (202, released.clone()));
+        assert_eq!(std::fs::read(&log).unwrap(), before);
+        // A duplicated historical row cannot free the newer attempt.
+        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"released_completed",
+            "order_id":"wo-ready","release":released["release"]})).unwrap();
+        assert_eq!(Running::read(Some(&log)).unwrap().reservation("wo-ready"), Some(&next["reservation"]));
+        let mut changed = body.clone(); changed["final_consumed_tokens"] = json!("41");
+        assert_eq!(release_completed(&restarted, "approver", &changed).await.0, 409);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    fn workorder_reservation_succeeded() -> &'static str { crate::workorder_reservation::TERMINAL_SUCCEEDED }
+
+    /// The October 31 sample's actual shape: an execution that was never
+    /// canceled (fence 0) with a no-provider FINAL (0 tokens), sent by a
+    /// standard ProtoJSON encoder that omits both zero-valued fields.
+    #[tokio::test]
+    async fn completed_release_accepts_zero_fence_and_omitted_zero_fields() {
+        let dir = workorders_fixture("completed-release-zeros"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("zeros")).await;
+        let mut body = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "0");
+        let explicit = { let mut b = body.clone(); b["fence_epoch"] = json!("0"); b };
+        let o = body.as_object_mut().unwrap();
+        o.remove("fence_epoch"); o.remove("final_consumed_tokens");
+        let (code, released) = release_completed(&addr, "approver", &body).await;
+        assert_eq!(code, 202, "{released}");
+        assert_eq!(released["release"]["request"]["fence_epoch"], "0");
+        assert_eq!(released["release"]["request"]["final_consumed_tokens"], "0");
+        // The explicit and the omitted encodings are the same request.
+        let restarted = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(release_completed(&restarted, "approver", &explicit).await, (202, released));
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn completed_release_records_failed_and_keeps_an_earlier_cause() {
+        let dir = workorders_fixture("completed-release-failed"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("failing")).await;
+        // A FAILED run with zero FINAL usage needs no spend report.
+        let body = completed_release(&reserved["reservation"], crate::workorder_reservation::TERMINAL_FAILED, "0");
+        assert_eq!(release_completed(&addr, "approver", &body).await.0, 202);
+        assert_eq!(Running::read(Some(&log)).unwrap().stop_cause("wo-ready"), workorder::STOP_FAILED);
+        // A cause already on the thread (here the budget crossing) is what
+        // ended it; a succeeded release does not relabel it as completed.
+        let (_, again) = reserve(&addr, "approver", &reservation_request("over-budget")).await;
+        assert_eq!(gateway_spend(&addr, 500).await, 202);
+        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"stopped",
+            "order_id":"wo-ready","cause":workorder::STOP_BUDGET_EXHAUSTED})).unwrap();
+        let mut over = completed_release(&again["reservation"], workorder_reservation_succeeded(), "500");
+        over["idempotency_key"] = json!("release_over_budget");
+        assert_eq!(release_completed(&addr, "approver", &over).await.0, 202);
+        let running = Running::read(Some(&log)).unwrap();
+        assert_eq!(running.stop_cause("wo-ready"), workorder::STOP_BUDGET_EXHAUSTED);
+        assert!(running.reservation("wo-ready").is_none());
+        std::fs::remove_dir_all(dir).ok();
+    }
+
+    #[tokio::test]
+    async fn completed_release_refuses_wrong_actor_credential_shape_and_uncovered_log() {
+        let dir = workorders_fixture("completed-release-refusal"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("original")).await;
+        let body = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "0");
+        let original = std::fs::read(&log).unwrap();
+        assert_eq!(release_completed(&addr, "other-approver", &body).await.0, 403);
+        assert_eq!(release_completed(&addr, "agent:approver", &body).await.0, 403);
+        let mut bad = body.clone(); bad["reservation_id"] = json!("66".repeat(32));
+        assert_eq!(release_completed(&addr, "approver", &bad).await.0, 409);
+        for (field, value) in [("final_consumed_tokens", "-1"), ("final_consumed_tokens", "01"),
+            ("final_consumed_tokens", "9223372036854775808"), ("fence_epoch", "01"),
+            ("terminal_state", "EXECUTION_STATE_CANCELED"), ("terminal_state", "SUCCEEDED"),
+            ("drain_receipt_sha256", "not-a-hash")] {
+            bad = body.clone(); bad[field] = json!(value);
+            assert_eq!(release_completed(&addr, "approver", &bad).await.0, 422, "{field}={value}");
+        }
+        bad = body.clone(); bad["accepted"] = json!(true);
+        assert_eq!(release_completed(&addr, "approver", &bad).await.0, 422);
+        // The canceled verifier's credential does not open this door.
+        let payload = body.to_string();
+        let (code, _) = request(&addr, "POST", "/workorder/release-completed",
+            Some(("authorization: Bearer reservation-test-token\r\nx-fastverk-work-release-token: release-test-token\r\nx-fastverk-user-sub: approver\r\n", &payload))).await;
+        assert_eq!(code, 401);
+        let disabled = serve_dispatching(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(release_completed(&disabled, "approver", &body).await.0, 503);
+        assert_eq!(std::fs::read(&log).unwrap(), original);
+        // A well-formed receipt the ledger does not cover is a forged or
+        // reordered log: replay fails closed instead of freeing the scope.
+        let uncovered = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "5");
+        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"released_completed",
+            "order_id":"wo-ready","release":crate::workorder_reservation::completed_release_receipt(&uncovered, "approver")})).unwrap();
+        assert!(Running::read(Some(&log)).unwrap_err().contains("not covered"));
+        assert_eq!(release_completed(&addr, "approver", &body).await.0, 503);
+        std::fs::remove_dir_all(dir).ok();
+    }
+
     #[tokio::test]
     async fn canceled_release_refuses_wrong_actor_identity_fence_and_corrupt_log() {
         let dir = workorders_fixture("canceled-release-refusal"); let log = dir.join("dispatch.jsonl");
