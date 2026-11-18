@@ -841,7 +841,18 @@ pub type AppendLog = ProposalLog;
 pub struct ProposalLog {
     path: Option<PathBuf>,
     lock: Mutex<()>,
+    /// Hash-chain every appended line (`seq`, `prev`). Set only for the native
+    /// dispatch log, whose replay verifies the chain (`workorder::Running::read`).
+    chained: bool,
 }
+
+/// Hex sha256 of one log line's text (no trailing newline): the chain link.
+pub fn line_sha256(line: &str) -> String {
+    format!("{:x}", Sha256::digest(line.as_bytes()))
+}
+
+/// `prev` of the first chained line when nothing precedes it.
+pub const CHAIN_GENESIS: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 
 impl ProposalLog {
     /// From `$SPEC_PROPOSAL_LOG`. **Unset disables the write path** — the plugin
@@ -869,7 +880,18 @@ impl ProposalLog {
         Self {
             path,
             lock: Mutex::new(()),
+            chained: false,
         }
+    }
+
+    /// The native dispatch log: every append carries `seq` (1-based position
+    /// among the log's non-empty lines) and `prev` (sha256 of the previous
+    /// line's text, or `CHAIN_GENESIS`). Earlier unchained lines stay a valid
+    /// legacy prefix. A crash can leave at most one unterminated tail line; it
+    /// was never acknowledged (acknowledgment follows the newline's fsync), so
+    /// replay ignores it and the next append truncates it away.
+    pub fn dispatch(path: Option<PathBuf>) -> Self {
+        Self { chained: true, ..Self::new(path) }
     }
 
     pub fn enabled(&self) -> bool {
@@ -917,6 +939,7 @@ impl ProposalLog {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
         }
+        let line = if self.chained { chain_link(path, record)? } else { line };
         let mut f = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
@@ -934,6 +957,37 @@ impl ProposalLog {
         }
         Ok(offset)
     }
+}
+
+/// Link `record` onto the dispatch log at `path`, under the caller's lock.
+/// Truncates an unacknowledged unterminated tail first, then numbers the new
+/// line and binds it to the hash of the last complete line.
+fn chain_link(path: &Path, record: &Value) -> Result<String, String> {
+    let fail = |e: std::io::Error| format!("{}: {e}", path.display());
+    let body = match std::fs::read(path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Vec::new(),
+        Err(e) => return Err(fail(e)),
+    };
+    let complete = body.iter().rposition(|b| *b == b'\n').map_or(0, |i| i + 1);
+    if complete < body.len() {
+        let f = std::fs::OpenOptions::new().write(true).open(path).map_err(fail)?;
+        f.set_len(complete as u64).map_err(fail)?;
+        f.sync_all().map_err(fail)?;
+        tracing::warn!(log = %path.display(), dropped = body.len() - complete,
+            "truncated an unacknowledged torn tail line before appending");
+    }
+    let text = std::str::from_utf8(&body[..complete])
+        .map_err(|_| format!("{}: dispatch log is not UTF-8", path.display()))?;
+    let lines: Vec<&str> = text.lines().filter(|l| !l.trim().is_empty()).collect();
+    let prev = lines.last().map_or_else(|| CHAIN_GENESIS.to_string(), |l| line_sha256(l));
+    let mut linked = record
+        .as_object()
+        .cloned()
+        .ok_or("a dispatch log record must be a JSON object")?;
+    linked.insert("seq".into(), json!(lines.len() + 1));
+    linked.insert("prev".into(), json!(prev));
+    Ok(canonical_json(&Value::Object(linked)))
 }
 
 #[cfg(test)]

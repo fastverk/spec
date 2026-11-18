@@ -169,6 +169,10 @@ pub struct Running {
     /// covered by spend recorded after this point (`spent_since_reservation`).
     reserved_spend: HashMap<String, i64>,
     pub records: usize,
+    /// sha256 of each non-empty line's text, in order: position `seq` is
+    /// `line_sha[seq - 1]`. The head is the last entry. Rollback/fork witnesses
+    /// (the fleet's published gate) compare against these.
+    line_sha: Vec<String>,
 }
 
 impl Running {
@@ -199,6 +203,15 @@ impl Running {
                 ))
             }
         };
+        // Appends are acknowledged only after the line AND its newline are
+        // fsynced, so an unterminated tail is a write that never returned: it
+        // authorized nothing and is ignored (the next append truncates it). A
+        // malformed line that DOES end in a newline still fails closed below.
+        let body = match body.rfind('\n') {
+            Some(i) => &body[..=i],
+            None => "",
+        };
+        let mut chained = false;
         for (index, line) in body
             .lines()
             .enumerate()
@@ -210,6 +223,32 @@ impl Running {
                     index + 1
                 )
             })?;
+            // Hash chain: a chained line names its position and the previous
+            // line's hash, so an edit, deletion or reorder anywhere before it
+            // fails replay. Unchained lines are accepted only as a legacy prefix.
+            let position = out.line_sha.len() + 1;
+            if rec.get("seq").is_some() || rec.get("prev").is_some() {
+                let expected_prev = out
+                    .line_sha
+                    .last()
+                    .map_or(crate::proposal::CHAIN_GENESIS, String::as_str);
+                if rec.get("seq").and_then(Value::as_u64) != Some(position as u64)
+                    || rec.get("prev").and_then(Value::as_str) != Some(expected_prev)
+                {
+                    return Err(format!(
+                        "dispatch log line {} breaks the hash chain; the log was edited, \
+                         truncated or reordered",
+                        index + 1
+                    ));
+                }
+                chained = true;
+            } else if chained {
+                return Err(format!(
+                    "dispatch log line {} is unchained after the chained history began",
+                    index + 1
+                ));
+            }
+            out.line_sha.push(crate::proposal::line_sha256(line));
             let id = rec
                 .get("order_id")
                 .and_then(Value::as_str)
@@ -353,6 +392,20 @@ impl Running {
             }
         }
         Ok(out)
+    }
+
+    /// Number of non-empty lines replayed: the head position.
+    pub fn head_seq(&self) -> u64 {
+        self.line_sha.len() as u64
+    }
+
+    /// Hash of the line at 1-based position `seq`; `CHAIN_GENESIS` at 0, `None`
+    /// past the head (the witness has seen more history than this log holds).
+    pub fn line_hash(&self, seq: u64) -> Option<&str> {
+        match seq {
+            0 => Some(crate::proposal::CHAIN_GENESIS),
+            n => self.line_sha.get((n - 1) as usize).map(String::as_str),
+        }
     }
 
     pub fn reservation(&self, order_id: &str) -> Option<&Value> {
@@ -1232,4 +1285,96 @@ mod tests {
         // Sorted by spend, so the biggest line item is first.
         assert_eq!(rolled[0]["discipline"], "d-market");
     }
+
+    fn chain_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("wo-chain-{}-{tag}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir.join("dispatch.jsonl")
+    }
+
+    fn dispatched(id: &str) -> Value {
+        json!({"event":"dispatched","order_id":id,"agents":1})
+    }
+
+    #[test]
+    fn dispatch_appends_are_hash_chained_and_replay_reports_the_head() {
+        let log = chain_dir("linked");
+        let appender = crate::proposal::AppendLog::dispatch(Some(log.clone()));
+        for id in ["wo-041", "wo-042", "wo-046"] {
+            appender.append(&dispatched(id)).unwrap();
+        }
+        let body = std::fs::read_to_string(&log).unwrap();
+        let lines: Vec<&str> = body.lines().collect();
+        let first: Value = serde_json::from_str(lines[0]).unwrap();
+        let third: Value = serde_json::from_str(lines[2]).unwrap();
+        assert_eq!((first["seq"].as_u64(), first["prev"].as_str()), (Some(1), Some(crate::proposal::CHAIN_GENESIS)));
+        assert_eq!(third["seq"], 3);
+        assert_eq!(third["prev"], crate::proposal::line_sha256(lines[1]));
+        let running = Running::read(Some(&log)).unwrap();
+        assert_eq!(running.head_seq(), 3);
+        assert_eq!(running.line_hash(3), Some(crate::proposal::line_sha256(lines[2]).as_str()));
+        assert_eq!(running.line_hash(0), Some(crate::proposal::CHAIN_GENESIS));
+        assert_eq!(running.line_hash(4), None);
+        assert!(running.is_running("wo-046"));
+    }
+
+    #[test]
+    fn legacy_unchained_prefix_replays_but_cannot_follow_the_chain() {
+        let log = chain_dir("legacy");
+        let legacy = crate::proposal::AppendLog::new(Some(log.clone()));
+        legacy.append(&dispatched("wo-041")).unwrap();
+        legacy.append(&dispatched("wo-042")).unwrap();
+        crate::proposal::AppendLog::dispatch(Some(log.clone())).append(&dispatched("wo-046")).unwrap();
+        let running = Running::read(Some(&log)).unwrap();
+        assert_eq!(running.head_seq(), 3);
+        let third: Value = serde_json::from_str(std::fs::read_to_string(&log).unwrap().lines().nth(2).unwrap()).unwrap();
+        assert_eq!(third["seq"], 3);
+        legacy.append(&dispatched("wo-057")).unwrap();
+        let err = Running::read(Some(&log)).unwrap_err();
+        assert!(err.contains("unchained after the chained history began"), "{err}");
+    }
+
+    #[test]
+    fn edits_deletions_and_reorders_break_the_chain() {
+        let log = chain_dir("tamper");
+        let appender = crate::proposal::AppendLog::dispatch(Some(log.clone()));
+        for id in ["wo-041", "wo-042", "wo-046"] {
+            appender.append(&dispatched(id)).unwrap();
+        }
+        let original = std::fs::read_to_string(&log).unwrap();
+        let lines: Vec<String> = original.lines().map(str::to_string).collect();
+        let edited = original.replacen("wo-042", "wo-057", 1);
+        let deleted = format!("{}\n{}\n", lines[0], lines[2]);
+        let reordered = format!("{}\n{}\n{}\n", lines[1], lines[0], lines[2]);
+        for (name, body) in [("edited", edited), ("deleted", deleted), ("reordered", reordered)] {
+            std::fs::write(&log, body).unwrap();
+            let err = Running::read(Some(&log)).unwrap_err();
+            assert!(err.contains("breaks the hash chain"), "{name}: {err}");
+        }
+    }
+
+    #[test]
+    fn an_unacknowledged_torn_tail_is_ignored_then_truncated_by_the_next_append() {
+        let log = chain_dir("torn");
+        let appender = crate::proposal::AppendLog::dispatch(Some(log.clone()));
+        appender.append(&dispatched("wo-041")).unwrap();
+        appender.append(&dispatched("wo-042")).unwrap();
+        let mut f = std::fs::OpenOptions::new().append(true).open(&log).unwrap();
+        std::io::Write::write_all(&mut f, b"{\"event\":\"dispatched\",\"order_id\":\"wo-0").unwrap();
+        drop(f);
+        // Replay is available; the fragment authorized nothing.
+        let running = Running::read(Some(&log)).unwrap();
+        assert_eq!(running.head_seq(), 2);
+        assert!(!running.is_running("wo-046"));
+        appender.append(&dispatched("wo-046")).unwrap();
+        let body = std::fs::read_to_string(&log).unwrap();
+        assert!(!body.contains("\"wo-0{") && body.ends_with('\n'));
+        assert_eq!(body.lines().count(), 3);
+        assert_eq!(Running::read(Some(&log)).unwrap().head_seq(), 3);
+        // A malformed line that WAS terminated is never skipped.
+        std::fs::write(&log, format!("{body}{{not json\n")).unwrap();
+        assert!(Running::read(Some(&log)).unwrap_err().contains("is malformed"));
+    }
+
 }
