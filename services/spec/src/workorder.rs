@@ -259,6 +259,7 @@ impl Running {
                     .and_then(Value::as_str)
                     .unwrap_or("dispatched"),
                 "dispatched" | "closed" | "stopped" | "spend" | "released" | "released_completed"
+                    | "released_stranded"
             ) {
                 return Err(format!(
                     "dispatch log line {} has an unsupported event",
@@ -289,6 +290,50 @@ impl Running {
                 out.stops.insert(id.to_owned(), STOP_WITHDRAWN.into());
                 // This supported execution spent zero provider tokens. Preserve
                 // every prior cumulative measurement; releasing is not a refund.
+                out.records += 1;
+                continue;
+            }
+            if rec.get("event").and_then(Value::as_str) == Some("released_stranded") {
+                let release = &rec["release"];
+                if !crate::workorder_reservation::valid_stranded_release_receipt(release)
+                    || release.pointer("/request/order_id").and_then(Value::as_str) != Some(id)
+                { return Err("invalid stranded release record".into()); }
+                let key = crate::proposal::canonical_json(&json!([
+                    release["released_by_uid"], release["request"]["idempotency_key"]
+                ]));
+                if let Some(old) = out.releases.get(&key) {
+                    if old != release { return Err("conflicting release replay".into()) }
+                    out.records += 1;
+                    continue;
+                }
+                let active = out.reservation(id).ok_or("release has no active reservation")?;
+                // The administrator supersedes exactly the recorded approver,
+                // and is never that reservation's own requester.
+                if active["reservation_id"] != release["request"]["reservation_id"]
+                    || active["approved_by_uid"] != release["request"]["original_approver_uid"]
+                    || active.pointer("/request/requester_uid") == Some(&release["released_by_uid"])
+                { return Err("stranded release does not match active reservation".into()); }
+                let need = crate::workorder_reservation::final_tokens(&release["request"]);
+                if out.spent_since_reservation(id).is_none_or(|got| got < need) {
+                    return Err("stranded release is not covered by recorded spend".into());
+                }
+                out.releases.insert(key, release.clone());
+                out.by_id.remove(id);
+                out.reserved_spend.remove(id);
+                // Same stop semantics as the door whose evidence this mirrors:
+                // a canceled attempt is WITHDRAWN (as the canceled door records);
+                // a completed one keeps an earlier cause and fills a gap.
+                match release["request"]["terminal_state"].as_str() {
+                    Some(crate::workorder_reservation::TERMINAL_CANCELED) => {
+                        out.stops.insert(id.to_owned(), STOP_WITHDRAWN.into());
+                    }
+                    terminal if !out.stops.contains_key(id) => {
+                        let cause = if terminal == Some(crate::workorder_reservation::TERMINAL_SUCCEEDED)
+                        { STOP_COMPLETED } else { STOP_FAILED };
+                        out.stops.insert(id.to_owned(), cause.into());
+                    }
+                    _ => {}
+                }
                 out.records += 1;
                 continue;
             }

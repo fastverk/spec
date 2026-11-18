@@ -82,6 +82,10 @@ pub struct HttpState {
     /// shell gateway authentication alone must never authorize an attestation.
     pub canceled_release_token: Option<String>,
     pub completed_release_token: Option<String>,
+    /// Stranded-release administrator credential, and the principals allowed
+    /// to use it. Both are required; either absent disables the door.
+    pub admin_release_token: Option<String>,
+    pub admin_release_uids: std::collections::BTreeSet<String>,
     /// Serializes read-check-append on the dispatch log.
     ///
     /// ⛔ The gate's decision is made from a SNAPSHOT of the log and then
@@ -159,6 +163,9 @@ pub fn router(state: HttpState, gateway_token: Option<String>) -> Router {
             gateway_token.clone(), require_reservation_gateway,
         )))
         .route("/workorder/release-completed", post(release_completed_work_order).layer(from_fn_with_state(
+            gateway_token.clone(), require_reservation_gateway,
+        )))
+        .route("/workorder/release-stranded", post(release_stranded_work_order).layer(from_fn_with_state(
             gateway_token.clone(), require_reservation_gateway,
         )))
         .route("/workorder/spend", post(report_spend))
@@ -728,6 +735,82 @@ async fn release_completed_work_order(
             "final_consumed_tokens":need.to_string(),"recorded_since_reservation":recorded.to_string()})));
     }
     match s.dispatches.append(&json!({"event":"released_completed","order_id":id,"release":receipt})) {
+        Ok(_) => (StatusCode::ACCEPTED, Json(json!({"release":receipt}))),
+        Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_WRITE","message":why}))),
+    }
+}
+
+/// `POST /workorder/release-stranded` — an administrator frees a reservation
+/// whose original approver can no longer act (its identity was recreated or
+/// retired), on the SAME evidence the normal doors require.
+///
+/// Changes who may release, never what must be shown: terminal state, fence,
+/// FINAL usage, drain receipt and spend coverage are checked exactly as before.
+/// Needs its own credential AND an allowlisted principal; the requester of the
+/// reservation can never release it this way. The receipt names the superseded
+/// approver and the administrator's reason, so every use is on the record.
+async fn release_stranded_work_order(
+    State(s): State<HttpState>, headers: HeaderMap, Json(body): Json<Value>,
+) -> (StatusCode, Json<Value>) {
+    let body = crate::workorder_reservation::normalize_stranded_release(&body);
+    let Some(expected) = s.admin_release_token.as_ref().filter(|t| !t.is_empty()) else {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_ADMIN_RELEASE_DISABLED"})));
+    };
+    if s.admin_release_uids.is_empty() {
+        return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_ADMIN_RELEASE_DISABLED"})));
+    }
+    if headers.get("x-fastverk-work-admin-release-token").and_then(|v| v.to_str().ok()) != Some(expected.as_str()) {
+        return (StatusCode::UNAUTHORIZED, Json(json!({"error":"E_ADMIN_RELEASE_AUTH"})));
+    }
+    let Some(who) = principal(&headers) else { return no_principal() };
+    if who.agent { return (StatusCode::FORBIDDEN, Json(json!({"error":"E_AGENT_MAY_NOT_DISPATCH"}))); }
+    if !s.admin_release_uids.contains(&who.sub) {
+        return (StatusCode::FORBIDDEN, Json(json!({"error":"E_ADMIN_RELEASE_PRINCIPAL"})));
+    }
+    if !s.dispatches.enabled() { return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_DISPATCH_DISABLED"}))); }
+    if let Err(why) = crate::workorder_reservation::validate_stranded_release(&body) {
+        return (StatusCode::UNPROCESSABLE_ENTITY, Json(json!({"error":"E_MALFORMED","message":why})));
+    }
+    let _guard = match s.dispatch_gate.lock() { Ok(g) => g, Err(p) => p.into_inner() };
+    let _source_lock = match s.dispatches.transaction_guard() {
+        Ok(g) => g, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_LOCK","message":why}))),
+    };
+    let running = match Running::read(s.dispatches.path()) {
+        Ok(v) => v, Err(why) => return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_UNREADABLE","message":why}))),
+    };
+    let receipt = crate::workorder_reservation::stranded_release_receipt(&body, &who.sub);
+    if let Some(old) = running.release_replay(&who.sub, body["idempotency_key"].as_str().unwrap()) {
+        return if old == &receipt {
+            match s.dispatches.sync_existing() {
+                Ok(()) => (StatusCode::ACCEPTED, Json(json!({"release":old}))),
+                Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_SYNC","message":why}))),
+            }
+        } else { (StatusCode::CONFLICT, Json(json!({"error":"E_REPLAY_CONFLICT"}))) };
+    }
+    let id = body["order_id"].as_str().unwrap();
+    let Some(active) = running.reservation(id) else {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_NO_ACTIVE_RESERVATION"})));
+    };
+    if active["reservation_id"] != body["reservation_id"] {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_RESERVATION_CHANGED"})));
+    }
+    if active["approved_by_uid"] != body["original_approver_uid"] {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_ORIGINAL_APPROVER_MISMATCH",
+            "message":"name the reservation's recorded approver as original_approver_uid"})));
+    }
+    if active.pointer("/request/requester_uid").and_then(Value::as_str) == Some(who.sub.as_str()) {
+        return (StatusCode::FORBIDDEN, Json(json!({"error":"E_REQUESTER_MAY_NOT_RELEASE"})));
+    }
+    let need = crate::workorder_reservation::final_tokens(&body);
+    let recorded = running.spent_since_reservation(id).unwrap_or(0);
+    if recorded < need {
+        return (StatusCode::CONFLICT, Json(json!({"error":"E_SPEND_NOT_RECORDED",
+            "message":"report the FINAL usage through /workorder/spend before releasing",
+            "final_consumed_tokens":need.to_string(),"recorded_since_reservation":recorded.to_string()})));
+    }
+    tracing::warn!(order = id, admin = %who.sub, superseded = %body["original_approver_uid"],
+        reason = %body["reason"], "administrator releasing a stranded reservation");
+    match s.dispatches.append(&json!({"event":"released_stranded","order_id":id,"release":receipt})) {
         Ok(_) => (StatusCode::ACCEPTED, Json(json!({"release":receipt}))),
         Err(why) => (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_LOG_WRITE","message":why}))),
     }
@@ -1426,9 +1509,20 @@ mod tests {
         serve_inner_gateway(readmodel_dir, None, dispatch_log, true, Some("reservation-test-token".into())).await
     }
 
+    async fn serve_reserving_admins(readmodel_dir: &str, dispatch_log: Option<&str>, admins: &[&str]) -> String {
+        serve_inner_admins(readmodel_dir, None, dispatch_log, true, Some("reservation-test-token".into()), admins).await
+    }
+
     async fn serve_inner_gateway(
         readmodel_dir: &str, log: Option<&str>, dispatch_log: Option<&str>,
         agents_enabled: bool, gateway_token: Option<String>,
+    ) -> String {
+        serve_inner_admins(readmodel_dir, log, dispatch_log, agents_enabled, gateway_token, &["release-admin"]).await
+    }
+
+    async fn serve_inner_admins(
+        readmodel_dir: &str, log: Option<&str>, dispatch_log: Option<&str>,
+        agents_enabled: bool, gateway_token: Option<String>, admins: &[&str],
     ) -> String {
         let backend = Arc::new(crate::SpecBackend::from_env());
         // Constructed directly, never through the env: these tests run in parallel
@@ -1451,6 +1545,8 @@ mod tests {
                 agents_enabled,
                 canceled_release_token: gateway_token.as_ref().map(|_| "release-test-token".into()),
                 completed_release_token: gateway_token.as_ref().map(|_| "completed-release-test-token".into()),
+                admin_release_token: gateway_token.as_ref().map(|_| "admin-release-test-token".into()),
+                admin_release_uids: admins.iter().map(|a| a.to_string()).collect(),
                 dispatch_gate: Arc::new(std::sync::Mutex::new(())),
                 panels: None,
             },
@@ -1783,6 +1879,12 @@ mod tests {
         let (code, raw) = request(addr, "POST", "/workorder/reserve", Some((&headers, &payload))).await;
         (code, serde_json::from_str(&raw).unwrap_or(Value::Null))
     }
+    async fn reserved_observation_state(addr: &str) -> String {
+        let (code, raw) = request(addr, "GET", "/workorder/gate?order_id=wo-ready",
+            Some(("authorization: Bearer reservation-test-token\r\n", ""))).await;
+        assert_eq!(code, 200, "{raw}");
+        serde_json::from_str::<Value>(&raw).unwrap()["view"]["state"].as_str().unwrap().to_owned()
+    }
     async fn reserved_observation(addr: &str) -> Value {
         let (code, raw) = request(addr, "GET", "/workorder/gate?order_id=wo-ready",
             Some(("authorization: Bearer reservation-test-token\r\n", ""))).await;
@@ -2019,6 +2121,97 @@ mod tests {
     }
 
     fn workorder_reservation_succeeded() -> &'static str { crate::workorder_reservation::TERMINAL_SUCCEEDED }
+
+    async fn release_stranded(addr: &str, actor: &str, token: &str, body: &Value) -> (u16, Value) {
+        let headers = format!("authorization: Bearer reservation-test-token\r\nx-fastverk-work-admin-release-token: {token}\r\nx-fastverk-user-sub: {actor}\r\n");
+        let payload = body.to_string();
+        let (code, raw) = request(addr, "POST", "/workorder/release-stranded", Some((&headers, &payload))).await;
+        (code, serde_json::from_str(&raw).unwrap_or(Value::Null))
+    }
+    fn stranded_release(reservation: &Value, state: &str, fence: &str, tokens: &str) -> Value {
+        json!({"order_id":"wo-ready","reservation_id":reservation["reservation_id"],
+            "execution_id":"sample-execution.two","terminal_state":state,"fence_epoch":fence,
+            "final_consumed_tokens":tokens,"drain_receipt_sha256":"77".repeat(32),
+            "original_approver_uid":"approver","reason":"approver service account was recreated",
+            "idempotency_key":"release_stranded_one"})
+    }
+    const ADMIN: &str = "admin-release-test-token";
+
+    #[tokio::test]
+    async fn stranded_reservation_is_released_by_an_allowlisted_admin_on_the_same_evidence() {
+        let dir = workorders_fixture("stranded-release"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("stranded")).await;
+        let body = stranded_release(&reserved["reservation"], workorder_reservation_succeeded(), "0", "5");
+        // The original approver's identity is gone: the normal door refuses
+        // every other principal, so the reservation is stranded.
+        let normal = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "0");
+        assert_eq!(release_completed(&addr, "recreated-approver", &normal).await.1["error"], "E_ORIGINAL_APPROVER_REQUIRED");
+        let refusals: Vec<(&str, &str, Value, u16, &str)> = vec![
+            ("release-admin", "wrong-token", body.clone(), 401, "E_ADMIN_RELEASE_AUTH"),
+            ("someone-else", ADMIN, body.clone(), 403, "E_ADMIN_RELEASE_PRINCIPAL"),
+            ("agent:release-admin", ADMIN, body.clone(), 403, "E_AGENT_MAY_NOT_DISPATCH"),
+            ("release-admin", ADMIN, json!({"order_id":"wo-ready"}), 422, "E_MALFORMED"),
+            ("release-admin", ADMIN, {let mut b = body.clone(); b["reason"] = json!(""); b}, 422, "E_MALFORMED"),
+            ("release-admin", ADMIN, {let mut b = body.clone(); b["original_approver_uid"] = json!("someone"); b}, 409, "E_ORIGINAL_APPROVER_MISMATCH"),
+            ("release-admin", ADMIN, {let mut b = body.clone(); b["reservation_id"] = json!("ab".repeat(32)); b}, 409, "E_RESERVATION_CHANGED"),
+            ("release-admin", ADMIN, stranded_release(&reserved["reservation"], crate::workorder_reservation::TERMINAL_CANCELED, "1", "3"), 422, "E_MALFORMED"),
+            ("release-admin", ADMIN, stranded_release(&reserved["reservation"], crate::workorder_reservation::TERMINAL_CANCELED, "0", "0"), 422, "E_MALFORMED"),
+            ("release-admin", ADMIN, body.clone(), 409, "E_SPEND_NOT_RECORDED"),
+        ];
+        for (actor, token, request_body, code, error) in refusals {
+            let (got, reply) = release_stranded(&addr, actor, token, &request_body).await;
+            assert_eq!((got, reply["error"].as_str()), (code, Some(error)), "{actor} {request_body}");
+        }
+        assert!(Running::read(Some(&log)).unwrap().reservation("wo-ready").is_some(), "nothing was released");
+        assert_eq!(gateway_spend(&addr, 5).await, 202);
+        let (code, released) = release_stranded(&addr, "release-admin", ADMIN, &body).await;
+        assert_eq!(code, 202, "{released}");
+        let receipt = &released["release"];
+        assert_eq!(receipt["released_by_uid"], "release-admin");
+        assert_eq!(receipt["request"]["original_approver_uid"], "approver");
+        assert_eq!(receipt["request"]["reason"], "approver service account was recreated");
+        let running = Running::read(Some(&log)).unwrap();
+        assert!(running.reservation("wo-ready").is_none());
+        assert_eq!(running.stop_cause("wo-ready"), workorder::STOP_COMPLETED);
+        assert_eq!(reserved_observation_state(&addr).await, workorder::STATE_READY);
+        // Replay: the same request returns the same receipt and appends nothing;
+        // a changed request under the same key conflicts.
+        let before = std::fs::read(&log).unwrap();
+        let restarted = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(release_stranded(&restarted, "release-admin", ADMIN, &body).await, (202, released.clone()));
+        assert_eq!(std::fs::read(&log).unwrap(), before);
+        let mut changed = body.clone(); changed["reason"] = json!("a different story");
+        assert_eq!(release_stranded(&restarted, "release-admin", ADMIN, &changed).await.1["error"], "E_REPLAY_CONFLICT");
+    }
+
+    #[tokio::test]
+    async fn the_requester_can_never_release_its_own_stranded_reservation() {
+        let dir = workorders_fixture("stranded-requester"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving_admins(dir.to_str().unwrap(), log.to_str(), &["sample-requester-uid"]).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("stranded-requester")).await;
+        let body = stranded_release(&reserved["reservation"], crate::workorder_reservation::TERMINAL_CANCELED, "1", "0");
+        let (code, refused) = release_stranded(&addr, "sample-requester-uid", ADMIN, &body).await;
+        assert_eq!((code, refused["error"].as_str()), (403, Some("E_REQUESTER_MAY_NOT_RELEASE")), "{refused}");
+        // A forged log row with the requester as releaser fails replay.
+        let receipt = crate::workorder_reservation::stranded_release_receipt(&body, "sample-requester-uid");
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"released_stranded",
+            "order_id":"wo-ready","release":receipt})).unwrap();
+        assert!(Running::read(Some(&log)).unwrap_err().contains("does not match active reservation"));
+    }
+
+    #[tokio::test]
+    async fn a_canceled_stranded_release_withdraws_and_a_disabled_door_refuses() {
+        let dir = workorders_fixture("stranded-canceled"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("stranded-canceled")).await;
+        let body = stranded_release(&reserved["reservation"], crate::workorder_reservation::TERMINAL_CANCELED, "2", "0");
+        let (code, released) = release_stranded(&addr, "release-admin", ADMIN, &body).await;
+        assert_eq!(code, 202, "{released}");
+        assert_eq!(Running::read(Some(&log)).unwrap().stop_cause("wo-ready"), workorder::STOP_WITHDRAWN);
+        let disabled = serve_reserving_admins(dir.to_str().unwrap(), log.to_str(), &[]).await;
+        assert_eq!(release_stranded(&disabled, "release-admin", ADMIN, &body).await.1["error"], "E_ADMIN_RELEASE_DISABLED");
+    }
 
     /// The October 31 sample's actual shape: an execution that was never
     /// canceled (fence 0) with a no-provider FINAL (0 tokens), sent by a

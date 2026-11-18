@@ -369,7 +369,31 @@ message CompletedWorkOrderRelease {
 }
 message ReleaseCompletedWorkOrderResponse { CompletedWorkOrderRelease release = 1; }
 
-// Read-only current native gate observation. This is not a dispatch receipt.
+// An administrator releases a reservation whose original approver can no
+// longer act (identity recreated or retired). Same evidence as the canceled and
+// completed doors, plus the superseded approver and a mandatory reason; needs a
+// separate credential and an allowlisted principal, never the requester.
+message ReleaseStrandedWorkOrderRequest {
+  string order_id = 1;
+  string reservation_id = 2;
+  string execution_id = 3;
+  // "EXECUTION_STATE_SUCCEEDED", "_FAILED" or "_CANCELED".
+  string terminal_state = 4;
+  uint64 fence_epoch = 5;
+  int64 final_consumed_tokens = 6;
+  string drain_receipt_sha256 = 7;
+  // Must equal the reservation's recorded approved_by_uid.
+  string original_approver_uid = 8;
+  string reason = 9;
+  string idempotency_key = 10;
+}
+message StrandedWorkOrderRelease {
+  ReleaseStrandedWorkOrderRequest request = 1;
+  string released_by_uid = 2;
+  string release_id = 3;
+}
+message ReleaseStrandedWorkOrderResponse { StrandedWorkOrderRelease release = 1; }
+
 // A position in the native dispatch log's hash chain: `seq` is the 1-based
 // line position, `sha256` the hex hash of that line's text (all zeros at 0).
 message DispatchLogPosition {
@@ -377,6 +401,7 @@ message DispatchLogPosition {
   string sha256 = 2;
 }
 
+// Read-only current native gate observation. This is not a dispatch receipt.
 message ObserveWorkOrderResponse {
   WorkOrderView view = 1;
   DispatchVerdict verdict = 2;
@@ -399,6 +424,7 @@ service Authoring {
   rpc ReserveWorkOrder(ReserveWorkOrderRequest) returns (ReserveWorkOrderResponse);
   rpc ReleaseCanceledWorkOrder(ReleaseCanceledWorkOrderRequest) returns (ReleaseCanceledWorkOrderResponse);
   rpc ReleaseCompletedWorkOrder(ReleaseCompletedWorkOrderRequest) returns (ReleaseCompletedWorkOrderResponse);
+  rpc ReleaseStrandedWorkOrder(ReleaseStrandedWorkOrderRequest) returns (ReleaseStrandedWorkOrderResponse);
   rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
   rpc ReportSpend(SpendReport) returns (ReportSpendResponse);
   rpc ListLedger(ListLedgerRequest) returns (ListLedgerResponse);

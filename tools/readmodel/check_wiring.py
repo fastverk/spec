@@ -333,6 +333,7 @@ check(
         "ReserveWorkOrder",
         "ReleaseCanceledWorkOrder",
         "ReleaseCompletedWorkOrder",
+        "ReleaseStrandedWorkOrder",
         # A measurement, like SubmitEvaluation: the platform meters the spend
         # and reports it; spec keeps the account (#46).
         "ReportSpend",
