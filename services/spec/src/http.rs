@@ -460,6 +460,12 @@ async fn list_work_orders(State(s): State<HttpState>) -> ApiResult {
 #[derive(Deserialize)]
 struct WorkGateQuery {
     order_id: String,
+    /// The dispatch-log position a rollback witness last published. When set,
+    /// the observation adds `dispatch_head` and `dispatch_anchor` (the hash at
+    /// this position in the current log), and refuses with 409
+    /// `E_DISPATCH_LOG_REGRESSED` if the log no longer reaches it. Unset leaves
+    /// the response exactly as before, for observers that do not witness.
+    anchor_seq: Option<u64>,
 }
 async fn observe_work_gate(
     State(s): State<HttpState>,
@@ -537,6 +543,20 @@ async fn observe_work_gate(
     if let Some(reservation) = running.reservation(&q.order_id) {
         observation["reservation"] = reservation.clone();
         observation["reservation_stop_requested"] = json!(running.stop_cause(&q.order_id) != "");
+    }
+    if let Some(anchor) = q.anchor_seq {
+        let head = running.head_seq();
+        let Some(anchor_sha) = running.line_hash(anchor) else {
+            return (
+                StatusCode::CONFLICT,
+                Json(json!({"error":"E_DISPATCH_LOG_REGRESSED","anchor_seq":anchor,"head_seq":head,
+                    "message":"the dispatch log is shorter than history already witnessed; it was \
+                               truncated, deleted or restored from an older copy"})),
+            );
+        };
+        observation["dispatch_anchor"] = json!({"seq":anchor,"sha256":anchor_sha});
+        observation["dispatch_head"] = json!({"seq":head,
+            "sha256":running.line_hash(head).unwrap_or(crate::proposal::CHAIN_GENESIS)});
     }
     (StatusCode::OK, Json(observation))
 }
@@ -1420,7 +1440,7 @@ mod tests {
         let log = Arc::new(ProposalLog::new(log.map(std::path::PathBuf::from)));
         // Disabled here on purpose: the tests that care construct their own.
         let evaluations = Arc::new(ProposalLog::new(None));
-        let dispatches = Arc::new(ProposalLog::new(dispatch_log.map(std::path::PathBuf::from)));
+        let dispatches = Arc::new(ProposalLog::dispatch(dispatch_log.map(std::path::PathBuf::from)));
         let app = router(
             HttpState {
                 backend,
@@ -1775,6 +1795,36 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn gate_witness_anchor_reports_the_head_and_refuses_a_regressed_log() {
+        let dir = workorders_fixture("anchor");
+        let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (code, receipt) = reserve(&addr, "sample-approver-uid", &reservation_request("anchor")).await;
+        assert_eq!(code, 202, "{receipt}");
+        let auth = Some(("authorization: Bearer reservation-test-token\r\n", ""));
+        // Observers that do not witness see the unchanged response.
+        let plain = reserved_observation(&addr).await;
+        assert!(plain.get("dispatch_head").is_none() && plain.get("dispatch_anchor").is_none());
+        let (code, raw) = request(&addr, "GET", "/workorder/gate?order_id=wo-ready&anchor_seq=0", auth).await;
+        assert_eq!(code, 200, "{raw}");
+        let first: Value = serde_json::from_str(&raw).unwrap();
+        let head = first["dispatch_head"].clone();
+        assert_eq!(head["seq"], 1);
+        assert_eq!(first["dispatch_anchor"], json!({"seq":0,"sha256":proposal::CHAIN_GENESIS}));
+        let line = std::fs::read_to_string(&log).unwrap();
+        assert_eq!(head["sha256"], proposal::line_sha256(line.trim_end()));
+        let (code, raw) = request(&addr, "GET", "/workorder/gate?order_id=wo-ready&anchor_seq=1", auth).await;
+        assert_eq!(code, 200, "{raw}");
+        assert_eq!(serde_json::from_str::<Value>(&raw).unwrap()["dispatch_anchor"], head);
+        // Restored from an older (here: empty) copy: the witness has seen more.
+        std::fs::remove_file(&log).unwrap();
+        let (code, raw) = request(&addr, "GET", "/workorder/gate?order_id=wo-ready&anchor_seq=1", auth).await;
+        assert_eq!(code, 409, "{raw}");
+        let refused: Value = serde_json::from_str(&raw).unwrap();
+        assert_eq!((refused["error"].as_str(), refused["head_seq"].as_u64()), (Some("E_DISPATCH_LOG_REGRESSED"), Some(0)));
+    }
+
+    #[tokio::test]
     async fn reservation_replays_after_lost_reply_and_router_restart_without_rearming() {
         let dir = workorders_fixture("reserve-replay");
         let log = dir.join("dispatch.jsonl");
@@ -1806,7 +1856,7 @@ mod tests {
         let (left, right) = tokio::join!(reserve(&addr, "approver", &a), reserve(&addr, "approver", &b));
         let mut codes = vec![left.0, right.0]; codes.sort(); assert_eq!(codes, [202, 409]);
         assert_eq!(Running::read(Some(&log)).unwrap().records, 1);
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({
             "event":"stopped","order_id":"wo-ready","cause":workorder::STOP_WITHDRAWN})).unwrap();
         let observation = reserved_observation(&addr).await;
         assert_eq!(observation["view"]["state"], workorder::STATE_RUNNING);
@@ -1846,7 +1896,7 @@ mod tests {
         assert!(!log.exists());
         let mut receipt = crate::workorder_reservation::receipt(&body, "approver");
         receipt["request"]["intent_sha256"] = json!("33".repeat(32));
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"dispatched",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"dispatched",
             "order_id":"wo-ready","agents":1,"reservation":receipt})).unwrap();
         assert!(Running::read(Some(&log)).is_err());
         assert_eq!(reserve(&addr, "approver", &body).await.0, 503);
@@ -1873,7 +1923,7 @@ mod tests {
         let (_, reserved) = reserve(&addr, "approver", &first).await;
         let body = canceled_release(&reserved["reservation"]);
         // A source spend snapshot is never refunded by the zero-provider release.
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"spend",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"spend",
             "order_id":"wo-ready","tokens":7,"source":"earlier-platform-measurement"})).unwrap();
         let (code, released) = release_canceled(&addr, "approver", &body).await;
         assert_eq!(code, 202, "{released}");
@@ -1893,7 +1943,7 @@ mod tests {
         assert_eq!(reserved_observation(&restarted).await["reservation"], next["reservation"]);
         assert_eq!(reserved_observation(&restarted).await["reservation_stop_requested"], false);
         // Even a duplicate historical ledger row cannot release the new attempt.
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"released",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"released",
             "order_id":"wo-ready","release":released["release"]})).unwrap();
         assert_eq!(Running::read(Some(&log)).unwrap().reservation("wo-ready"), Some(&next["reservation"]));
         let mut changed = body.clone(); changed["drain_receipt_sha256"] = json!("66".repeat(32));
@@ -1924,7 +1974,7 @@ mod tests {
     /// Append a spend row directly, for history the door would refuse to
     /// write (spend from before this reservation existed).
     fn append_spend(log: &std::path::Path, tokens: i64) {
-        proposal::AppendLog::new(Some(log.to_path_buf())).append(&json!({"event":"spend",
+        proposal::AppendLog::dispatch(Some(log.to_path_buf())).append(&json!({"event":"spend",
             "order_id":"wo-ready","tokens":tokens,"source":"fleet-final-meter"})).unwrap();
     }
 
@@ -1960,7 +2010,7 @@ mod tests {
         assert_eq!(release_completed(&restarted, "approver", &body).await, (202, released.clone()));
         assert_eq!(std::fs::read(&log).unwrap(), before);
         // A duplicated historical row cannot free the newer attempt.
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"released_completed",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"released_completed",
             "order_id":"wo-ready","release":released["release"]})).unwrap();
         assert_eq!(Running::read(Some(&log)).unwrap().reservation("wo-ready"), Some(&next["reservation"]));
         let mut changed = body.clone(); changed["final_consumed_tokens"] = json!("41");
@@ -2005,7 +2055,7 @@ mod tests {
         // ended it; a succeeded release does not relabel it as completed.
         let (_, again) = reserve(&addr, "approver", &reservation_request("over-budget")).await;
         assert_eq!(gateway_spend(&addr, 500).await, 202);
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"stopped",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"stopped",
             "order_id":"wo-ready","cause":workorder::STOP_BUDGET_EXHAUSTED})).unwrap();
         let mut over = completed_release(&again["reservation"], workorder_reservation_succeeded(), "500");
         over["idempotency_key"] = json!("release_over_budget");
@@ -2047,7 +2097,7 @@ mod tests {
         // A well-formed receipt the ledger does not cover is a forged or
         // reordered log: replay fails closed instead of freeing the scope.
         let uncovered = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "5");
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"released_completed",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"released_completed",
             "order_id":"wo-ready","release":crate::workorder_reservation::completed_release_receipt(&uncovered, "approver")})).unwrap();
         assert!(Running::read(Some(&log)).unwrap_err().contains("not covered"));
         assert_eq!(release_completed(&addr, "approver", &body).await.0, 503);
@@ -2080,7 +2130,7 @@ mod tests {
         assert_eq!(std::fs::read(&log).unwrap(), original);
         let mut receipt = crate::workorder_reservation::release_receipt(&body, "approver");
         receipt["request"]["execution_id"] = json!("tampered");
-        proposal::AppendLog::new(Some(log.clone())).append(&json!({"event":"released",
+        proposal::AppendLog::dispatch(Some(log.clone())).append(&json!({"event":"released",
             "order_id":"wo-ready","release":receipt})).unwrap();
         assert!(Running::read(Some(&log)).is_err());
         assert_eq!(release_canceled(&addr, "approver", &body).await.0, 503);

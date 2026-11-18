@@ -93,7 +93,7 @@ async fn main() -> Result<()> {
     // judgement nor a measurement — it authorizes writes to a path set. Unset
     // disables the dispatch route (503 naming the variable), which is the right
     // default for an instance nobody has decided may fan agents out.
-    let dispatches = Arc::new(spec::proposal::AppendLog::new(
+    let dispatches = Arc::new(spec::proposal::AppendLog::dispatch(
         std::env::var("SPEC_DISPATCH_LOG")
             .ok()
             .map(|s| s.trim().to_string())
