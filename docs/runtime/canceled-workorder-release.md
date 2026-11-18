@@ -4,8 +4,8 @@
 `spec.v1.ReleaseCanceledWorkOrder`. It releases an active source reservation;
 it neither accepts output nor removes the retained fleet Job admission barrier.
 Only the supported constrained-file-edit cancellation with explicit FINAL zero
-provider consumption is in scope. Successful, failed, and nonzero release need
-separate contracts and are not accepted through this attestation.
+provider consumption is in scope. Succeeded and failed attempts, with any FINAL
+usage, use [the completed-release door](completed-workorder-release.md).
 
 The operation is disabled unless `SPEC_WORK_RELEASE_TOKEN` is configured.
 Requests require both the existing gateway bearer and that dedicated credential

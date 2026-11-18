@@ -64,7 +64,10 @@ pub const REFUSED_ALREADY_RUNNING: &str = "DISPATCH_VERDICT_REFUSED_ALREADY_RUNN
 pub const STOP_BUDGET_EXHAUSTED: &str = "STOP_CAUSE_BUDGET_EXHAUSTED";
 pub const STOP_COMPLETED: &str = "STOP_CAUSE_COMPLETED";
 pub const STOP_WITHDRAWN: &str = "STOP_CAUSE_WITHDRAWN";
-pub const STOP_CAUSES: &[&str] = &[STOP_BUDGET_EXHAUSTED, STOP_COMPLETED, STOP_WITHDRAWN];
+/// Written only by the completed-release door, for a bound execution that
+/// reached the fleet's FAILED terminal state. Never assertable by a person.
+pub const STOP_FAILED: &str = "STOP_CAUSE_FAILED";
+pub const STOP_CAUSES: &[&str] = &[STOP_BUDGET_EXHAUSTED, STOP_COMPLETED, STOP_WITHDRAWN, STOP_FAILED];
 
 /// `spec.v1.WorkOrderState`.
 pub const STATE_READY: &str = "WORK_ORDER_STATE_READY";
@@ -161,6 +164,10 @@ pub struct Running {
     /// would answer it only for work still in flight.
     spend: HashMap<String, (i64, String)>,
     stops: HashMap<String, String>,
+    /// Spend high-water per order at the moment its active reservation was
+    /// appended. Derived by replay, never stored: a completed release must be
+    /// covered by spend recorded after this point (`spent_since_reservation`).
+    reserved_spend: HashMap<String, i64>,
     pub records: usize,
 }
 
@@ -212,7 +219,7 @@ impl Running {
                 rec.get("event")
                     .and_then(Value::as_str)
                     .unwrap_or("dispatched"),
-                "dispatched" | "closed" | "stopped" | "spend" | "released"
+                "dispatched" | "closed" | "stopped" | "spend" | "released" | "released_completed"
             ) {
                 return Err(format!(
                     "dispatch log line {} has an unsupported event",
@@ -239,9 +246,48 @@ impl Running {
                 { return Err("release does not match active reservation/approver".into()); }
                 out.releases.insert(key, release.clone());
                 out.by_id.remove(id);
+                out.reserved_spend.remove(id);
                 out.stops.insert(id.to_owned(), STOP_WITHDRAWN.into());
                 // This supported execution spent zero provider tokens. Preserve
                 // every prior cumulative measurement; releasing is not a refund.
+                out.records += 1;
+                continue;
+            }
+            if rec.get("event").and_then(Value::as_str) == Some("released_completed") {
+                let release = &rec["release"];
+                if !crate::workorder_reservation::valid_completed_release_receipt(release)
+                    || release.pointer("/request/order_id").and_then(Value::as_str) != Some(id)
+                { return Err("invalid completed release record".into()); }
+                let key = crate::proposal::canonical_json(&json!([
+                    release["released_by_uid"], release["request"]["idempotency_key"]
+                ]));
+                if let Some(old) = out.releases.get(&key) {
+                    if old != release { return Err("conflicting release replay".into()) }
+                    // A duplicate historical release must not free a later attempt.
+                    out.records += 1;
+                    continue;
+                }
+                let active = out.reservation(id).ok_or("release has no active reservation")?;
+                if active["reservation_id"] != release["request"]["reservation_id"]
+                    || active["approved_by_uid"] != release["released_by_uid"]
+                { return Err("release does not match active reservation/approver".into()); }
+                // The door refuses an uncovered release before appending, so an
+                // uncovered row on replay is a forged or reordered log.
+                let need = crate::workorder_reservation::final_tokens(&release["request"]);
+                if out.spent_since_reservation(id).is_none_or(|got| got < need) {
+                    return Err("completed release is not covered by recorded spend".into());
+                }
+                out.releases.insert(key, release.clone());
+                out.by_id.remove(id);
+                out.reserved_spend.remove(id);
+                // A cause already recorded (budget exhausted, a stop request)
+                // is what ended the thread; the terminal state only fills a gap.
+                if !out.stops.contains_key(id) {
+                    let cause = if release["request"]["terminal_state"]
+                        == crate::workorder_reservation::TERMINAL_SUCCEEDED
+                    { STOP_COMPLETED } else { STOP_FAILED };
+                    out.stops.insert(id.to_owned(), cause.into());
+                }
                 out.records += 1;
                 continue;
             }
@@ -296,6 +342,12 @@ impl Running {
                     // A newly authorized thread starts without an old thread's
                     // stop intent. Historical stop/release rows remain durable.
                     out.stops.remove(id);
+                    if rec.get("reservation").is_some() {
+                        let at = out.spent(id).0;
+                        out.reserved_spend.insert(id.to_string(), at);
+                    } else {
+                        out.reserved_spend.remove(id);
+                    }
                     out.by_id.insert(id.to_string(), rec);
                 }
             }
@@ -341,6 +393,16 @@ impl Running {
             .get(order_id)
             .map(|(n, s)| (*n, s.as_str()))
             .unwrap_or((0, ""))
+    }
+
+    /// Spend recorded for an order since its ACTIVE reservation was appended,
+    /// or `None` when the order holds no reservation. Cumulative reports are a
+    /// high-water mark, so this is never negative and never double-counts a
+    /// duplicated report.
+    pub fn spent_since_reservation(&self, order_id: &str) -> Option<i64> {
+        self.reservation(order_id)?;
+        let at = self.reserved_spend.get(order_id).copied().unwrap_or(0);
+        Some((self.spent(order_id).0 - at).max(0))
     }
 
     /// Why an order stopped, if it did.

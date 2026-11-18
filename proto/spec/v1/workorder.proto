@@ -217,6 +217,9 @@ enum StopCause {
   STOP_CAUSE_COMPLETED = 2;
   // A person stopped it.
   STOP_CAUSE_WITHDRAWN = 3;
+  // The bound fleet execution reached its FAILED terminal state. Written only
+  // by ReleaseCompletedWorkOrder, never assertable through CloseWorkOrder.
+  STOP_CAUSE_FAILED = 4;
 }
 
 // One row of the ledger: what a thread was allocated, what it reported
@@ -317,8 +320,8 @@ message ReserveWorkOrderResponse { WorkOrderReservation reservation = 1; }
 // and verify the actual fleet CANCELED execution, FINAL zero-provider usage,
 // original binding, and matching retained drain/fence evidence over fleet TLS.
 // These hashes bind that observation; they are not independently checked fleet
-// proofs by this import-free native service. Success/failed/nonzero release is
-// deliberately unsupported. This does not reclaim the native Job barrier.
+// proofs by this import-free native service. Succeeded/failed release with any FINAL
+// usage goes through ReleaseCompletedWorkOrder. This does not reclaim the native Job barrier.
 message ReleaseCanceledWorkOrderRequest {
   string order_id = 1;
   string reservation_id = 2;
@@ -334,6 +337,37 @@ message CanceledWorkOrderRelease {
   string release_id = 3;
 }
 message ReleaseCanceledWorkOrderResponse { CanceledWorkOrderRelease release = 1; }
+
+// Trusted-gateway attestation for a bound execution that reached a fleet
+// terminal state with authoritative FINAL usage. Before forwarding, the gateway
+// must authenticate the original approving UID, read the actual execution and
+// its drain receipt over fleet TLS, and verify the terminal state, FINAL
+// finality, the consumed-token figure below and the original binding.
+//
+// Unlike the canceled door, the native service checks one thing itself: spend
+// recorded on the order AFTER this reservation must cover final_consumed_tokens.
+// The meter reports through ReportSpend first; release never substitutes for
+// it, never reduces cumulative spend, and does not depend on any review verdict
+// (rejected output still frees capacity). It does not reclaim the fleet Job.
+message ReleaseCompletedWorkOrderRequest {
+  string order_id = 1;
+  string reservation_id = 2;
+  string execution_id = 3;
+  // "EXECUTION_STATE_SUCCEEDED" or "EXECUTION_STATE_FAILED". A string because
+  // this service is import-free of the fleet's enum.
+  string terminal_state = 4;
+  uint64 fence_epoch = 5;
+  // Authoritative FINAL consumed tokens for this execution; zero is allowed.
+  int64 final_consumed_tokens = 6;
+  string drain_receipt_sha256 = 7;
+  string idempotency_key = 8;
+}
+message CompletedWorkOrderRelease {
+  ReleaseCompletedWorkOrderRequest request = 1;
+  string released_by_uid = 2;
+  string release_id = 3;
+}
+message ReleaseCompletedWorkOrderResponse { CompletedWorkOrderRelease release = 1; }
 
 // Read-only current native gate observation. This is not a dispatch receipt.
 message ObserveWorkOrderResponse {
@@ -351,6 +385,7 @@ service Authoring {
   rpc ObserveWorkOrder(GetWorkOrderRequest) returns (ObserveWorkOrderResponse);
   rpc ReserveWorkOrder(ReserveWorkOrderRequest) returns (ReserveWorkOrderResponse);
   rpc ReleaseCanceledWorkOrder(ReleaseCanceledWorkOrderRequest) returns (ReleaseCanceledWorkOrderResponse);
+  rpc ReleaseCompletedWorkOrder(ReleaseCompletedWorkOrderRequest) returns (ReleaseCompletedWorkOrderResponse);
   rpc DispatchWorkOrder(DispatchWorkOrderRequest) returns (DispatchWorkOrderResponse);
   rpc ReportSpend(SpendReport) returns (ReportSpendResponse);
   rpc ListLedger(ListLedgerRequest) returns (ListLedgerResponse);

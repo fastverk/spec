@@ -138,6 +138,9 @@ async fn main() -> Result<()> {
                 "1" | "true" | "TRUE" | "yes"
             ),
             canceled_release_token: std::env::var("SPEC_WORK_RELEASE_TOKEN").ok().filter(|t| !t.is_empty()),
+            // A separate verifier credential: the completed-release verifier
+            // checks different evidence, and holding one must not grant the other.
+            completed_release_token: std::env::var("SPEC_WORK_COMPLETED_RELEASE_TOKEN").ok().filter(|t| !t.is_empty()),
             dispatch_gate: Arc::new(std::sync::Mutex::new(())),
             panels: panels.clone(),
         },
