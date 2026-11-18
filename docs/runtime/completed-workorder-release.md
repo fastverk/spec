@@ -36,6 +36,14 @@ execution and drain receipt over verified TLS. It then checks the terminal state
 fence, and the meter identity. It forwards the SHA-256 of the exact drain receipt
 bytes. The native service does not import or independently verify fleet evidence.
 
+## Encoding
+
+`fence_epoch` and `final_consumed_tokens` are routinely zero. An execution that
+was never canceled keeps fence epoch 0, unlike a cancellation fence, and a
+no-provider FINAL is 0 tokens. Standard ProtoJSON omits zero-valued scalars, so
+the door spells absent ones out as `"0"` before validating. The stored receipt and
+its `release_id` are the same whichever encoder the gateway used.
+
 ## Credentials
 
 The operation is disabled unless `SPEC_WORK_COMPLETED_RELEASE_TOKEN` is set.
@@ -61,11 +69,20 @@ changed request under the same replay key conflicts. Release and canceled-releas
 receipts share one replay namespace per approver. An old release cannot free a
 newer attempt, and a duplicated historical row is not applied twice.
 
-Validation: 124 native service tests and the route-wiring and proto import-boundary
+Validation: 125 native service tests and the route-wiring and proto import-boundary
 checks pass. Six tests cover the release doors. The completed-release tests cover
 spend recorded before the reservation not counting, stale reports, the
-over-budget case, the FAILED cause, keeping an earlier cause, original-approver,
+over-budget case, the FAILED cause, a zero fence with omitted zero fields (the October 31
+sample's actual shape), keeping an earlier cause, original-approver,
 agent and credential refusals, malformed fields, restart replay, later-attempt
 isolation and an uncovered log row failing closed. These are implementation
 tests, not a live release, a runtime theorem, or production interoperability
 evidence.
+
+Cross-repository check: the fastverk/agents verifier built a request from the
+October 31 success-trace bytes and sent it, in the verifier's encoding, to this
+branch's `spec-server` replaying a copy of that trace's native dispatch log. The
+held reservation was released (202). The verifier's receipt binding check passed.
+The exact replay and a standard zero-omitting encoding both returned the same
+receipt, and the canceled verifier's credential was refused (401). This is a local
+check against retained artifacts, not a live cluster release.

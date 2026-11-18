@@ -135,9 +135,11 @@ pub fn validate_completed_release(body: &Value) -> Result<(), &'static str> {
     if !matches!(body["terminal_state"].as_str().unwrap(), TERMINAL_SUCCEEDED | TERMINAL_FAILED) {
         return Err("terminal state must be EXECUTION_STATE_SUCCEEDED or EXECUTION_STATE_FAILED");
     }
+    // Unlike a cancellation fence, zero is the normal epoch of an execution
+    // that was never canceled.
     let epoch = body["fence_epoch"].as_str().unwrap();
-    if !epoch.parse::<u64>().is_ok_and(|n| n > 0 && n.to_string() == epoch) {
-        return Err("canonical positive drain fence required");
+    if !epoch.parse::<u64>().is_ok_and(|n| n.to_string() == epoch) {
+        return Err("canonical drain fence required");
     }
     // Zero is a legitimate FINAL (a no-provider worker); negative is not.
     let tokens = body["final_consumed_tokens"].as_str().unwrap();
@@ -149,6 +151,20 @@ pub fn validate_completed_release(body: &Value) -> Result<(), &'static str> {
         return Err("invalid release replay key");
     }
     Ok(())
+}
+
+/// Canonical ProtoJSON omits zero-valued scalars, and the two numeric fields
+/// here are routinely zero: an un-canceled execution's fence and a no-provider
+/// FINAL. Spell them out, so a standard encoder is accepted and the stored
+/// receipt (and its id) never depends on which encoder the gateway used.
+pub fn normalize_completed_release(body: &Value) -> Value {
+    let mut body = body.clone();
+    if let Some(o) = body.as_object_mut() {
+        for field in ["fence_epoch", "final_consumed_tokens"] {
+            o.entry(field).or_insert_with(|| json!("0"));
+        }
+    }
+    body
 }
 
 /// FINAL consumed tokens of a validated completed release.

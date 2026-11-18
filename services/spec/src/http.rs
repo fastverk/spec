@@ -660,6 +660,7 @@ async fn release_canceled_work_order(
 async fn release_completed_work_order(
     State(s): State<HttpState>, headers: HeaderMap, Json(body): Json<Value>,
 ) -> (StatusCode, Json<Value>) {
+    let body = crate::workorder_reservation::normalize_completed_release(&body);
     let Some(expected) = s.completed_release_token.as_ref().filter(|t| !t.is_empty()) else {
         return (StatusCode::SERVICE_UNAVAILABLE, Json(json!({"error":"E_RELEASE_VERIFIER_REQUIRED"})));
     };
@@ -1969,6 +1970,28 @@ mod tests {
 
     fn workorder_reservation_succeeded() -> &'static str { crate::workorder_reservation::TERMINAL_SUCCEEDED }
 
+    /// The October 31 sample's actual shape: an execution that was never
+    /// canceled (fence 0) with a no-provider FINAL (0 tokens), sent by a
+    /// standard ProtoJSON encoder that omits both zero-valued fields.
+    #[tokio::test]
+    async fn completed_release_accepts_zero_fence_and_omitted_zero_fields() {
+        let dir = workorders_fixture("completed-release-zeros"); let log = dir.join("dispatch.jsonl");
+        let addr = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        let (_, reserved) = reserve(&addr, "approver", &reservation_request("zeros")).await;
+        let mut body = completed_release(&reserved["reservation"], workorder_reservation_succeeded(), "0");
+        let explicit = { let mut b = body.clone(); b["fence_epoch"] = json!("0"); b };
+        let o = body.as_object_mut().unwrap();
+        o.remove("fence_epoch"); o.remove("final_consumed_tokens");
+        let (code, released) = release_completed(&addr, "approver", &body).await;
+        assert_eq!(code, 202, "{released}");
+        assert_eq!(released["release"]["request"]["fence_epoch"], "0");
+        assert_eq!(released["release"]["request"]["final_consumed_tokens"], "0");
+        // The explicit and the omitted encodings are the same request.
+        let restarted = serve_reserving(dir.to_str().unwrap(), log.to_str()).await;
+        assert_eq!(release_completed(&restarted, "approver", &explicit).await, (202, released));
+        std::fs::remove_dir_all(dir).ok();
+    }
+
     #[tokio::test]
     async fn completed_release_records_failed_and_keeps_an_earlier_cause() {
         let dir = workorders_fixture("completed-release-failed"); let log = dir.join("dispatch.jsonl");
@@ -2005,7 +2028,7 @@ mod tests {
         let mut bad = body.clone(); bad["reservation_id"] = json!("66".repeat(32));
         assert_eq!(release_completed(&addr, "approver", &bad).await.0, 409);
         for (field, value) in [("final_consumed_tokens", "-1"), ("final_consumed_tokens", "01"),
-            ("final_consumed_tokens", "9223372036854775808"), ("fence_epoch", "0"),
+            ("final_consumed_tokens", "9223372036854775808"), ("fence_epoch", "01"),
             ("terminal_state", "EXECUTION_STATE_CANCELED"), ("terminal_state", "SUCCEEDED"),
             ("drain_receipt_sha256", "not-a-hash")] {
             bad = body.clone(); bad[field] = json!(value);
