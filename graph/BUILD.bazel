@@ -86,9 +86,9 @@ dot_diagram(
     output_format = "plain",
 )
 
-# Host `python3`, deliberately, rather than a `py_binary`: rules_python is not a
-# dep of this module and adding one would land in every consumer's module graph
-# for a figure only the deck builds. spec already assumes host python3 for
+# Host `python3`, deliberately, rather than a `py_binary`. rules_python is now a
+# (non-dev) dep of this module for the read-model tools, but a py_binary here would
+# still tie a paper-only figure to the Python toolchain resolution consumers see. spec already assumes host python3 for
 # tools/readmodel/*.py, and //graph is a paper surface, not part of the
 # framework surface consumers depend on.
 [

@@ -1,6 +1,6 @@
 # Chat transcript 2 — adjudicating a cross-discipline conflict
 
-**A MOCK.** See [`README.md`](./README.md).
+**A MOCK.** See [`README.md`](../README.md).
 
 **Scene.** INV-01 has been open for a day. Four disciplines, deficit 27 MW, nine
 work orders held. The asset manager owns it. The second half of this transcript is

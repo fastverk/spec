@@ -9,9 +9,9 @@ package(default_visibility = ["//visibility:public"])
 # it hermetically (WASM graphviz under bun — no host `dot`) to SVG + vector PDF.
 # Nothing here is hand-authored: the figure's shape is whatever the graph says.
 #
-#   bazel build //corpus/render:hero_pdf //corpus/render:hero_svg
-#     -> bazel-bin/corpus/render/hero_pdf.pdf
+#   bazel build //corpus/render:hero_svg //corpus/render:hero_tikz
 #     -> bazel-bin/corpus/render/hero_svg.svg
+#     -> bazel-bin/corpus/render/hero_tikz.tex   (the old hero_pdf is gone; see below)
 
 # ── tsv -> dot ─────────────────────────────────────────────────────────────
 # tsv2dot.awk strips the surrounding quotes off every TSV value, skips the
