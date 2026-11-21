@@ -8,7 +8,6 @@
 #
 # Usage:
 #   sh crank/record-score.sh N [note]      # N = crank index (e.g. 3)
-#   bazel run //crank:record_score -- N    # (if wired)
 #
 # Columns (see crank/spec-score.tsv header):
 #   crank  score  grounding  density  parsimony  structure  note

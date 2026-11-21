@@ -1,6 +1,6 @@
 # Chat transcript 1 — grounding a new intent
 
-**A MOCK.** Nothing below is running code. See [`README.md`](./README.md) for the
+**A MOCK.** Nothing below is running code. See [`README.md`](../README.md) for the
 what-exists table. The MCP tool names are proposed; the confirm-gated mutation
 pattern (`confirm:false` preview → user approves → `confirm:true`) is the real one
 `plugin-chat` already implements.

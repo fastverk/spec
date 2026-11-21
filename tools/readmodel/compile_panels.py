@@ -19,10 +19,28 @@ run, before it is allowed to emit anything, by two checks:
   1. **Round-trip.** Decode the committed `.binpb` and re-encode it. The result must
      be byte-identical. A codec that cannot reproduce protoc's own output on real
      data has no business producing a replacement.
-  2. **Agreement.** Compile the textproto, decode the result, and compare its
-     structure — panel ids, populate pairs, rows_fields, column field_paths — against
-     what the textproto says. This catches a textproto the parser misread, which
+  2. **Agreement.** Compile the textproto, decode the result, and compare EVERY
+     field it carries — panel ids, titles, populate pairs, rows_fields, item_nouns,
+     placeholders, and each column's header / field_path / pref_width — against what
+     the textproto says. This catches a textproto the parser misread, which
      round-tripping cannot.
+
+     Note what this check CANNOT do, established by injecting the bug and watching
+     it pass: it compares the parser's output to the encoder's output, so a parser
+     fault applied *consistently* is invisible to it. The mojibake below corrupted
+     both sides identically and the agreement check was satisfied. Comparing every
+     field still earns its place — it catches a field read into the wrong place, or
+     dropped — but it is not what caught the character-level bug.
+
+  3. **Byte-equality with the committed bundle.** This is what actually caught the
+     mojibake: protoc's output was 2971 bytes and this compiler emitted 2983. A
+     difference of 12 bytes in strings nobody would look at twice is the only signal
+     that existed, which is the argument for keeping the comparison byte-exact rather
+     than relaxing it to "structurally equivalent" when it disagrees.
+
+  4. **A standing assertion on `unquote`** (`_assert_unquote_preserves_utf8`), which
+     runs before anything else on every invocation. Checks 1–3 are all indirect; this
+     one names the property.
 
 If either fails the script exits non-zero and writes nothing.
 
@@ -146,8 +164,49 @@ def tokenize(text):
     return out
 
 
+# The escapes textproto actually uses. Deliberately NOT
+# `.encode("utf-8").decode("unicode_escape")`: that round-trip reads each UTF-8
+# BYTE as a Latin-1 codepoint, so `≥` (U+2265, three bytes) comes back as three
+# characters and re-encodes to six. It is silent — the string still looks like a
+# string — and it is how this compiler once emitted a bundle 9 bytes larger than
+# protoc's, with `Requires ≥` stored as `Requires â‰¥`.
+#
+# Worth knowing exactly which check would have stopped it, because two of the three
+# would not: the agreement check corrupts both sides equally and passes, and the
+# round-trip check never touches the textproto. Only byte-equality against protoc's
+# own committed output caught it — and only because someone ran the tool on a bundle
+# protoc had produced. Hence `_assert_unquote_preserves_utf8` below, which does not
+# depend on that luck.
+_ESCAPES = {
+    "\\": "\\", '"': '"', "'": "'", "n": "\n", "r": "\r", "t": "\t",
+    "a": "\a", "b": "\b", "f": "\f", "v": "\v", "?": "?",
+}
+
+
 def unquote(tok):
-    return tok[1:-1].encode("utf-8").decode("unicode_escape")
+    """Decode a textproto string literal, leaving every non-escape character —
+    including multi-byte UTF-8 — exactly as it was."""
+    body, out, i = tok[1:-1], [], 0
+    while i < len(body):
+        c = body[i]
+        if c != "\\":
+            out.append(c)
+            i += 1
+            continue
+        if i + 1 >= len(body):
+            raise SyntaxError(f"trailing backslash in {tok!r}")
+        nxt = body[i + 1]
+        if nxt not in _ESCAPES:
+            # Octal (\ooo), hex (\xhh) and \uXXXX are legal textproto and not
+            # handled here. Refusing beats guessing: a wrong decode is a corrupted
+            # bundle that still parses.
+            raise SyntaxError(
+                f"unsupported escape `\\{nxt}` in {tok!r}; extend _ESCAPES rather "
+                f"than letting it through"
+            )
+        out.append(_ESCAPES[nxt])
+        i += 2
+    return "".join(out)
 
 
 def parse_block(toks, i):
@@ -205,6 +264,12 @@ def emit(entries, msg_type):
 
 
 def summary_from_textproto(entries):
+    """Every field the bundle carries, not just the identifiers.
+
+    An earlier version compared only `field_path`s — all ASCII — which is exactly
+    why a mojibaked `header` passed the agreement check. The rule the hard way: a
+    self-check that skips the fields most likely to be corrupted is not a check.
+    """
     out = []
     for _key, panel in entries:
         p = dict(panel)
@@ -213,14 +278,21 @@ def summary_from_textproto(entries):
         populate = dict(table.get("populate", []))
         # `columns` is repeated, so it must be read off the ENTRY LIST — dict() keeps
         # only the last one.
-        cols = [dict(sub)["field_path"] for k, sub in table_entries if k == "columns"]
+        cols = tuple(
+            (dict(sub).get("header"), dict(sub).get("field_path"), dict(sub).get("pref_width"))
+            for k, sub in table_entries
+            if k == "columns"
+        )
         out.append(
             (
                 p.get("panel_id"),
+                p.get("title"),
                 populate.get("service"),
                 populate.get("method"),
                 table.get("rows_field"),
-                tuple(cols),
+                table.get("item_noun"),
+                table.get("placeholder"),
+                cols,
             )
         )
     return out
@@ -228,12 +300,14 @@ def summary_from_textproto(entries):
 
 def summary_from_binpb(raw):
     out = []
-    for fno, panel in ((f, p) for f, w, p in decode(raw) if f == 2 and w == 2):
-        pid = svc = meth = rows = None
+    for _fno, panel in ((f, p) for f, w, p in decode(raw) if f == 2 and w == 2):
+        pid = title = svc = meth = rows = noun = placeholder = None
         cols = []
         for sfno, swt, sp in decode(panel):
             if sfno == 1 and swt == 2:
                 pid = sp.decode("utf-8")
+            elif sfno == 2 and swt == 2:
+                title = sp.decode("utf-8")
             elif sfno == 3 and swt == 2:
                 for tfno, twt, tp in decode(sp):
                     if tfno == 1 and twt == 2:
@@ -244,15 +318,46 @@ def summary_from_binpb(raw):
                                 meth = rp.decode("utf-8")
                     elif tfno == 2 and twt == 2:
                         rows = tp.decode("utf-8")
+                    elif tfno == 3 and twt == 2:
+                        noun = tp.decode("utf-8")
+                    elif tfno == 4 and twt == 2:
+                        placeholder = tp.decode("utf-8")
                     elif tfno == 5 and twt == 2:
+                        header = field_path = width = None
                         for cfno, _cwt, cp in decode(tp):
-                            if cfno == 2:
-                                cols.append(cp.decode("utf-8"))
-        out.append((pid, svc, meth, rows, tuple(cols)))
+                            if cfno == 1:
+                                header = cp.decode("utf-8")
+                            elif cfno == 2:
+                                field_path = cp.decode("utf-8")
+                            elif cfno == 4:
+                                width = cp
+                        cols.append((header, field_path, width))
+        out.append((pid, title, svc, meth, rows, noun, placeholder, tuple(cols)))
     return out
 
 
+def _assert_unquote_preserves_utf8():
+    """Runs on every invocation, because the bug it guards was silent.
+
+    Costs microseconds and cannot be skipped, which is the point: the mojibake it
+    catches produced a bundle that parsed, rendered, and passed the agreement check.
+    """
+    cases = {
+        r'"Requires \u2265"'.replace("\\u2265", "\u2265"): "Requires \u2265",
+        '"Permits \u2264"': "Permits \u2264",
+        '"an em\u2014dash"': "an em\u2014dash",
+        '"a \\"quoted\\" word"': 'a "quoted" word',
+        '"tab\\there"': "tab\there",
+        '"back\\\\slash"': "back\\slash",
+    }
+    for literal, want in cases.items():
+        got = unquote(literal)
+        assert got == want, f"unquote({literal!r}) = {got!r}, want {want!r}"
+        assert got.encode("utf-8") == want.encode("utf-8")
+
+
 def main():
+    _assert_unquote_preserves_utf8()
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--write", action="store_true", help="rewrite panels.binpb if both checks pass")
     args = ap.parse_args()
@@ -276,7 +381,7 @@ def main():
                 sys.exit(f"FAIL: textproto says {a}\n      compiled says {b}")
         sys.exit(f"FAIL: {len(want)} panels in the textproto, {len(got)} compiled")
     print(f"compiled bytes agree with the textproto ({len(want)} panels, {len(compiled)} bytes)")
-    for pid, svc, meth, rows, cols in want:
+    for pid, _title, svc, meth, rows, _noun, _placeholder, cols in want:
         print(f"  {pid:14} {svc}/{meth:20} rows_field={rows:12} {len(cols)} columns")
 
     if compiled == committed:

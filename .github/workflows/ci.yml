@@ -73,6 +73,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: check LEDGER.md vs on-disk dirs
         run: bash tools/ledger-check.sh
+      - name: check the .agents plugin (manifests, skills, AGENTS.md routing)
+        run: bash tools/agents-check.sh
 
   gate:
     name: bazel build + test

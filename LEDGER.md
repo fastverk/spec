@@ -60,6 +60,11 @@ Also native (not a separate vehicle; not subtree-imported): `proto/`, `tools/`,
 `mocks/`, `logs/`. Those stay here as product / docs / deploy surface for
 this spine.
 
+`.agents/` (with `AGENTS.md`) is the coding-agent plugin for working on this
+repo — rules and skills, same layout as `mattmarshall/scope`. It is not the
+excluded `agents` fleet below, and not `agent/` (the Eve assistant product).
+`tools/agents-check.sh` gates it.
+
 ## Optional later
 
 Not queued. This vehicle does **not** take subtree imports from sibling

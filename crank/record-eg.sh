@@ -9,7 +9,7 @@
 #
 # Usage:
 #   sh crank/record-eg.sh N            # N = crank index (e.g. 3)
-#   bazel run //crank:record_eg -- N   # same, via the wired target
+#   bazel build //crank:record_eg      # a buildable snapshot (genrule; not runnable)
 #
 # Columns recorded (see crank/eg-series.tsv header):
 #   crank   R   L   S   claims   docs   note

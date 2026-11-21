@@ -1,6 +1,6 @@
 # Chat transcript 3 — fanning out an agent fleet, and the good failure
 
-**A MOCK.** See [`README.md`](./README.md).
+**A MOCK.** See [`README.md`](../README.md).
 
 **Scene.** INV-01 is resolved and three work orders released. An architect fans out
 over the now-coherent slice. One agent hits an obligation it cannot satisfy — and
