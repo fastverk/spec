@@ -1,8 +1,13 @@
-# Bazel module registries: fastverk public + premium, then BCR. rules_lean
-# (the Lean toolchain backing the spec-framework modules) resolves from the
-# public fastverk registry. Made explicit here so the build is self-contained
+# Bazel module registries: the fastverk registry, then BCR. rules_lean (the Lean
+# toolchain backing the spec-framework modules) and the other rules_* deps resolve
+# from the fastverk registry. Made explicit here so the build is self-contained
 # (previously relied on a global/user.bazelrc).
-common --registry=https://raw.githubusercontent.com/fastverk/bazel-registry/main/
+#
+# registry.tbzl.dev is the endpoint consumers use (smoke/consumer/.bazelrc, LEDGER.md),
+# so the root build resolves through the same one rather than a raw.githubusercontent
+# view of a different checkout. Every non-BCR bazel_dep in MODULE.bazel resolves there
+# (checked 2026-11-21). From fastverk/spec#15.
+common --registry=https://registry.tbzl.dev/
 common --registry=https://bcr.bazel.build/
 
 
