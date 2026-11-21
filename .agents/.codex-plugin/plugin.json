@@ -1,0 +1,11 @@
+{
+  "name": "spec",
+  "version": "0.9.0",
+  "description": "Author, gate, and release formally grounded requirement corpora with the fastverk spec spine (RDF gates, Lean proofs, read model).",
+  "skills": "./skills/",
+  "requires_local_executor": true,
+  "interface": {
+    "displayName": "Spec",
+    "shortDescription": "Requirement corpora held to RDF gates and Lean proofs"
+  }
+}

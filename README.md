@@ -31,6 +31,7 @@ See [LEDGER.md](LEDGER.md) for every include / absorb / exclude row.
 spec/
   README.md                 # this file — spine vehicle
   LEDGER.md                 # every include / optional / absorb / exclude row
+  AGENTS.md, .agents/       # coding-agent rules + skills (spec@spec-local plugin)
   MODULE.bazel              # module(name = "spec", version = "0.9.0")
   tools/ledger-check.sh     # CI: LEDGER include dirs exist; excludes do not
   lean/                     # Lean spec libs + proof ratchet

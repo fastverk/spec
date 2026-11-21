@@ -1,0 +1,15 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "spec",
+  "version": "0.9.0",
+  "description": "Author, gate, and release formally grounded requirement corpora with the fastverk spec spine (RDF gates, Lean proofs, read model).",
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "Spec",
+        "shortDescription": "Requirement corpora held to RDF gates and Lean proofs"
+      }
+    }
+  }
+}
