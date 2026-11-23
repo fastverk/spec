@@ -60,7 +60,6 @@ exports_files([
     "Spec/Predicates.lean",
     "Spec/Kernel.lean",
     "Spec/Axioms.lean",
-    "Spec/ProjectManifest.lean",
     "Spec/Corpus/Schema.lean",
     "Spec/Corpus/Inference.lean",
     "Spec/Emit/TtlEmit.lean",
@@ -108,8 +107,7 @@ lean_test(
         "Spec/Kernel.lean",
         "Spec/Axioms.lean",
         "Spec/AdmissionCheck.lean",
-        "Spec/ProjectManifest.lean",
-        "Spec/ProjectManifestCheck.lean",
+        "Spec/ManifestNameCheck.lean",
         "Spec/Corpus/Schema.lean",
         "Spec/Corpus/Inference.lean",
         "Spec/Emit/TtlEmit.lean",
@@ -208,16 +206,14 @@ sh_binary(
     data = [":tier_ttl_generated"],
 )
 
-# Consumer naming is explicit; changing it does not mutate legacy AX-034.
 lean_test(
-    name = "project_manifest_test",
+    name = "manifest_name_test",
     srcs = [
         "Spec/Universe.lean",
         "Spec/Predicates.lean",
         "Spec/Kernel.lean",
         "Spec/Axioms.lean",
-        "Spec/ProjectManifest.lean",
-        "Spec/ProjectManifestCheck.lean",
+        "Spec/ManifestNameCheck.lean",
     ],
-    entry = "Spec/ProjectManifestCheck.lean",
+    entry = "Spec/ManifestNameCheck.lean",
 )

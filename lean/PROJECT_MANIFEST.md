@@ -1,18 +1,18 @@
-# Consumer-owned project manifest conventions
+# Canonical project manifest name
 
-The legacy `projectManifestOf` function and AX-034 continue to name
-`project.aion`. Gnomon requires `project.gnm`; equating those literals or
-renaming the legacy conclusion would misstate one consumer's contract.
+The formal project manifest is `project.gnm`. The program owner explicitly
+selected this contract and removed the requirement to preserve legacy `.aion`
+filename compatibility. `ProjectManifest`, `projectManifestOf`, the K5 field,
+and AX-034 now describe the same name used by Gnomon's authored RFCs.
 
-`Spec.ProjectManifest` adds an explicit nonempty `ProjectManifestConvention`
-and `projectManifestFor convention module`. Its two theorems prove the exact
-selected name and nonemptiness by structural projection, without new axioms.
-A consumer owns the convention value and must use the parameterized function
-explicitly. No overload changes an existing call's meaning.
+This changes AX-034's conclusion. Consumers requiring the old filename must
+stay on their historical input; the new API supplies no compatibility overload
+or alternative naming policy. The theorem is a structural consequence of the
+constructed manifest's name, with no new axiom. It does not prove file existence,
+root placement, parsing, compiler behavior, or backend conformance.
 
-These theorems describe a constructed formal manifest. They do not establish
-that a file exists, the parser accepts it, the compiler uses it, its contents
-are valid, or any backend realizes the model. Existing semantic mismatch and
-release gates still apply. `project_manifest_test` checks independent names,
-invalid empty-name rejection, cross-convention proof rejection, and the
-unchanged legacy conclusion; `spec_framework_test` includes those controls.
+`manifest_name_test` and `spec_framework_test` check the canonical conclusion,
+the K5 projection, rejection of the old conclusion, and axiom dependencies.
+Existing admission and proof-ratchet controls remain required. Gnomon owns
+its affected consumer signatures, semantic reviews, and immutable pin adoption;
+existing mismatches and unproved requirements cannot become proved by renaming.

@@ -675,11 +675,11 @@ axiom defaultModuleLayout : ModuleLayout
     runtime tooling must recognize this and nothing else. -/
 axiom canonicalLayout : ModuleLayout
 
-/-- A project manifest file — must be named project.aion at the
+/-- A project manifest file — must be named project.gnm at the
     project root per AX-034. Promoted to a structure carrying its
     name; K5.AX-034 (projectManifestName) is provable when the
     derivation function for `projectManifestOf` returns a manifest
-    with `name = "project.aion"`. -/
+    with `name = "project.gnm"`. -/
 structure ProjectManifest where
   name : String
 deriving Inhabited
