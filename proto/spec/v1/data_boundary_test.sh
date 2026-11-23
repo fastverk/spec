@@ -28,12 +28,14 @@ inv=""
 adapter=""
 derivation=""
 workorder=""
+evidence=""
 for f in "$@"; do
   case "$f" in
     *invariant.proto) inv="$f" ;;
     *grounding_adapter.proto) adapter="$f" ;;
     *derivation.proto) derivation="$f" ;;
     *workorder.proto) workorder="$f" ;;
+    *evidence.proto) evidence="$f" ;;
   esac
 done
 
@@ -124,6 +126,17 @@ if [ -n "$workorder" ]; then
     status=1
   else
     echo "ok    workorder.proto imports nothing"
+  fi
+fi
+# Evidence can reuse invariant counts and outcomes, but cannot reach transit
+# examples. Keep that dependency one-way as additional consumers are added.
+if [ -n "$evidence" ]; then
+  eimports=$(grep -E '^import ' "$evidence" || true)
+  if [ "$eimports" != 'import "spec/v1/invariant.proto";' ]; then
+    echo "FAIL  evidence.proto may import only invariant.proto"
+    status=1
+  else
+    echo "ok    evidence.proto can reach invariant metadata, not transit data"
   fi
 fi
 exit "$status"

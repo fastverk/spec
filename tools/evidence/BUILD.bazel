@@ -1,0 +1,33 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+
+package(default_visibility = ["//visibility:public"])
+
+py_library(
+    name = "assessment",
+    srcs = ["assessment.py"],
+    deps = ["//proto/spec/v1:evidence_py_proto"],
+    data = ["//proto/spec/v1:evidence.proto", "//proto/spec/v1:invariant.proto"],
+)
+
+py_binary(
+    name = "evaluate",
+    srcs = ["evaluate.py"],
+    legacy_create_init = False,
+    deps = [":assessment"],
+)
+
+py_test(
+    name = "assessment_test",
+    srcs = ["assessment_test.py"],
+    legacy_create_init = False,
+    deps = [":assessment"],
+)
+
+py_test(
+    name = "cli_test",
+    srcs = ["cli_test.py"],
+    args = ["$(rootpath :evaluate)"],
+    data = [":evaluate"],
+    deps = [":assessment"],
+    legacy_create_init = False,
+)
