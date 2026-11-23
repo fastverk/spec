@@ -1,0 +1,13 @@
+# This package runs under the source override, while the smoke root continues
+# to check the published artifact. Building real exports exercises package loads
+# from consumer position, where development-only dependencies are unavailable.
+load("@rules_java//java:defs.bzl", "java_library")
+
+java_library(
+    name = "corpus_toolkit",
+    exports = [
+        "@spec//java:aion_paths",
+        "@spec//java:loader",
+        "@spec//java:writer",
+    ],
+)
