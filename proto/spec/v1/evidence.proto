@@ -68,6 +68,13 @@ message EvidenceManifest {
   repeated EvidenceCheck checks = 3;
 }
 
+message EvidenceExecutionRevision {
+  string repository = 1;
+  string revision = 2;
+  // Git tree object identity, retained separately from the commit identity.
+  string tree = 3;
+}
+
 // A producer check writes this message as protobuf JSON to stdout.
 // No test logs, customer rows, or free-form payloads belong in this message.
 message EvidenceObservation {
@@ -75,6 +82,7 @@ message EvidenceObservation {
   Population population = 2;
   repeated string ungrounded_terms = 3;
   bool skipped = 4;
+  repeated EvidenceExecutionRevision executed_revisions = 5;
 }
 
 message EvidenceReceipt {

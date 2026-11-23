@@ -22,3 +22,12 @@ py_test(
     legacy_create_init = False,
     deps = [":assessment"],
 )
+
+py_test(
+    name = "cli_test",
+    srcs = ["cli_test.py"],
+    args = ["$(rootpath :evaluate)"],
+    data = [":evaluate"],
+    deps = [":assessment"],
+    legacy_create_init = False,
+)
