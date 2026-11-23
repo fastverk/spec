@@ -434,10 +434,10 @@ theorem ax_AX_033 :
   declaredHome_hosts
 
 /-- AX-034 — Project structure. PROVED, not from kernel: with
-    `projectManifestOf _ := { name := "project.aion" }` and
+    `projectManifestOf _ := { name := "project.gnm" }` and
     `manifestName m := m.name`, the equality is `rfl`. -/
 theorem ax_AX_034 :
-    ∀ (m : Module), manifestName (projectManifestOf m) = "project.aion" :=
+    ∀ (m : Module), manifestName (projectManifestOf m) = "project.gnm" :=
   fun _ => rfl
 
 /-- AX-035 — Approval gate for sensitive declarations. PROVED, not

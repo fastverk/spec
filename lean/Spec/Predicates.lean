@@ -182,7 +182,7 @@ def refLive (r : Reference) (t : Time) : Prop := alive (refTarget r) t
 /-- A Declaration is contained in (i.e. authored within) a File.
     Opaque at the kernel layer — concrete file-membership lives at
     the impl layer (the file parser populates this when scanning
-    `.aion` sources). AX-030 (file class purity) is backed by the
+    `.gnm` sources). AX-030 (file class purity) is backed by the
     `filePureClassStipulated` axiom below rather than the previous
     `:= False` definition that made it vacuously true. -/
 axiom containedIn : Declaration → File → Prop
@@ -449,9 +449,9 @@ def expressibleAsPEG (g : Grammar) : Prop :=
 
 -- AX-034 — Project structure
 /-- The project manifest of a Module. Defined to return a manifest
-    named "project.aion" — making AX-034 (`manifestName
-    (projectManifestOf m) = "project.aion"`) provable by `rfl`. -/
-def projectManifestOf (_m : Module) : ProjectManifest := { name := "project.aion" }
+    named "project.gnm" — making AX-034 (`manifestName
+    (projectManifestOf m) = "project.gnm"`) provable by `rfl`. -/
+def projectManifestOf (_m : Module) : ProjectManifest := { name := "project.gnm" }
 /-- The name of a ProjectManifest. Projection of the structural
     `ProjectManifest.name` field. -/
 def manifestName (m : ProjectManifest) : String := m.name
@@ -713,15 +713,15 @@ def writingActorOf (a : Aion) : Actor := a.writingActor
 def epistemicStatusSetBy (a : Aion) : Actor := a.writingActor
 
 -- ============================================================================
--- project.aion content shape (RFC-0008 b36)
+-- project.gnm content shape (RFC-0008 b36)
 -- ============================================================================
 
-/-- The project manifest file (`project.aion`) contains only the
+/-- The project manifest file (`project.gnm`) contains only the
     `project { … }` block — no other declarations leak into it.
     Runtime-enforced by the parser; stipulated here. -/
 opaque projectFileOnlyContainsProjectBlock : ProjectManifest → Prop
 
-/-- RFC-0008 b36 stipulated: every project.aion contains only the
+/-- RFC-0008 b36 stipulated: every project.gnm contains only the
     project { } block. -/
 axiom project_manifest_only_project_block :
   ∀ (pm : ProjectManifest), projectFileOnlyContainsProjectBlock pm

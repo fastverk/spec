@@ -306,9 +306,9 @@ structure K5_SpecDiscipline : Prop where
   grammarIsPeg : expressibleAsPEG aionGrammar
   /-- AX-033 — Locality of concerns. -/
   concernsLocalized : ∀ (c : Concern), inDeclaredHome c
-  /-- AX-034 — Project manifest is named project.aion. -/
+  /-- AX-034 — Project manifest is named project.gnm. -/
   projectManifestName : ∀ (m : Module),
-    manifestName (projectManifestOf m) = "project.aion"
+    manifestName (projectManifestOf m) = "project.gnm"
   /-- AX-035 — Approval gate for sensitive declarations. -/
   approvalGate : ∀ (d : Declaration),
     isSensitive d → ∃ (a : ApprovalRecord),

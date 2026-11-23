@@ -8,6 +8,7 @@ exists to give the lean_test a root entry.
 -/
 import Spec.Axioms
 import Spec.AdmissionCheck
+import Spec.ManifestNameCheck
 import Spec.Corpus.Schema
 import Spec.Corpus.Inference
 import Spec.Emit.TtlEmit

@@ -107,6 +107,7 @@ lean_test(
         "Spec/Kernel.lean",
         "Spec/Axioms.lean",
         "Spec/AdmissionCheck.lean",
+        "Spec/ManifestNameCheck.lean",
         "Spec/Corpus/Schema.lean",
         "Spec/Corpus/Inference.lean",
         "Spec/Emit/TtlEmit.lean",
@@ -203,4 +204,16 @@ sh_binary(
         "rdf/ontology/tier.ttl",
     ],
     data = [":tier_ttl_generated"],
+)
+
+lean_test(
+    name = "manifest_name_test",
+    srcs = [
+        "Spec/Universe.lean",
+        "Spec/Predicates.lean",
+        "Spec/Kernel.lean",
+        "Spec/Axioms.lean",
+        "Spec/ManifestNameCheck.lean",
+    ],
+    entry = "Spec/ManifestNameCheck.lean",
 )
