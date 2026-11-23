@@ -36,8 +36,10 @@ sh_test(
         "$(rootpath grounding_adapter.proto)",
         "$(rootpath derivation.proto)",
         "$(rootpath workorder.proto)",
+        "$(rootpath evidence.proto)",
     ],
     data = [
+        "evidence.proto",
         "derivation.proto",
         "grounding_adapter.proto",
         "invariant.proto",
@@ -68,3 +70,27 @@ proto_library(
     srcs = ["derivation.proto"],
     visibility = ["//visibility:public"],
 )
+
+# Revision-bound consumer evidence. These generated types are used by the
+# evaluator itself, so JSON parsing cannot quietly drift from the wire schema.
+load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+
+proto_library(
+    name = "invariant_proto",
+    srcs = ["invariant.proto"],
+    strip_import_prefix = "/proto",
+)
+
+proto_library(
+    name = "evidence_proto",
+    srcs = ["evidence.proto"],
+    strip_import_prefix = "/proto",
+    deps = [":invariant_proto"],
+)
+
+py_proto_library(
+    name = "evidence_py_proto",
+    deps = [":evidence_proto"],
+)
+
+exports_files(["evidence.proto"])

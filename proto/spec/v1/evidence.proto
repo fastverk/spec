@@ -1,0 +1,130 @@
+// Consumer-owned evidence: locators, exact revisions, counts, and hashes only.
+// This is an integrity contract, not an attestation of independent review.
+syntax = "proto3";
+package spec.v1;
+import "spec/v1/invariant.proto";
+
+enum EvidenceDimension {
+  EVIDENCE_DIMENSION_UNSPECIFIED = 0;
+  EVIDENCE_DIMENSION_APPROVAL = 1;
+  EVIDENCE_DIMENSION_GROUNDING = 2;
+  EVIDENCE_DIMENSION_IMPLEMENTATION = 3;
+  EVIDENCE_DIMENSION_TEST = 4;
+  EVIDENCE_DIMENSION_PROOF = 5;
+  EVIDENCE_DIMENSION_PRODUCTION_ACCEPTANCE = 6;
+}
+
+enum EvidenceState {
+  EVIDENCE_STATE_UNSPECIFIED = 0;
+  EVIDENCE_STATE_CURRENT = 1;
+  EVIDENCE_STATE_MISSING = 2;
+  EVIDENCE_STATE_STALE = 3;
+  EVIDENCE_STATE_FAILED = 4;
+  EVIDENCE_STATE_UNGROUNDED = 5;
+  EVIDENCE_STATE_VACUOUS = 6;
+  EVIDENCE_STATE_SKIPPED = 7;
+  EVIDENCE_STATE_EXAMINED = 8;
+}
+
+enum FreshnessPolicy {
+  FRESHNESS_POLICY_UNSPECIFIED = 0;
+  // Deliberate opt-in for a model unchanged by unrelated implementation commits.
+  FRESHNESS_POLICY_CONTENT = 1;
+  FRESHNESS_POLICY_EXACT_REVISION = 2;
+}
+
+message EvidenceInput {
+  string repository = 1;
+  string path = 2;
+  string sha256 = 3;
+  string revision = 4;
+  FreshnessPolicy freshness = 5;
+}
+
+message EvidenceRequirement {
+  // Reuse Invariant.id, an existing IRI, or a consumer's durable clause ID.
+  string id = 1;
+  string owner = 2;
+  repeated string aliases = 3;
+  repeated EvidenceInput sources = 4;
+}
+
+message EvidenceCheck {
+  string id = 1;
+  string requirement_id = 2;
+  EvidenceDimension dimension = 3;
+  Check check = 4;
+  string working_repository = 5;
+  repeated string argv = 6;
+  repeated EvidenceInput inputs = 7;
+  // A consumer-owned immutable toolchain identity, also bound through inputs.
+  string toolchain_id = 8;
+  uint32 timeout_seconds = 9;
+}
+
+message EvidenceManifest {
+  uint32 schema_version = 1;
+  repeated EvidenceRequirement requirements = 2;
+  repeated EvidenceCheck checks = 3;
+}
+
+// A producer check writes this message as protobuf JSON to stdout.
+// No test logs, customer rows, or free-form payloads belong in this message.
+message EvidenceObservation {
+  Outcome outcome = 1;
+  Population population = 2;
+  repeated string ungrounded_terms = 3;
+  bool skipped = 4;
+}
+
+message EvidenceReceipt {
+  string id = 1;
+  string check_id = 2;
+  string definition_sha256 = 3;
+  string evaluator_sha256 = 4;
+  string evaluator_revision = 5;
+  repeated EvidenceInput inputs = 6;
+  EvidenceObservation observation = 7;
+  string observation_sha256 = 8;
+  string executed_at = 9;
+  EvidenceState execution_state = 10;
+  // Optional externally verifiable CI execution locator; not a signature.
+  string run_uri = 11;
+  string observation_artifact_sha256 = 12;
+}
+
+message EvidenceLedger {
+  uint32 schema_version = 1;
+  // Append-only history. The last receipt for a check is its current candidate.
+  repeated EvidenceReceipt receipts = 2;
+}
+
+message EvidenceCheckAssessment {
+  string check_id = 1;
+  EvidenceState state = 2;
+  Population population = 3;
+  string receipt_id = 4;
+  repeated string reasons = 5;
+}
+
+message EvidenceDimensionAssessment {
+  EvidenceDimension dimension = 1;
+  EvidenceState state = 2;
+  repeated EvidenceCheckAssessment checks = 3;
+}
+
+message EvidenceRequirementAssessment {
+  string requirement_id = 1;
+  repeated EvidenceDimensionAssessment dimensions = 2;
+  bool ready = 3;
+}
+
+message EvidenceReport {
+  uint32 schema_version = 1;
+  repeated EvidenceRequirementAssessment requirements = 2;
+  // All six dimensions, over all requirements. Selection never changes this.
+  bool ready = 3;
+  // The explicit selected check set only; not full specification readiness.
+  bool selected_checks_passed = 4;
+  uint64 selected_check_count = 5;
+}
