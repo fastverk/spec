@@ -58,3 +58,7 @@ python.toolchain(
     python_version = "3.12",
 )
 bazel_dep(name = "rules_jena", version = "0.3.2")
+
+# The source-only Java consumer package loads java_library directly. Image
+# packaging remains producer-development-only and is not a consumer dependency.
+bazel_dep(name = "rules_java", version = "8.6.1")
