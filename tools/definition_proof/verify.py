@@ -93,7 +93,7 @@ def check_source(source):
     code = code_only(source)
     # No extension commands, compiler execution shortcuts, native proofs,
     # custom trusted imports, or source-local changes to trust/checking policy.
-    denied = r'\b(axiom|opaque|sorry|admit|native_decide|unsafe|implemented_by|extern|partial|elab|macro|syntax|initialize|builtin_initialize|run_cmd|run_elab|run_tac|prelude)\b'
+    denied = r'\b(axiom|opaque|sorry|admit|native_decide|unsafe|implemented_by|extern|partial|elab|elab_rules|macro|macro_rules|syntax|initialize|builtin_initialize|run_cmd|run_elab|run_tac|run_meta|simproc|dsimproc|simproc_decl|dsimproc_decl|builtin_simproc|builtin_dsimproc|attribute|include_str|include_bin|prelude|module|register_[A-Za-z_0-9]+|declare_[A-Za-z_0-9]+)\b'
     if re.search(denied, code) or re.search(r'\[\s*(?:extern|implemented_by)', code):
         raise ValueError('unsupported trusted/deferred/metaprogram declaration')
     if re.search(r'#(?!print\s+axioms\b)', code):
@@ -101,13 +101,30 @@ def check_source(source):
     for match in re.finditer(r'\bset_option\s+([^\n]+)', code):
         if match.group(1).strip() != 'warningAsError true':
             raise ValueError('unsupported Lean checking option')
+    # Attributes can install elaboration handlers without an `elab` command.
+    # This closed proof surface needs only the standard simplifier attribute;
+    # custom handlers/registrations are executable extensions, not proof data.
+    for attribute in re.findall(r'@\[([^\]]*)\]', code):
+        if attribute.strip() != 'simp':
+            raise ValueError('unsupported Lean attribute')
+    for deriving in re.finditer(r'\bderiving\s+([^\n]+)', code):
+        if any(name.strip() not in {'DecidableEq', 'Repr', 'BEq', 'Inhabited'}
+               for name in deriving.group(1).split(',')):
+            raise ValueError('unsupported deriving handler')
     imports = []
+    remainder = []
     for line in code.splitlines():
         if re.match(r'^\s*import\b', line):
             names = line.split()[1:]
             if not names or any(not NAME.fullmatch(name) for name in names):
                 raise ValueError('malformed Lean import')
             imports.extend(names)
+        else:
+            remainder.append(line)
+    # Modified/multiline imports must not silently disappear from the closure.
+    # In particular `public import Lean` previously bypassed the line matcher.
+    if re.search(r'\bimport\b', '\n'.join(remainder)):
+        raise ValueError('unsupported Lean import syntax')
     return imports
 
 

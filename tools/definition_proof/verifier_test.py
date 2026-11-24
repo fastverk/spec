@@ -56,6 +56,24 @@ class BoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'shadow'):
             validate(request, review, sources.__getitem__)
 
+    def test_modified_imports_and_handlers_rejected(self):
+        cases = [
+            'public import Lean', 'private import Lean', 'module\npublic import Lean',
+            'elab_rules : command', 'macro_rules', 'declare_syntax_cat hidden',
+            '@[command_elab hidden] def handler := 0',
+            '@[term_elab hidden] def handler := 0',
+            '@[simp, command_elab hidden] def handler := 0',
+            'attribute [command_elab hidden] handler',
+            'simproc hidden := fun _ => pure .continue',
+            'run_meta pure ()', 'def hidden := include_str "unbound.txt"',
+            'inductive Hidden where | value deriving CustomHandler',
+        ]
+        for source in cases:
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                check_source(source)
+        self.assertEqual(check_source('import Std\n@[simp] theorem safe : True := by trivial'), ['Std'])
+        self.assertEqual(check_source('inductive Data where | value deriving DecidableEq, Repr'), [])
+
     def test_dependency_report_not_a_boolean(self):
         self.assertEqual(dependencies("'full' does not depend on any axioms\n", ['full']), [])
         for output in ["'full' depends on axioms: [sorryAx]", '', "'full' depends on axioms: [domainAxiom]"]:

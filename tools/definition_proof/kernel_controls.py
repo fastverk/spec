@@ -33,6 +33,20 @@ def main():
     try: verify(mutant, updated, changed.__getitem__, args.lean, args.schema)
     except ValueError: print('Rejected actual changed expected proposition', flush=True)
     else: raise AssertionError('changed proposition incorrectly accepted')
-    Path(args.output).write_text('actual kernel baseline and five rejection controls passed\n')
+    for label, extra in [
+        ('modified untrusted import', 'public import Lean\n'),
+        ('elaboration rules', 'elab_rules : command\n'),
+        ('elaboration attribute', '@[command_elab hidden] def hidden := 0\n'),
+    ]:
+        changed = dict(sources); changed['Proof.lean'] = (extra + sources['Proof.lean'].decode()).encode()
+        mutant = type(request)(); mutant.CopyFrom(request)
+        mutant.inputs[0].sha256 = digest(changed['Proof.lean'])
+        updated = type(review)(); updated.CopyFrom(review); updated.request_sha256 = digest(encoded(mutant))
+        try: verify(mutant, updated, changed.__getitem__, args.lean, args.schema)
+        except ValueError as error:
+            if 'unsupported' not in str(error): raise
+            print('Rejected source policy ' + label + ' before compilation', flush=True)
+        else: raise AssertionError(label + ' incorrectly accepted')
+    Path(args.output).write_text('actual kernel baseline, five type/compiler controls, and three source-policy controls passed\n')
 
 if __name__ == '__main__': main()
