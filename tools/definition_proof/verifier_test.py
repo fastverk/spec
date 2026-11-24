@@ -56,6 +56,39 @@ class BoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'shadow'):
             validate(request, review, sources.__getitem__)
 
+    def test_modified_imports_and_handlers_rejected(self):
+        cases = [
+            'public import Lean', 'private import Lean', 'module\npublic import Lean',
+            'elab_rules : command', 'macro_rules', 'declare_syntax_cat hidden',
+            '@[command_elab hidden] def handler := 0',
+            '@[term_elab hidden] def handler := 0',
+            '@[simp, command_elab hidden] def handler := 0',
+            'attribute [command_elab hidden] handler',
+            'simproc hidden := fun _ => pure .continue',
+            'run_meta pure ()', 'def hidden := include_str "unbound.txt"',
+            'inductive Hidden where | value deriving CustomHandler',
+        ]
+        for source in cases:
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                check_source(source)
+        self.assertEqual(check_source('import Std\n@[simp] theorem safe : True := by trivial'), ['Std'])
+        self.assertEqual(check_source('inductive Data where | value deriving DecidableEq, Repr'), [])
+
+    def test_literal_boundaries_cannot_hide_executable_terms(self):
+        for source in [
+            'def hidden := s!"{(show Nat from by run_tac pure ())}"',
+            'def hidden := m! "{(show Nat from by run_tac pure ())}"',
+            'def hidden := r"raw text"',
+            'def q : Char := \'"\'\nelab_rules : command\ndef close : Char := \'"\'',
+            'def q : Char := \'"\'\npublic import Lean\ndef close : Char := \'"\'',
+            'def q : Char := \'"\'\n@[command_elab hidden] def f := 0\ndef close : Char := \'"\'',
+        ]:
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                check_source(source)
+        self.assertEqual(check_source('def q : Char := \'"\'\ndef text := "ordinary"'), [])
+        self.assertEqual(check_source('def q : Char := \'\\"\'\ndef text := "ordinary"'), [])
+        self.assertEqual(check_source('theorem x : True := by repeat\' first | trivial'), [])
+
     def test_dependency_report_not_a_boolean(self):
         self.assertEqual(dependencies("'full' does not depend on any axioms\n", ['full']), [])
         for output in ["'full' depends on axioms: [sorryAx]", '', "'full' depends on axioms: [domainAxiom]"]:

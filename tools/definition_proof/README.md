@@ -26,3 +26,19 @@ The checked scope is the reviewed formal model, never production refinement.
 `verifier_test` checks malformed/stale inputs, trust shortcuts, source shadowing,
 and dependency reports. `kernel_controls_test` executes the real pinned compiler
 on a populated baseline and five counterfeit/type/compiler substitutions.
+
+
+The closed source grammar permits ordinary one-line imports only. Modified
+imports cannot escape closure checking. Executable elaboration/macro rules,
+handler registration, compile-time file inclusion, and custom attributes are
+rejected before compilation. The current attribute subset is `@[simp]`; the
+deriving subset is DecidableEq, Repr, BEq and Inhabited. This is intentionally a
+restricted model-proof surface, with source-bound semantic review still required.
+The controls include modified imports, elaboration rules and handler attributes
+through the full request verifier, plus twenty lexical-policy counterfeits.
+
+Interpolation and raw strings are outside this closed source surface: embedded
+terms must not disappear into masked literal contents. Character literals have
+their own boundary handling, including escaped quotes; identifier primes remain
+ordinary code. The full-verifier controls include interpolation and quote-based
+declaration hiding, with positive plain-string/character/prime-name controls.

@@ -61,7 +61,7 @@ def encoded(message):
 
 def code_only(source, strings=False):
     """Remove nested comments and, for token checks, string literal contents."""
-    out = []; pos = 0; depth = 0; quoted = False
+    out = []; pos = 0; depth = 0; quoted = False; last_code_char = ''
     while pos < len(source):
         pair = source[pos:pos+2]; char = source[pos]
         if depth:
@@ -82,8 +82,27 @@ def code_only(source, strings=False):
             out.append(' ' * (end-pos)); pos = end
         elif pair == '/-': depth = 1; out.append('  '); pos += 2
         else:
-            if char == '"': quoted = True
-            out.append(char if strings or char != '"' else ' '); pos += 1
+            # A quote character inside a Lean Char literal is not the start of
+            # a String. Treating it as one could hide following declarations.
+            before = source[pos-1] if pos else ''
+            if char == "'" and (not before or not (before.isalnum() or before in "_'")):
+                literal = re.match(r"'(?:[^'\\\r\n]|\\(?:[\\'\"nrt0]|x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]+\}))'", source[pos:])
+                if literal:
+                    value = literal.group(0)
+                    out.append(value if strings else ' ' * len(value))
+                    pos += len(value); last_code_char = "'"; continue
+            if char == '"':
+                # Interpolation embeds executable Lean terms in the literal;
+                # the closed model surface needs ordinary strings only. Raw
+                # strings also have different escaping/delimiter semantics.
+                if last_code_char == '!':
+                    raise ValueError('unsupported interpolated Lean string')
+                if re.search(r'\br#*\s*$', ''.join(out)):
+                    raise ValueError('unsupported raw Lean string')
+                quoted = True
+            out.append(char if strings or char != '"' else ' ')
+            if not char.isspace(): last_code_char = char
+            pos += 1
     if depth or quoted:
         raise ValueError('unterminated Lean comment/string')
     return ''.join(out)
@@ -93,7 +112,7 @@ def check_source(source):
     code = code_only(source)
     # No extension commands, compiler execution shortcuts, native proofs,
     # custom trusted imports, or source-local changes to trust/checking policy.
-    denied = r'\b(axiom|opaque|sorry|admit|native_decide|unsafe|implemented_by|extern|partial|elab|macro|syntax|initialize|builtin_initialize|run_cmd|run_elab|run_tac|prelude)\b'
+    denied = r'\b(axiom|opaque|sorry|admit|native_decide|unsafe|implemented_by|extern|partial|elab|elab_rules|macro|macro_rules|syntax|initialize|builtin_initialize|run_[A-Za-z_0-9]+|simproc|dsimproc|simproc_decl|dsimproc_decl|builtin_simproc|builtin_dsimproc|attribute|include_str|include_bin|prelude|module|register_[A-Za-z_0-9]+|declare_[A-Za-z_0-9]+)\b'
     if re.search(denied, code) or re.search(r'\[\s*(?:extern|implemented_by)', code):
         raise ValueError('unsupported trusted/deferred/metaprogram declaration')
     if re.search(r'#(?!print\s+axioms\b)', code):
@@ -101,13 +120,30 @@ def check_source(source):
     for match in re.finditer(r'\bset_option\s+([^\n]+)', code):
         if match.group(1).strip() != 'warningAsError true':
             raise ValueError('unsupported Lean checking option')
+    # Attributes can install elaboration handlers without an `elab` command.
+    # This closed proof surface needs only the standard simplifier attribute;
+    # custom handlers/registrations are executable extensions, not proof data.
+    for attribute in re.findall(r'@\[([^\]]*)\]', code):
+        if attribute.strip() != 'simp':
+            raise ValueError('unsupported Lean attribute')
+    for deriving in re.finditer(r'\bderiving\s+([^\n]+)', code):
+        if any(name.strip() not in {'DecidableEq', 'Repr', 'BEq', 'Inhabited'}
+               for name in deriving.group(1).split(',')):
+            raise ValueError('unsupported deriving handler')
     imports = []
+    remainder = []
     for line in code.splitlines():
         if re.match(r'^\s*import\b', line):
             names = line.split()[1:]
             if not names or any(not NAME.fullmatch(name) for name in names):
                 raise ValueError('malformed Lean import')
             imports.extend(names)
+        else:
+            remainder.append(line)
+    # Modified/multiline imports must not silently disappear from the closure.
+    # In particular `public import Lean` previously bypassed the line matcher.
+    if re.search(r'\bimport\b', '\n'.join(remainder)):
+        raise ValueError('unsupported Lean import syntax')
     return imports
 
 
