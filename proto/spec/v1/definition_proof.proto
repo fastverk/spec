@@ -1,0 +1,64 @@
+syntax = "proto3";
+package spec.v1;
+
+// Definition proofs describe schema/model propositions, never customer rows.
+// A request/review is an input, not evidence that checking actually occurred.
+message DefinitionProofInput {
+  string path = 1;
+  string sha256 = 2;
+  // Empty for authored claim/review context; otherwise the complete Lean name.
+  string module = 3;
+}
+message DefinitionProofRequest {
+  uint32 schema_version = 1;
+  string claim_id = 2;
+  string claim_predicate = 3;
+  string claim_modality = 4;
+  string model_scope = 5;
+  repeated DefinitionProofInput inputs = 6;
+  string theorem_module = 7;
+  string theorem = 8;
+  string expected_module = 9;
+  string expected_proposition = 10;
+  string witness_module = 11;
+  string domain_witness = 12;
+  string expected_domain = 13;
+  string lean_version = 14;
+  string lean_git_revision = 15;
+}
+message DefinitionProofReview {
+  enum Verdict {
+    VERDICT_UNSPECIFIED = 0;
+    MATCHES_NORMALIZED_MODEL = 1;
+  }
+  uint32 schema_version = 1;
+  string request_sha256 = 2;
+  Verdict verdict = 3;
+  string reviewer = 4;
+  string rationale = 5;
+  // References the owner's policy decision; not a compiler-generated approval.
+  string policy_decision = 6;
+}
+message DefinitionProofExecution {
+  repeated string argv = 1;
+  int32 exit_code = 2;
+  bytes output = 3;
+  string output_sha256 = 4;
+}
+message DefinitionProofCertificate {
+  uint32 schema_version = 1;
+  DefinitionProofRequest request = 2;
+  string request_sha256 = 3;
+  DefinitionProofReview review = 4;
+  string review_sha256 = 5;
+  string verifier_sha256 = 6;
+  string schema_sha256 = 7;
+  string compiler_sha256 = 8;
+  string compiler_version = 9;
+  string compiler_git_revision = 10;
+  repeated DefinitionProofExecution executions = 11;
+  repeated string logical_dependencies = 12;
+  // A checked named witness of the separately reviewed nonempty-domain type.
+  // This counts roots, not implementation instances or runtime conformance.
+  uint32 verified_roots = 13;
+}

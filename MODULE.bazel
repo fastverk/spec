@@ -169,6 +169,10 @@ bazel_dep(name = "rules_jena", version = "0.3.2")
 # through its own module), so the registry ratchet's D2 invariant is
 # untouched.
 bazel_dep(name = "rules_python", version = "1.7.0")
+# Definition-proof certificates are a generated protobuf framework API. This
+# dependency is intentionally propagated; consumers no longer need to redeclare
+# a product-only dev dependency to use the verifier action.
+bazel_dep(name = "protobuf", version = "33.4")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
@@ -285,7 +289,6 @@ register_toolchains(
 )
 
 bazel_dep(name = "rules_rust", version = "0.70.0", dev_dependency = True)
-bazel_dep(name = "protobuf", version = "33.4", dev_dependency = True)
 bazel_dep(name = "rules_oci", version = "2.2.6", dev_dependency = True)
 
 # The JRE base for //java:gate_image.
