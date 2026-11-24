@@ -61,10 +61,9 @@ sh_test(
 # serializer swap and not a rename. Wiring codegen before there is a service to
 # serve it would be scaffolding around a caller that does not exist.
 #
-# ⚠ `protobuf` is a dev_dependency in MODULE.bazel, so this target is available
-# to this repo's own builds and NOT propagated to consumers. That is correct
-# while nothing downstream generates from it, and is the thing to revisit the
-# day something does.
+# `protobuf` is a framework dependency: definition-proof consumers now generate
+# typed certificates across this boundary. The original derivation target keeps
+# its source layout and does not gain a new generated consumer here.
 proto_library(
     name = "derivation_proto",
     srcs = ["derivation.proto"],
@@ -94,3 +93,14 @@ py_proto_library(
 )
 
 exports_files(["evidence.proto"])
+
+exports_files(["definition_proof.proto"])
+proto_library(
+    name = "definition_proof_proto",
+    srcs = ["definition_proof.proto"],
+    strip_import_prefix = "/proto",
+)
+py_proto_library(
+    name = "definition_proof_py_proto",
+    deps = [":definition_proof_proto"],
+)

@@ -1,0 +1,31 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+package(default_visibility = ["//visibility:public"])
+exports_files(["verify.py", "definition_proof.bzl"])
+py_library(
+    name = "verifier",
+    srcs = ["verify.py"],
+    deps = ["//proto/spec/v1:definition_proof_py_proto"],
+)
+py_binary(
+    name = "verify",
+    srcs = ["main.py"],
+    main = "main.py",
+    deps = [":verifier"],
+    legacy_create_init = False,
+)
+py_test(
+    name = "verifier_test",
+    srcs = ["verifier_test.py"],
+    deps = [":verifier"],
+    legacy_create_init = False,
+)
+
+load(":definition_proof.bzl", "definition_proof_controls_test")
+py_binary(
+    name = "kernel_controls",
+    srcs = ["kernel_controls.py", "verifier_test.py"],
+    main = "kernel_controls.py",
+    deps = [":verifier"],
+    legacy_create_init = False,
+)
+definition_proof_controls_test(name = "kernel_controls_test")
