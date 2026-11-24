@@ -35,4 +35,10 @@ rejected before compilation. The current attribute subset is `@[simp]`; the
 deriving subset is DecidableEq, Repr, BEq and Inhabited. This is intentionally a
 restricted model-proof surface, with source-bound semantic review still required.
 The controls include modified imports, elaboration rules and handler attributes
-through the full request verifier, plus fourteen lexical-policy counterfeits.
+through the full request verifier, plus twenty lexical-policy counterfeits.
+
+Interpolation and raw strings are outside this closed source surface: embedded
+terms must not disappear into masked literal contents. Character literals have
+their own boundary handling, including escaped quotes; identifier primes remain
+ordinary code. The full-verifier controls include interpolation and quote-based
+declaration hiding, with positive plain-string/character/prime-name controls.

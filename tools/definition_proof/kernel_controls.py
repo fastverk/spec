@@ -37,6 +37,8 @@ def main():
         ('modified untrusted import', 'public import Lean\n'),
         ('elaboration rules', 'elab_rules : command\n'),
         ('elaboration attribute', '@[command_elab hidden] def hidden := 0\n'),
+        ('interpolated executable term', 'def hidden := s!"{(show Nat from by run_tac pure ())}"\n'),
+        ('quoted-character declaration hiding', 'def q : Char := \'"\'\nelab_rules : command\ndef close : Char := \'"\'\n'),
     ]:
         changed = dict(sources); changed['Proof.lean'] = (extra + sources['Proof.lean'].decode()).encode()
         mutant = type(request)(); mutant.CopyFrom(request)
@@ -47,6 +49,6 @@ def main():
             if 'unsupported' not in str(error): raise
             print('Rejected source policy ' + label + ' before compilation', flush=True)
         else: raise AssertionError(label + ' incorrectly accepted')
-    Path(args.output).write_text('actual kernel baseline, five type/compiler controls, and three source-policy controls passed\n')
+    Path(args.output).write_text('actual kernel baseline, five type/compiler controls, and five source-policy controls passed\n')
 
 if __name__ == '__main__': main()
