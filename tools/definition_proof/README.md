@@ -31,7 +31,7 @@ on a populated baseline and five counterfeit/type/compiler substitutions.
 The closed source grammar permits ordinary one-line imports only. Modified
 imports cannot escape closure checking. Executable elaboration/macro rules,
 handler registration, compile-time file inclusion, and custom attributes are
-rejected before compilation. The current attribute subset is `@[simp]`; the
+rejected before compilation. The annotation subset remains `@[simp]`; the
 deriving subset is DecidableEq, Repr, BEq and Inhabited. This is intentionally a
 restricted model-proof surface, with source-bound semantic review still required.
 The controls include modified imports, elaboration rules and handler attributes
@@ -42,3 +42,19 @@ terms must not disappear into masked literal contents. Character literals have
 their own boundary handling, including escaped quotes; identifier primes remain
 ordinary code. The full-verifier controls include interpolation and quote-based
 declaration hiding, with positive plain-string/character/prime-name controls.
+
+
+Source-bound arithmetic/hash consumers also need capped elaboration resources
+and local reduction hints. Complete command lines may set maxRecDepth to the
+decimal literal 4096 or 8192, or exponentiation.threshold to 4096, with optional
+trailing `in`. The only permitted attribute command is
+`attribute [local irreducible] name ...` with ordinary qualified names. These
+bytes remain in the source hashes and actual compiler input. They change no
+trust-zero flag, warning policy, logical-dependency rule, semantic review, exact
+proposition or nonempty-domain check. Other options, expressions, bounds, global
+attributes, handlers and appended commands reject. Bare command keywords cannot
+be treated as attribute target names, including open/namespace/section/end. Target tails remain
+visible to denied-token and modified-import checks; an allowed hint cannot hide another
+command. Existing `run_*` restrictions remain; consumers use ordinary private
+proof identifiers. Lexical controls and actual pinned-kernel controls cover the
+positive forms and deliberate injection attempts.
