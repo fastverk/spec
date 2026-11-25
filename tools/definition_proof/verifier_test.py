@@ -89,6 +89,57 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(check_source('def q : Char := \'\\"\'\ndef text := "ordinary"'), [])
         self.assertEqual(check_source('theorem x : True := by repeat\' first | trivial'), [])
 
+    def test_bounded_source_resource_and_local_transparency_hints(self):
+        cases = [
+            'set_option warningAsError true',
+            'set_option maxRecDepth 4096', 'set_option maxRecDepth 8192',
+            'set_option exponentiation.threshold 4096',
+            'set_option maxRecDepth 4096 in\ntheorem x : True := by trivial',
+            'set_option exponentiation.threshold 4096 in\ntheorem x : True := by trivial',
+            'attribute [local irreducible] f',
+            'attribute [local irreducible] A.f B.g',
+            '  attribute [ local irreducible ] A.f -- unchanged source comment',
+        ]
+        for source in cases:
+            with self.subTest(source=source):
+                self.assertEqual(check_source('import Std\n' + source), ['Std'])
+
+    def test_resource_hints_do_not_hide_unchecked_commands(self):
+        cases = [
+            'set_option warningAsError false', 'set_option warningAsError true in',
+            'set_option maxHeartbeats 0', 'set_option debug.skipKernelTC true',
+            'set_option maxRecDepth 0', 'set_option maxRecDepth 4097',
+            'set_option maxRecDepth 8193', 'set_option maxRecDepth -1',
+            'set_option maxRecDepth 0x1000', 'set_option maxRecDepth (4096)',
+            'set_option maxRecDepth 4_096', 'set_option maxRecDepth 04096',
+            'set_option maxRecDepth 4096 in #eval 1',
+            'set_option maxRecDepth 4096; set_option warningAsError false',
+            'set_option maxRecDepth 4096 theorem hidden : True := by trivial',
+            'set_option\nmaxRecDepth 4096', 'local set_option maxRecDepth 4096',
+            'set_option exponentiation.threshold 0', 'set_option exponentiation.threshold 8192',
+            'attribute [irreducible] f', 'attribute [local reducible] f',
+            'attribute [local simp] f', 'attribute [local command_elab] f',
+            'attribute [local irreducible, simp] f',
+            'attribute [local irreducible]', 'attribute [local irreducible] A.*',
+            'attribute [local irreducible] «f»',
+            'attribute [local irreducible] f; #eval 1',
+            'attribute [local irreducible] f initialize do IO.println "hidden"',
+            'attribute [local irreducible] f public import Lean',
+            'attribute [local irreducible] f elab_rules command',
+            'attribute [local irreducible] f open Nat',
+            'attribute [local irreducible] f namespace Hidden',
+            'attribute [local irreducible] f section Hidden',
+            'attribute [local irreducible] f end',
+            'attribute [local irreducible] f universe u',
+            'attribute [local irreducible] f run_meta pure',
+            'attribute [local irreducible] f\naxiom hidden : False',
+            'attribute\n[local irreducible] f',
+            'theorem run_value : True := by trivial',
+        ]
+        for source in cases:
+            with self.subTest(source=source), self.assertRaises(ValueError):
+                check_source(source)
+
     def test_dependency_report_not_a_boolean(self):
         self.assertEqual(dependencies("'full' does not depend on any axioms\n", ['full']), [])
         for output in ["'full' depends on axioms: [sorryAx]", '', "'full' depends on axioms: [domainAxiom]"]:

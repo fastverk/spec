@@ -108,18 +108,62 @@ def code_only(source, strings=False):
     return ''.join(out)
 
 
+# These measured source hints change bounded elaboration cost/transparency,
+# never kernel trust, permitted logical dependencies, or reviewed source bytes.
+RESOURCE_OPTIONS = {
+    'maxRecDepth': frozenset({'4096', '8192'}),
+    'exponentiation.threshold': frozenset({'4096'}),
+}
+
+# Lean stops an attribute's target list at command keywords, even on one line.
+# They cannot count as ordinary declaration targets in this restricted grammar.
+COMMAND_WORDS = frozenset('''abbrev class def deriving end example export for in include inductive infix
+infixl infixr instance lemma local mutual namespace noncomputable notation omit
+open postfix prefix private protected public scoped section structure theorem
+universe universes variable variables'''.split())
+
+
+def checked_source_commands(code):
+    """Validate complete hint lines while preserving every target/code token."""
+    checked = []
+    for line in code.splitlines(keepends=True):
+        content = line.strip()
+        if re.search(r'\bset_option\b', line):
+            option = re.fullmatch(
+                r'set_option[ \t]+([A-Za-z_][A-Za-z_0-9.]*)[ \t]+'
+                r'([A-Za-z_0-9]+)(?:[ \t]+(in))?', content)
+            if option is None:
+                raise ValueError('unsupported Lean checking option')
+            name, value, scoped = option.groups()
+            allowed = (value == 'true' and scoped is None) if name == 'warningAsError' else (
+                value in RESOURCE_OPTIONS.get(name, ()))
+            if not allowed:
+                raise ValueError('unsupported Lean checking option')
+        if re.search(r'\battribute\b', line):
+            attribute = re.fullmatch(
+                r'attribute[ \t]+\[[ \t]*local[ \t]+irreducible[ \t]*\]'
+                r'[ \t]+(.+)', content)
+            if attribute is None or not all(
+                    NAME.fullmatch(name) and name not in COMMAND_WORDS
+                    for name in attribute.group(1).split()):
+                raise ValueError('unsupported Lean attribute command')
+            # Mask only this leading keyword. A target-like trailing `initialize`
+            # or modified import must still meet all existing denied-token rules.
+            start = line.index('attribute')
+            line = line[:start] + ' ' * len('attribute') + line[start + len('attribute'):]
+        checked.append(line)
+    return ''.join(checked)
+
+
 def check_source(source):
-    code = code_only(source)
+    code = checked_source_commands(code_only(source))
     # No extension commands, compiler execution shortcuts, native proofs,
-    # custom trusted imports, or source-local changes to trust/checking policy.
+    # custom trusted imports, or source-local changes to kernel trust/safety.
     denied = r'\b(axiom|opaque|sorry|admit|native_decide|unsafe|implemented_by|extern|partial|elab|elab_rules|macro|macro_rules|syntax|initialize|builtin_initialize|run_[A-Za-z_0-9]+|simproc|dsimproc|simproc_decl|dsimproc_decl|builtin_simproc|builtin_dsimproc|attribute|include_str|include_bin|prelude|module|register_[A-Za-z_0-9]+|declare_[A-Za-z_0-9]+)\b'
     if re.search(denied, code) or re.search(r'\[\s*(?:extern|implemented_by)', code):
         raise ValueError('unsupported trusted/deferred/metaprogram declaration')
     if re.search(r'#(?!print\s+axioms\b)', code):
         raise ValueError('only #print axioms diagnostics are allowed')
-    for match in re.finditer(r'\bset_option\s+([^\n]+)', code):
-        if match.group(1).strip() != 'warningAsError true':
-            raise ValueError('unsupported Lean checking option')
     # Attributes can install elaboration handlers without an `elab` command.
     # This closed proof surface needs only the standard simplifier attribute;
     # custom handlers/registrations are executable extensions, not proof data.
