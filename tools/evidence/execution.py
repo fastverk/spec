@@ -17,9 +17,9 @@ MAX_OBSERVATION_BYTES = 1024 * 1024
 FILES = {'start.pb', 'complete.pb', 'stdout.bin', 'stderr.bin', 'diagnostic.txt', 'executable.bin'}
 
 
-class Cancelled(KeyboardInterrupt):
+class Canceled(KeyboardInterrupt):
     def __init__(self, signum=signal.SIGINT):
-        super().__init__('Evidence execution cancelled')
+        super().__init__('Evidence execution canceled')
         self.signum = signum
         self.receipt = None
 
@@ -202,9 +202,9 @@ def execute(requirement, check, roots, revision, run_uri, artifact_root, on_star
                     record.termination = E.EVIDENCE_PROCESS_TERMINATION_TIMED_OUT
                     diagnostic = (type(exc).__name__ + ': ' + str(exc) + '\n').encode()
                 except KeyboardInterrupt as exc:
-                    cancelled = exc if isinstance(exc, Cancelled) else Cancelled()
+                    cancelled = exc if isinstance(exc, Canceled) else Canceled()
                     terminate(process); record.exit_code = process.returncode
-                    record.termination = E.EVIDENCE_PROCESS_TERMINATION_CANCELLED
+                    record.termination = E.EVIDENCE_PROCESS_TERMINATION_CANCELED
                     diagnostic = ('Caller cancellation signal: ' + str(cancelled.signum) + '\n').encode()
                 finally:
                     # A normally exiting leader must not leave background group members.
@@ -336,7 +336,7 @@ def validate_receipt(receipt, check, artifact_root, history):
         if record.HasField('exit_code'):
             raise ValueError('a failed spawn cannot supply an exit code')
     elif record.termination in [E.EVIDENCE_PROCESS_TERMINATION_EXITED,
-            E.EVIDENCE_PROCESS_TERMINATION_TIMED_OUT, E.EVIDENCE_PROCESS_TERMINATION_CANCELLED]:
+            E.EVIDENCE_PROCESS_TERMINATION_TIMED_OUT, E.EVIDENCE_PROCESS_TERMINATION_CANCELED]:
         if not record.HasField('exit_code') or not record.HasField('executable'):
             raise ValueError('started process lacks its actual status or executable')
     else:

@@ -231,7 +231,7 @@ class ExecutionTest(unittest.TestCase):
             self.assertFalse(any(r.check_id=='zz-later-check' for r in after.receipts))
             if signum!=signal.SIGKILL:
                 store=X.Store(base/'receipts.json.executions'); record=store.record(after.receipts[-1].execution_record)
-                self.assertEqual(record.termination,E.EVIDENCE_PROCESS_TERMINATION_CANCELLED)
+                self.assertEqual(record.termination,E.EVIDENCE_PROCESS_TERMINATION_CANCELED)
                 self.assertEqual(record.exit_code,-signal.SIGKILL)
             argv, env = self.cli('assess','--check',self.check.id)
             assessed=subprocess.run(argv,env=env,capture_output=True)

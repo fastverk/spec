@@ -115,14 +115,14 @@ def main():
                 ledger.receipts.append(receipt)
                 atomic_write(args.receipts, A.render(ledger))
             def cancel(signum, _frame):
-                raise A.X.Cancelled(signum)
+                raise A.X.Canceled(signum)
             handlers = {signum: signal.signal(signum, cancel) for signum in [signal.SIGINT, signal.SIGTERM]}
             try:
                 for key in sorted(selected):
                     check = checks[key]
                     append(A.execute(requirements[check.requirement_id], check, roots, revision, args.run_uri,
                         artifact_root=artifact_root, on_started=append))
-            except A.X.Cancelled as exc:
+            except A.X.Canceled as exc:
                 if exc.receipt is not None:
                     append(exc.receipt)
                 return 128 + exc.signum
