@@ -96,7 +96,7 @@ The private artifact store defaults to `LEDGER_FILENAME.executions` beside the
 ledger. Direct callers can select `--execution-artifacts DIRECTORY` for both
 `run` and `assess`; Scope callers currently use the default until its forwarding
 option is adopted. Each execution gets an exclusive private directory. Raw stdout,
-stderr, available error details, and a snapshot of the resolved executable are
+stderr, available error details, and a snapshot of the executable target bytes are
 bound by typed protobuf start/completion records, sizes and SHA-256. Output files
 are `0600` and directories `0700`. Artifact roots cannot overlap manifests,
 ledgers, locks, reports, decisions, or declared source files. Artifact symlinks
@@ -172,3 +172,9 @@ cryptographic authentication of the person's identity. The reviewed population
 is the scope the person actually reviewed, not an executed measurement or
 customer rows. This facility does not infer approval from a source flag, a
 passing test, or a plan, and does not establish full specification readiness.
+
+Interpreter commands retain their selected absolute launch path, including virtual-
+environment symlinks. Resolving that path before launch can select the base interpreter
+and lose the intended packages. The record binds the launch path and target bytes; a
+changed target path or changed target bytes during execution makes the receipt stale.
+This does not bind the complete interpreter package tree or make execution hermetic.

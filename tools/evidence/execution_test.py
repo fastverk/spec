@@ -2,11 +2,13 @@
 import json
 import os
 import signal
+import shlex
 import stat
 import subprocess
 import sys
 import time
 import unittest
+import venv
 from pathlib import Path
 from unittest.mock import patch
 
@@ -38,6 +40,53 @@ class ExecutionTest(unittest.TestCase):
 
     def stdout(self, record):
         return X.Store(self.artifacts).read(record.stdout).read_bytes()
+
+    def test_python_virtual_environment_keeps_its_selected_packages(self):
+        environment = Path(self.temporary.name) / 'selected-python'
+        venv.EnvBuilder(with_pip=False, symlinks=True).create(environment)
+        python = environment / 'bin/python'
+        self.assertTrue(python.is_symlink(), 'Exercise the symlinked interpreter boundary')
+        probe = subprocess.run([str(python), '-c',
+            'import sysconfig; print(sysconfig.get_path("purelib"))'],
+            capture_output=True, text=True, check=True)
+        packages = Path(probe.stdout.strip())
+        packages.mkdir(parents=True, exist_ok=True)
+        (packages / 'selected_evidence_fixture.py').write_text('COUNT = 7\n')
+        value = {'outcome': 'OUTCOME_PASSES', 'population': {'count': '7',
+            'query_fingerprint': 'd'*64, 'evaluated_at': '2026-11-23T12:00:00Z'}}
+        self.prepare('import selected_evidence_fixture as selected\n'
+            'assert selected.COUNT == 7\nprint(' + repr(json.dumps(value)) + ')')
+        self.check.argv[:] = ['python', 'predicate.py']
+        with patch.dict(os.environ, {'PATH': str(python.parent) + os.pathsep + os.environ['PATH']}):
+            receipt = self.run_check()
+        record = self.record(receipt)
+        self.assertEqual(record.exit_code, 0,
+            X.Store(self.artifacts).read(record.stderr).read_bytes())
+        self.assertEqual(record.executable_path, str(python))
+        self.assertEqual(record.executable.sha256, X.file_hash(python.resolve()))
+        self.assertEqual(receipt.observation.population.count, 7)
+        self.assertTrue(self.assess().selected_checks_passed)
+
+    def test_retargeted_launch_symlink_is_stale_even_when_target_bytes_match(self):
+        directory = Path(self.temporary.name)
+        launch = directory / 'selected-command'
+        first = directory / 'first-command'; second = directory / 'second-command'
+        pending = directory / 'replacement-link'
+        value = {'outcome': 'OUTCOME_PASSES', 'population': {'count': '1',
+            'query_fingerprint': 'e'*64, 'evaluated_at': '2026-11-23T12:00:00Z'}}
+        source = ('#!/bin/sh\nln -s ' + shlex.quote(str(second)) + ' ' + shlex.quote(str(pending))
+            + '\nmv -f ' + shlex.quote(str(pending)) + ' ' + shlex.quote(str(launch))
+            + "\nprintf '%s\\n' " + shlex.quote(json.dumps(value)) + '\n')
+        for command in [first, second]:
+            command.write_text(source); command.chmod(0o700)
+        launch.symlink_to(first)
+        self.assertEqual(X.file_hash(first), X.file_hash(second))
+        self.check.argv[:] = [str(launch)]
+        receipt = self.run_check(); record = self.record(receipt)
+        self.assertEqual(record.exit_code, 0)
+        self.assertEqual(launch.resolve(), second)
+        self.assertEqual(receipt.execution_state, E.EVIDENCE_STATE_STALE)
+        self.assertFalse(self.assess().selected_checks_passed)
 
     def test_nonzero_exit_retains_both_streams_without_parsing_a_plausible_pass(self):
         value = {'outcome': 'OUTCOME_PASSES', 'population': {'count': '1',
