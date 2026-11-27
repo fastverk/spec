@@ -41,7 +41,7 @@ cleanup preserves stable event identity and the complete Resource envelope.
 It connects RFC-0041 to Graph and Gnomon checks and authenticated Note acceptance.
 A planted envelope mutation must fail, source drift must stale the receipt, and
 an ungrounded obligation must remain unresolved. Existing implementation evidence
-may be cited as historical evidence; only a new executed check creates a new
+may be cited as historical evidence; only a new evaluator-recorded execution or explicit human review creates a new
 receipt. The pilot does not establish full RFC-0041 or issue #14 conformance.
 
 The consumer then inventories all RFCs and product surfaces, preserving missing
@@ -89,3 +89,32 @@ Manual `ci.yml` dispatches leave `publish_image` false by default. Other future
 pushes retain automatic deployment/publication behavior. No database migration
 paths are touched by this integration. Verify skipped jobs and deployment records
 explicitly; a green source gate is not production acceptance.
+
+## Explicit review entries
+
+The actual consumer replay caught a grounding check incorrectly declared as a
+runnable test. `run` continues to refuse approval, grounding and production
+acceptance dimensions. A test cannot supply a human decision.
+
+Use `review-plan --check ID` to propose one typed `EvidenceReviewDecision` with
+the complete definition and source bindings. It leaves the human origin,
+verdict, reviewer, actual review time, source, statement and reviewed population
+unset. It runs no predicate and appends no receipt. Supply those fields from an
+actual explicit human decision, then use `review --check ID --decision FILE`.
+The decision and ledger use the existing protobuf JSON convention. The receipt
+is issued by the same evaluator; consumers must not construct it themselves.
+
+Review is separate from executing implementation, tests or proofs and never
+runs the check's command. A missing/unspecified decision, empty reviewed scope,
+missing person/source/words, unzoned/future time, changed definition or source,
+or substituted dimension is refused before append. All prior receipt bytes are
+retained. An identical decision ID is idempotent; conflicting reuse is refused.
+Rejection is a nonpassing review outcome. Assessment independently checks the
+structured review and its exact observation/source correspondence, so a flat
+CURRENT receipt cannot manufacture a review or replace a proof.
+
+Review provenance is an attributed declaration with integrity checks, not
+cryptographic authentication of the person's identity. The reviewed population
+is the scope the person actually reviewed, not an executed measurement or
+customer rows. This facility does not infer approval from a source flag, a
+passing test, or a plan, and does not establish full specification readiness.

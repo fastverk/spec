@@ -6,7 +6,7 @@ py_library(
     name = "assessment",
     srcs = ["assessment.py"],
     deps = ["//proto/spec/v1:evidence_py_proto"],
-    data = ["//proto/spec/v1:evidence.proto", "//proto/spec/v1:invariant.proto"],
+    data = ["evaluate.py", "//proto/spec/v1:evidence.proto", "//proto/spec/v1:invariant.proto"],
 )
 
 py_binary(
@@ -30,4 +30,11 @@ py_test(
     data = [":evaluate"],
     deps = [":assessment"],
     legacy_create_init = False,
+)
+
+py_test(
+    name = "review_test",
+    srcs = ["review_test.py"],
+    legacy_create_init = False,
+    deps = [":assessment"],
 )

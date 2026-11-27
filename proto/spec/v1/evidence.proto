@@ -99,6 +99,8 @@ message EvidenceReceipt {
   // Optional externally verifiable CI execution locator; not a signature.
   string run_uri = 11;
   string observation_artifact_sha256 = 12;
+  // Present only for an explicit nonexecutable review dimension.
+  EvidenceReviewDecision review = 13;
 }
 
 message EvidenceLedger {
@@ -135,4 +137,37 @@ message EvidenceReport {
   // The explicit selected check set only; not full specification readiness.
   bool selected_checks_passed = 4;
   uint64 selected_check_count = 5;
+}
+
+// An explicit human decision, separate from executing a predicate. This is a
+// declaration with byte-bound provenance, not identity authentication or a
+// cryptographic attestation that a review actually happened.
+enum EvidenceReviewOrigin {
+  EVIDENCE_REVIEW_ORIGIN_UNSPECIFIED = 0;
+  EVIDENCE_REVIEW_ORIGIN_EXPLICIT_HUMAN = 1;
+}
+
+enum EvidenceReviewVerdict {
+  EVIDENCE_REVIEW_VERDICT_UNSPECIFIED = 0;
+  EVIDENCE_REVIEW_VERDICT_ACCEPTED = 1;
+  EVIDENCE_REVIEW_VERDICT_REJECTED = 2;
+}
+
+message EvidenceReviewDecision {
+  uint32 schema_version = 1;
+  // Consumer-chosen idempotency identity, not an existing receipt identity.
+  string id = 2;
+  string check_id = 3;
+  string definition_sha256 = 4;
+  EvidenceDimension dimension = 5;
+  EvidenceReviewOrigin origin = 6;
+  EvidenceReviewVerdict verdict = 7;
+  string reviewer = 8;
+  string reviewed_at = 9;
+  string source_uri = 10;
+  // Actual decision words; never test output, customer rows or logs.
+  string statement = 11;
+  repeated EvidenceInput inputs = 12;
+  // Scope reviewed by the person, not an executed data measurement.
+  Population population = 13;
 }
