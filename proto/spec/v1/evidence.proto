@@ -24,6 +24,8 @@ enum EvidenceState {
   EVIDENCE_STATE_VACUOUS = 6;
   EVIDENCE_STATE_SKIPPED = 7;
   EVIDENCE_STATE_EXAMINED = 8;
+  // An evaluator-issued start receipt; never a completed evaluation or pass.
+  EVIDENCE_STATE_PENDING = 9;
 }
 
 enum FreshnessPolicy {
@@ -101,6 +103,8 @@ message EvidenceReceipt {
   string observation_artifact_sha256 = 12;
   // Present only for an explicit nonexecutable review dimension.
   EvidenceReviewDecision review = 13;
+  // Relative to the explicitly selected private execution artifact store.
+  EvidenceArtifactBinding execution_record = 14;
 }
 
 message EvidenceLedger {
@@ -170,4 +174,59 @@ message EvidenceReviewDecision {
   repeated EvidenceInput inputs = 12;
   // Scope reviewed by the person, not an executed data measurement.
   Population population = 13;
+}
+
+// Immutable private execution artifacts. Raw output never belongs in observations.
+message EvidenceArtifactBinding {
+  string path = 1;
+  string sha256 = 2;
+  uint64 byte_size = 3;
+}
+
+enum EvidenceExecutionPhase {
+  EVIDENCE_EXECUTION_PHASE_UNSPECIFIED = 0;
+  EVIDENCE_EXECUTION_PHASE_STARTED = 1;
+  EVIDENCE_EXECUTION_PHASE_COMPLETED = 2;
+}
+
+enum EvidenceProcessTermination {
+  EVIDENCE_PROCESS_TERMINATION_UNSPECIFIED = 0;
+  EVIDENCE_PROCESS_TERMINATION_EXITED = 1;
+  EVIDENCE_PROCESS_TERMINATION_TIMED_OUT = 2;
+  EVIDENCE_PROCESS_TERMINATION_SPAWN_ERROR = 3;
+  EVIDENCE_PROCESS_TERMINATION_CANCELED = 4;
+  // A source/executable preflight refused before spawning a process.
+  EVIDENCE_PROCESS_TERMINATION_NOT_STARTED = 5;
+}
+
+// Integrity provenance, not a signature or a hermetic toolchain attestation.
+message EvidenceExecutionRecord {
+  uint32 schema_version = 1;
+  string id = 2;
+  string start_receipt_id = 3;
+  string final_receipt_id = 4;
+  string definition_sha256 = 5;
+  string check_id = 6;
+  string evaluator_sha256 = 7;
+  string evaluator_revision = 8;
+  repeated EvidenceInput inputs = 9;
+  repeated string argv = 10;
+  string working_repository = 11;
+  EvidenceExecutionRevision working_revision = 12;
+  string executable_path = 13;
+  EvidenceArtifactBinding executable = 14;
+  uint32 timeout_seconds = 15;
+  string started_at = 16;
+  string completed_at = 17;
+  EvidenceExecutionPhase phase = 18;
+  EvidenceProcessTermination termination = 19;
+  // Absent if no process started; negative signal values remain actual values.
+  optional sint32 exit_code = 20;
+  EvidenceArtifactBinding stdout = 21;
+  EvidenceArtifactBinding stderr = 22;
+  EvidenceArtifactBinding diagnostic = 23;
+  EvidenceState evidence_state = 24;
+  EvidenceArtifactBinding start_record = 25;
+  string observation_sha256 = 26;
+  bool working_dirty = 27;
 }

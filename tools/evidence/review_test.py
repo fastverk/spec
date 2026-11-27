@@ -3,6 +3,7 @@ import copy
 import subprocess
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from spec.v1 import evidence_pb2 as E
 from spec.v1 import invariant_pb2 as I
@@ -147,6 +148,29 @@ class ReviewTest(unittest.TestCase):
         first = self.receipt(); second = copy.deepcopy(first); second.id = 'different-receipt-id'
         ledger = E.EvidenceLedger(schema_version=1, receipts=[first, second])
         with self.assertRaises(ValueError): A.assess(self.manifest, ledger, self.roots, self.revision)
+
+    def test_intact_execution_artifacts_cannot_be_attached_to_human_review(self):
+        receipt = self.receipt()
+        with tempfile.TemporaryDirectory() as temporary:
+            store = A.X.Store(Path(temporary) / 'executions', create=True)
+            identity = str(uuid.uuid4()); directory = store.begin(identity)
+            record = E.EvidenceExecutionRecord(schema_version=1, id=identity,
+                final_receipt_id=receipt.id, check_id=receipt.check_id,
+                definition_sha256=receipt.definition_sha256,
+                evaluator_sha256=receipt.evaluator_sha256,
+                evaluator_revision=receipt.evaluator_revision, inputs=receipt.inputs,
+                phase=E.EVIDENCE_EXECUTION_PHASE_COMPLETED,
+                evidence_state=receipt.execution_state)
+            for field, name in [('stdout', 'stdout.bin'), ('stderr', 'stderr.bin'),
+                                ('diagnostic', 'diagnostic.txt'), ('start_record', 'start.pb')]:
+                getattr(record, field).CopyFrom(store.write(directory, name, b''))
+            receipt.execution_record.CopyFrom(store.write(directory, 'complete.pb', A.X.encoded(record)))
+            # Byte integrity alone must not blur a review and an executable result.
+            A.X.validate_history_artifacts(receipt, store.root)
+            ledger = E.EvidenceLedger(schema_version=1, receipts=[receipt])
+            report = A.assess(self.manifest, ledger, self.roots, self.revision,
+                [self.check.id], artifact_root=store.root)
+            self.assertFalse(report.selected_checks_passed)
 
     def test_review_field_cannot_masquerade_as_an_executable_proof(self):
         receipt = self.receipt()

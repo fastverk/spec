@@ -82,6 +82,58 @@ not identity authentication or a cryptographic attestation. A producer's positiv
 observation is trusted as that producer's verdict, not independently proved by
 this tool.
 
+## Private execution history
+
+Each executable attempt appends a `PENDING` start receipt before launching its
+command, then appends a distinct final receipt with the same execution identity.
+The start entry remains unchanged. A hard evaluator interruption leaves that
+nonpassing pending entry as the latest attempt; it cannot revive an earlier pass.
+Review entries retain their separate explicit-human path and idempotency; they
+cannot carry executable records. The ledger writer lock serializes start, command
+execution and final append. Assessment never edits prior entries.
+
+The private artifact store defaults to `LEDGER_FILENAME.executions` beside the
+ledger. Direct callers can select `--execution-artifacts DIRECTORY` for both
+`run` and `assess`; Scope callers currently use the default until its forwarding
+option is adopted. Each execution gets an exclusive private directory. Raw stdout,
+stderr, available error details, and a snapshot of the resolved executable are
+bound by typed protobuf start/completion records, sizes and SHA-256. Output files
+are `0600` and directories `0700`. Artifact roots cannot overlap manifests,
+ledgers, locks, reports, decisions, or declared source files. Artifact symlinks
+are refused. Do not upload private outputs as public CI artifacts.
+
+Process termination, actual optional exit code, observation interpretation and
+source freshness remain separate. An unavailable executable has no invented exit
+code; a timeout retains its partial output. A successful exit with invalid UTF-8,
+malformed protobuf JSON or unsupported observation remains failed. Observations
+are bounded to 1 MiB; complete raw output remains in its private file. Failed parsing
+cannot leave a partially parsed passing observation in a receipt. The existing
+six dimensions and positive-population rules remain unchanged.
+
+Commands run in a dedicated process group. Timeout and handled SIGINT/SIGTERM
+cancellation terminate and reap that group, including inherited descendants.
+Cancellation records a failed result and stops later selected checks. A hard kill
+cannot run a cancellation handler: its start receipt remains pending, and escaped
+process groups or crash-orphan recovery require an external supervisor or a
+separate recovery policy. Neither missing final output nor elapsed time establishes
+a terminal outcome. A failure while storing final artifacts leaves the durable
+pending receipt; it cannot publish a successful final receipt.
+
+Assessment verifies the current result against its original output and start
+lineage. It also checks byte integrity of all retained execution artifacts,
+including previous failed attempts; a retry cannot hide missing historical
+outputs. This checks integrity, not independent authenticity of a producer or a
+signature from a trusted runner. The executable snapshot does not retain a full
+dynamic-library, interpreter, operating-system or service distribution. Input
+completeness and the producer's actual domain predicate remain the consumer's
+reviewed responsibility.
+
+Older receipts stay byte-for-byte unchanged. Missing historical stderr or error
+details cannot be reconstructed. A changed evaluator/schema changes its
+fingerprint: consumers must explicitly adopt a pinned successor, replay their
+checks, and obtain actual review decisions for changed review requests. No
+existing human approval is silently carried to a different request.
+
 ## Validation without publication
 
 Use `[no-deploy]` in the pushed commit and merge commit message for a

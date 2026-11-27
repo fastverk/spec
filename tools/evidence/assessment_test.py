@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from spec.v1 import evidence_pb2 as E
 from spec.v1 import invariant_pb2 as I
@@ -14,7 +15,9 @@ class EvidenceTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.root = Path(self.temporary.name) / "consumer"
+        self.root.mkdir()
+        self.artifacts = Path(self.temporary.name) / "executions"
         self.git("init", "-q")
         self.git("config", "user.email", "fixture@example.invalid")
         self.git("config", "user.name", "Evidence fixture")
@@ -57,12 +60,12 @@ class EvidenceTest(unittest.TestCase):
         (self.root / "predicate.py").write_text("print(" + repr(json.dumps(observation)) + ")\n")
 
     def run_check(self):
-        receipt = A.execute(self.requirement, self.check, self.roots, self.revision)
+        receipt = A.execute(self.requirement, self.check, self.roots, self.revision, artifact_root=self.artifacts, on_started=self.ledger.receipts.append)
         self.ledger.receipts.append(receipt)
         return receipt
 
     def assess(self):
-        return A.assess(self.manifest, self.ledger, self.roots, self.revision)
+        return A.assess(self.manifest, self.ledger, self.roots, self.revision, artifact_root=self.artifacts)
 
     def state(self, report):
         return report.requirements[0].dimensions[E.EVIDENCE_DIMENSION_TEST - 1].state
@@ -140,12 +143,17 @@ class EvidenceTest(unittest.TestCase):
                 self.assertEqual(self.state(self.assess()), E.EVIDENCE_STATE_FAILED)
 
     def test_latest_failed_receipt_does_not_hide_behind_old_pass(self):
+        producer = self.root / "predicate.py"
+        producer.write_text("import os\nif os.environ.get('FAIL_EXECUTION_FIXTURE'): raise SystemExit(7)\n" + producer.read_text())
+        self.commit()
+        self.check.inputs[0].CopyFrom(self.input("predicate.py", E.FRESHNESS_POLICY_EXACT_REVISION))
         first = self.run_check()
-        second = self.run_check()
-        second.execution_state = E.EVIDENCE_STATE_FAILED
-        self.ledger.receipts[-1].CopyFrom(second)
+        original = [item.SerializeToString() for item in self.ledger.receipts]
+        with patch.dict("os.environ", {"FAIL_EXECUTION_FIXTURE": "1"}):
+            second = self.run_check()
         self.assertEqual(self.state(self.assess()), E.EVIDENCE_STATE_FAILED)
-        self.assertEqual(len(self.ledger.receipts), 2)
+        self.assertEqual(len(self.ledger.receipts), 4)
+        self.assertEqual([item.SerializeToString() for item in self.ledger.receipts[:2]], original)
         self.assertNotEqual(first.id, second.id)
 
     def test_observation_mutation_is_rejected(self):
@@ -159,7 +167,7 @@ class EvidenceTest(unittest.TestCase):
         other.CopyFrom(self.check)
         other.id = "unexecuted-sibling"
         self.assertFalse(self.assess().selected_checks_passed)
-        report = A.assess(self.manifest, self.ledger, self.roots, self.revision, [self.check.id])
+        report = A.assess(self.manifest, self.ledger, self.roots, self.revision, [self.check.id], artifact_root=self.artifacts)
         self.assertTrue(report.selected_checks_passed)
         self.assertFalse(report.ready)
         self.assertEqual(self.state(report), E.EVIDENCE_STATE_MISSING)

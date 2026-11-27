@@ -4,7 +4,7 @@ package(default_visibility = ["//visibility:public"])
 
 py_library(
     name = "assessment",
-    srcs = ["assessment.py"],
+    srcs = ["assessment.py", "execution.py"],
     deps = ["//proto/spec/v1:evidence_py_proto"],
     data = ["evaluate.py", "//proto/spec/v1:evidence.proto", "//proto/spec/v1:invariant.proto"],
 )
@@ -37,4 +37,14 @@ py_test(
     srcs = ["review_test.py"],
     legacy_create_init = False,
     deps = [":assessment"],
+)
+
+py_test(
+    name = "execution_test",
+    srcs = ["execution_test.py", "assessment_test.py"],
+    main = "execution_test.py",
+    args = ["$(rootpath :evaluate)"],
+    data = [":evaluate"],
+    deps = [":assessment"],
+    legacy_create_init = False,
 )

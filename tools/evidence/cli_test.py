@@ -49,11 +49,14 @@ class CliTest(unittest.TestCase):
             self.assertTrue(report["selected_checks_passed"])
             self.assertFalse(report["ready"])
             ledger = A.parse(receipts, E.EvidenceLedger())
-            original = ledger.receipts[0].SerializeToString()
+            self.assertEqual(len(ledger.receipts), 2)
+            self.assertEqual([r.execution_state for r in ledger.receipts],
+                             [E.EVIDENCE_STATE_PENDING, E.EVIDENCE_STATE_CURRENT])
+            original = [r.SerializeToString() for r in ledger.receipts]
             self.assertEqual(run("run").returncode, 0)
             ledger = A.parse(receipts, E.EvidenceLedger())
-            self.assertEqual(len(ledger.receipts), 2)
-            self.assertEqual(ledger.receipts[0].SerializeToString(), original)
+            self.assertEqual(len(ledger.receipts), 4)
+            self.assertEqual([r.SerializeToString() for r in ledger.receipts[:2]], original)
             before = receipts.read_bytes()
             self.assertEqual(run("assess").returncode, 0)
             self.assertEqual(receipts.read_bytes(), before)
