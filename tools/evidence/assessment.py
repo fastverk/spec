@@ -13,6 +13,7 @@ from spec.v1 import invariant_pb2 as I
 
 DIMENSIONS = tuple(range(E.EVIDENCE_DIMENSION_APPROVAL, E.EVIDENCE_DIMENSION_PRODUCTION_ACCEPTANCE + 1))
 EXECUTABLE = {E.EVIDENCE_DIMENSION_IMPLEMENTATION, E.EVIDENCE_DIMENSION_TEST, E.EVIDENCE_DIMENSION_PROOF}
+REVIEWABLE = set(DIMENSIONS) - EXECUTABLE
 HEX256 = re.compile(r"[0-9a-f]{64}\Z")
 HEX160 = re.compile(r"[0-9a-f]{40}\Z")
 
@@ -22,7 +23,7 @@ def digest(data):
 
 
 def evaluator_hash():
-    return digest(Path(__file__).read_bytes() + E.DESCRIPTOR.serialized_pb + I.DESCRIPTOR.serialized_pb)
+    return digest(Path(__file__).read_bytes() + Path(__file__).with_name("evaluate.py").read_bytes() + E.DESCRIPTOR.serialized_pb + I.DESCRIPTOR.serialized_pb)
 
 
 def parse(path, message):
@@ -161,6 +162,75 @@ def observation_state(observation):
     return E.EVIDENCE_STATE_CURRENT if observation.outcome == I.OUTCOME_PASSES else E.EVIDENCE_STATE_EXAMINED
 
 
+def review_plan(requirement, check, roots):
+    if check.dimension not in REVIEWABLE or check.argv:
+        raise ValueError("a review plan needs a nonexecutable review dimension with no command")
+    return E.EvidenceReviewDecision(
+        schema_version=1, id=str(uuid.uuid4()), check_id=check.id,
+        definition_sha256=definition_hash(requirement, check), dimension=check.dimension,
+        inputs=inspect_inputs(expected_inputs(requirement, check), roots),
+    )
+
+
+def same_input_bindings(left, right):
+    if len(left) != len(right):
+        return False
+    for before, now in zip(left, right):
+        if (before.repository, before.path, before.sha256, before.freshness) != (now.repository, now.path, now.sha256, now.freshness):
+            return False
+        if now.freshness == E.FRESHNESS_POLICY_EXACT_REVISION and before.revision != now.revision:
+            return False
+    return True
+
+
+def validate_review(requirement, check, decision, current):
+    if check.dimension not in REVIEWABLE or check.argv:
+        raise ValueError("a review cannot substitute for implementation, tests, or proof or run a command")
+    if (decision.schema_version != 1 or not decision.id.strip() or
+            decision.check_id != check.id or decision.dimension != check.dimension or
+            decision.definition_sha256 != definition_hash(requirement, check)):
+        raise ValueError("review decision differs from the complete check definition")
+    if (decision.origin != E.EVIDENCE_REVIEW_ORIGIN_EXPLICIT_HUMAN or
+            decision.verdict not in (E.EVIDENCE_REVIEW_VERDICT_ACCEPTED, E.EVIDENCE_REVIEW_VERDICT_REJECTED) or
+            not decision.reviewer.strip() or not decision.source_uri.strip() or not decision.statement.strip()):
+        raise ValueError("review needs an explicit human decision, reviewer, source, and actual statement")
+    reviewed = datetime.fromisoformat(decision.reviewed_at.replace("Z", "+00:00"))
+    if reviewed.tzinfo is None or reviewed > datetime.now(timezone.utc):
+        raise ValueError("review needs an actual timestamp with timezone")
+    if (not decision.population.count or not HEX256.fullmatch(decision.population.query_fingerprint) or
+            decision.population.evaluated_at != decision.reviewed_at):
+        raise ValueError("review needs its nonempty actual reviewed scope and timestamp")
+    if not same_input_bindings(decision.inputs, current):
+        raise ValueError("reviewed source inputs differ from the current declared scope")
+
+
+def review_observation(decision):
+    return E.EvidenceObservation(
+        outcome=I.OUTCOME_PASSES if decision.verdict == E.EVIDENCE_REVIEW_VERDICT_ACCEPTED else I.OUTCOME_FAILS,
+        population=decision.population,
+    )
+
+
+def record_review(requirement, check, decision, roots, evaluator_revision):
+    # No subprocess executes a predicate or infers the person's decision.
+    current = inspect_inputs(expected_inputs(requirement, check), roots)
+    validate_review(requirement, check, decision, current)
+    observation = review_observation(decision)
+    receipt = E.EvidenceReceipt(
+        id=str(uuid.uuid4()), check_id=check.id, definition_sha256=definition_hash(requirement, check),
+        evaluator_sha256=evaluator_hash(), evaluator_revision=evaluator_revision,
+        inputs=decision.inputs, observation=observation,
+        observation_sha256=digest(observation.SerializeToString(deterministic=True)),
+        observation_artifact_sha256=digest(decision.SerializeToString(deterministic=True)),
+        executed_at=datetime.now(timezone.utc).isoformat(),
+        execution_state=E.EVIDENCE_STATE_CURRENT if decision.verdict == E.EVIDENCE_REVIEW_VERDICT_ACCEPTED else E.EVIDENCE_STATE_FAILED,
+        review=decision,
+    )
+    if not same_input_bindings(current, inspect_inputs(expected_inputs(requirement, check), roots)):
+        raise ValueError("source changed while recording review; no receipt appended")
+    return receipt
+
+
 def execute(requirement, check, roots, evaluator_revision, run_uri=""):
     if check.dimension not in EXECUTABLE:
         raise ValueError("review dimensions cannot be established by executing a test")
@@ -211,6 +281,20 @@ def assess_check(requirement, check, receipt, roots, evaluator_revision):
                 raise ValueError("receipt input binding differs")
             if now.freshness == E.FRESHNESS_POLICY_EXACT_REVISION and now.revision != then.revision:
                 raise ValueError("receipt revision differs")
+        if check.dimension not in EXECUTABLE:
+            if not receipt.HasField("review"):
+                raise ValueError("review dimension needs an evaluator-issued structured human review")
+            validate_review(requirement, check, receipt.review, current)
+            expected = review_observation(receipt.review)
+            expected_state = E.EVIDENCE_STATE_CURRENT if receipt.review.verdict == E.EVIDENCE_REVIEW_VERDICT_ACCEPTED else E.EVIDENCE_STATE_FAILED
+            if (receipt.review.check_id != receipt.check_id or receipt.review.definition_sha256 != receipt.definition_sha256 or
+                    not same_input_bindings(receipt.review.inputs, receipt.inputs) or
+                    receipt.observation != expected or receipt.execution_state != expected_state or
+                    receipt.observation_artifact_sha256 != digest(receipt.review.SerializeToString(deterministic=True)) or
+                    receipt.observation_sha256 != digest(expected.SerializeToString(deterministic=True))):
+                raise ValueError("review receipt differs from the explicit decision or observation")
+        elif receipt.HasField("review"):
+            raise ValueError("a review receipt cannot substitute for an executable check")
         if receipt.execution_state != E.EVIDENCE_STATE_CURRENT:
             if receipt.execution_state not in range(E.EVIDENCE_STATE_STALE, E.EVIDENCE_STATE_EXAMINED + 1):
                 raise ValueError("receipt has no terminal execution state")
@@ -231,11 +315,16 @@ def assess(manifest, ledger, roots, evaluator_revision, selected=()):
         raise ValueError("ledger schema_version must be 1")
     latest = {}
     receipt_ids = set()
+    review_ids = set()
     checks = {check.id: check for check in manifest.checks}
     for receipt in ledger.receipts:
         if not receipt.id or receipt.id in receipt_ids:
             raise ValueError("duplicate or missing receipt identity")
         receipt_ids.add(receipt.id)
+        if receipt.HasField("review"):
+            if not receipt.review.id or receipt.review.id in review_ids:
+                raise ValueError("duplicate or missing review decision identity")
+            review_ids.add(receipt.review.id)
         latest[receipt.check_id] = receipt
     selected = set(selected) if selected else set(checks)
     if not selected or selected - checks.keys():
