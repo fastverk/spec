@@ -213,6 +213,7 @@ message EvidenceExecutionRecord {
   repeated string argv = 10;
   string working_repository = 11;
   EvidenceExecutionRevision working_revision = 12;
+  // Absolute launch path, retaining interpreter/virtual-environment symlinks.
   string executable_path = 13;
   EvidenceArtifactBinding executable = 14;
   uint32 timeout_seconds = 15;

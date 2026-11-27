@@ -180,16 +180,21 @@ def execute(requirement, check, roots, revision, run_uri, artifact_root, on_star
                 if [encoded(x) for x in now] != [encoded(x) for x in inputs]:
                     raise ValueError('source changed before command launch')
                 command = check.argv[0]
-                located = str((working / command).resolve()) if os.sep in command else shutil.which(command)
+                located = str((working / command).absolute()) if os.sep in command else shutil.which(command)
                 if not located:
                     raise FileNotFoundError('command executable is unavailable: ' + command)
-                executable = Path(located).resolve(strict=True)
+                # Interpreter launch paths can select a virtual environment. Keep that
+                # path for exec; resolving it first drops its package context.
+                launch_path = Path(located).absolute()
+                resolved_executable = launch_path.resolve(strict=True)
+                executable = launch_path
                 record.executable_path = str(executable)
                 with executable.open('rb') as source, store.new_file(directory, 'executable.bin') as target:
                     shutil.copyfileobj(source, target)
                     target.flush(); os.fsync(target.fileno())
                 record.executable.CopyFrom(store.binding(directory / 'executable.bin'))
-                if file_hash(executable) != record.executable.sha256:
+                if (executable.resolve(strict=True) != resolved_executable
+                        or file_hash(executable) != record.executable.sha256):
                     raise ValueError('executable changed before command launch')
                 process = subprocess.Popen(list(check.argv), executable=str(executable), cwd=working,
                     stdout=stdout, stderr=stderr, start_new_session=True)
@@ -242,8 +247,9 @@ def execute(requirement, check, roots, revision, run_uri, artifact_root, on_star
         after = A.inspect_inputs(A.expected_inputs(requirement, check), roots)
         if [encoded(x) for x in after] != [encoded(x) for x in inputs]:
             raise ValueError('execution source identities changed')
-        if executable is not None and file_hash(executable) != record.executable.sha256:
-            raise ValueError('execution executable bytes changed')
+        if executable is not None and (executable.resolve(strict=True) != resolved_executable
+                or file_hash(executable) != record.executable.sha256):
+            raise ValueError('execution executable path or bytes changed')
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
         receipt.execution_state = E.EVIDENCE_STATE_STALE
         diagnostic += (type(exc).__name__ + ': ' + str(exc) + '\n').encode()
