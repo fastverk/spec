@@ -75,10 +75,12 @@ must be included in those inputs as well as named by `toolchain_id`.
 Exit zero means the explicit selected check set passed. `ready` still reports
 all six dimensions across the entire inventory. Empty selections, unknown
 checks, empty inventories, malformed schemas, and unresolved input locators are
-errors. Review dimensions have no executable promotion path in this version;
-approval, confirmed grounding, and production acceptance remain missing until a
-separately reviewed attestation path exists. A producer's positive observation
-is trusted as that producer's verdict, not independently proved by this tool.
+errors. Review dimensions have no executable promotion path; approval,
+confirmed grounding, and production acceptance require the explicit human
+review entry below. That entry is attributed provenance with integrity checks,
+not identity authentication or a cryptographic attestation. A producer's positive
+observation is trusted as that producer's verdict, not independently proved by
+this tool.
 
 ## Validation without publication
 
