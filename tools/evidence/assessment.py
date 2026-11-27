@@ -10,6 +10,7 @@ from pathlib import Path
 from google.protobuf import json_format
 from spec.v1 import evidence_pb2 as E
 from spec.v1 import invariant_pb2 as I
+from tools.evidence import execution as X
 
 DIMENSIONS = tuple(range(E.EVIDENCE_DIMENSION_APPROVAL, E.EVIDENCE_DIMENSION_PRODUCTION_ACCEPTANCE + 1))
 EXECUTABLE = {E.EVIDENCE_DIMENSION_IMPLEMENTATION, E.EVIDENCE_DIMENSION_TEST, E.EVIDENCE_DIMENSION_PROOF}
@@ -23,7 +24,7 @@ def digest(data):
 
 
 def evaluator_hash():
-    return digest(Path(__file__).read_bytes() + Path(__file__).with_name("evaluate.py").read_bytes() + E.DESCRIPTOR.serialized_pb + I.DESCRIPTOR.serialized_pb)
+    return digest(Path(__file__).read_bytes() + Path(__file__).with_name("evaluate.py").read_bytes() + Path(__file__).with_name("execution.py").read_bytes() + E.DESCRIPTOR.serialized_pb + I.DESCRIPTOR.serialized_pb)
 
 
 def parse(path, message):
@@ -231,35 +232,13 @@ def record_review(requirement, check, decision, roots, evaluator_revision):
     return receipt
 
 
-def execute(requirement, check, roots, evaluator_revision, run_uri=""):
+def execute(requirement, check, roots, evaluator_revision, run_uri="", *, artifact_root=None, on_started=None):
     if check.dimension not in EXECUTABLE:
         raise ValueError("review dimensions cannot be established by executing a test")
-    inputs = inspect_inputs(expected_inputs(requirement, check), roots)
-    receipt = E.EvidenceReceipt(
-        id=str(uuid.uuid4()), check_id=check.id,
-        definition_sha256=definition_hash(requirement, check),
-        evaluator_sha256=evaluator_hash(), evaluator_revision=evaluator_revision,
-        inputs=inputs, executed_at=datetime.now(timezone.utc).isoformat(), run_uri=run_uri,
-        execution_state=E.EVIDENCE_STATE_FAILED,
-    )
-    try:
-        result = subprocess.run(list(check.argv), cwd=roots[check.working_repository], capture_output=True, timeout=check.timeout_seconds or 300, check=False)
-        receipt.observation_artifact_sha256 = digest(result.stdout)
-        if result.returncode == 0:
-            json_format.Parse(result.stdout.decode(), receipt.observation)
-            receipt.execution_state = observation_state(receipt.observation)
-            receipt.observation_sha256 = digest(receipt.observation.SerializeToString(deterministic=True))
-        # Recheck after execution, including HEAD and dirty exact-revision inputs.
-        # A producer cannot mutate its own predicate and retain the old receipt.
-        after = inspect_inputs(expected_inputs(requirement, check), roots)
-        if [x.SerializeToString() for x in after] != [x.SerializeToString() for x in inputs]:
-            receipt.execution_state = E.EVIDENCE_STATE_STALE
-    except (ValueError, OSError, subprocess.SubprocessError, json_format.ParseError):
-        receipt.execution_state = E.EVIDENCE_STATE_FAILED
-    return receipt
+    return X.execute(requirement, check, roots, evaluator_revision, run_uri, artifact_root, on_started)
 
 
-def assess_check(requirement, check, receipt, roots, evaluator_revision):
+def assess_check(requirement, check, receipt, roots, evaluator_revision, artifact_root=None, history=None):
     assessment = E.EvidenceCheckAssessment(check_id=check.id, state=E.EVIDENCE_STATE_MISSING)
     if receipt is None:
         assessment.reasons.append("no receipt")
@@ -282,6 +261,8 @@ def assess_check(requirement, check, receipt, roots, evaluator_revision):
             if now.freshness == E.FRESHNESS_POLICY_EXACT_REVISION and now.revision != then.revision:
                 raise ValueError("receipt revision differs")
         if check.dimension not in EXECUTABLE:
+            if receipt.HasField("execution_record"):
+                raise ValueError("a human review receipt cannot carry executable evidence")
             if not receipt.HasField("review"):
                 raise ValueError("review dimension needs an evaluator-issued structured human review")
             validate_review(requirement, check, receipt.review, current)
@@ -295,9 +276,11 @@ def assess_check(requirement, check, receipt, roots, evaluator_revision):
                 raise ValueError("review receipt differs from the explicit decision or observation")
         elif receipt.HasField("review"):
             raise ValueError("a review receipt cannot substitute for an executable check")
+        else:
+            X.validate_receipt(receipt, check, artifact_root, history or {})
         if receipt.execution_state != E.EVIDENCE_STATE_CURRENT:
-            if receipt.execution_state not in range(E.EVIDENCE_STATE_STALE, E.EVIDENCE_STATE_EXAMINED + 1):
-                raise ValueError("receipt has no terminal execution state")
+            if receipt.execution_state not in range(E.EVIDENCE_STATE_STALE, E.EVIDENCE_STATE_PENDING + 1):
+                raise ValueError("receipt has no supported execution state")
             assessment.state = receipt.execution_state
         else:
             if receipt.observation_sha256 != digest(receipt.observation.SerializeToString(deterministic=True)):
@@ -309,7 +292,7 @@ def assess_check(requirement, check, receipt, roots, evaluator_revision):
     return assessment
 
 
-def assess(manifest, ledger, roots, evaluator_revision, selected=()):
+def assess(manifest, ledger, roots, evaluator_revision, selected=(), *, artifact_root=None):
     validate(manifest)
     if ledger.schema_version != 1:
         raise ValueError("ledger schema_version must be 1")
@@ -317,15 +300,25 @@ def assess(manifest, ledger, roots, evaluator_revision, selected=()):
     receipt_ids = set()
     review_ids = set()
     checks = {check.id: check for check in manifest.checks}
-    for receipt in ledger.receipts:
+    history = {}
+    history_errors = set()
+    for index, receipt in enumerate(ledger.receipts):
         if not receipt.id or receipt.id in receipt_ids:
             raise ValueError("duplicate or missing receipt identity")
         receipt_ids.add(receipt.id)
+        history[receipt.id] = (index, receipt)
         if receipt.HasField("review"):
             if not receipt.review.id or receipt.review.id in review_ids:
                 raise ValueError("duplicate or missing review decision identity")
             review_ids.add(receipt.review.id)
         latest[receipt.check_id] = receipt
+        if receipt.HasField("execution_record"):
+            try:
+                X.validate_history_artifacts(receipt, artifact_root)
+            except (ValueError, OSError, subprocess.SubprocessError):
+                history_errors.add(receipt.check_id)
+    if history_errors - checks.keys():
+        raise ValueError("retained execution history for a retired check is unavailable or invalid")
     selected = set(selected) if selected else set(checks)
     if not selected or selected - checks.keys():
         raise ValueError("selection must name a nonempty set of known checks")
@@ -336,7 +329,10 @@ def assess(manifest, ledger, roots, evaluator_revision, selected=()):
             group = row.dimensions.add(dimension=dimension, state=E.EVIDENCE_STATE_MISSING)
             for check in manifest.checks:
                 if check.requirement_id == requirement.id and check.dimension == dimension:
-                    result = assess_check(requirement, check, latest.get(check.id), roots, evaluator_revision)
+                    result = assess_check(requirement, check, latest.get(check.id), roots, evaluator_revision, artifact_root, history)
+                    if check.id in history_errors:
+                        result.state = E.EVIDENCE_STATE_STALE
+                        result.reasons.append("retained execution history artifacts are unavailable or invalid")
                     group.checks.append(result)
                     if check.id in selected and result.state != E.EVIDENCE_STATE_CURRENT:
                         report.selected_checks_passed = False

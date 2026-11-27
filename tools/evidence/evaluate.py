@@ -2,6 +2,7 @@
 import argparse
 import fcntl
 import os
+import signal
 import sys
 import tempfile
 from pathlib import Path
@@ -20,6 +21,7 @@ def atomic_write(path, text):
         output.flush()
         os.fsync(output.fileno())
     os.replace(temporary, path)
+    A.X.sync_directory(path.parent)
 
 
 def main():
@@ -31,6 +33,7 @@ def main():
     parser.add_argument("--check", action="append", default=[])
     parser.add_argument("--output", type=Path)
     parser.add_argument("--run-uri", default="")
+    parser.add_argument("--execution-artifacts", type=Path, help="Private immutable execution store; defaults beside the ledger")
     parser.add_argument("--decision", type=Path, help="Explicit protobuf-JSON human review decision; never predicate output")
     args = parser.parse_args()
     # A proposal/report must not replace an append-only ledger or its inputs.
@@ -49,6 +52,13 @@ def main():
         roots[name] = Path(path).resolve(strict=True)
     manifest = A.parse(args.manifest, E.EvidenceManifest())
     A.validate(manifest)
+    artifact_root = args.execution_artifacts or args.receipts.with_name(args.receipts.name + ".executions")
+    protected_artifacts = [*protected, *([args.output] if args.output else [])]
+    for requirement in manifest.requirements:
+        protected_artifacts.extend(A.bound_file(item, roots) for item in requirement.sources)
+    for check in manifest.checks:
+        protected_artifacts.extend(A.bound_file(item, roots) for item in check.inputs)
+    artifact_root = A.X.validate_location(artifact_root, protected_artifacts)
     revision = A.head(os.environ.get("BUILD_WORKSPACE_DIRECTORY", Path.cwd()))
     args.receipts.parent.mkdir(parents=True, exist_ok=True)
     # Serialize writers around read/execute/append/replace. Assess never edits
@@ -101,11 +111,25 @@ def main():
                 if check.dimension not in A.EXECUTABLE:
                     raise ValueError("review dimensions cannot be executed")
                 A.inspect_inputs(A.expected_inputs(requirements[check.requirement_id], check), roots)
-            for key in sorted(selected):
-                check = checks[key]
-                ledger.receipts.append(A.execute(requirements[check.requirement_id], check, roots, revision, args.run_uri))
+            def append(receipt):
+                ledger.receipts.append(receipt)
                 atomic_write(args.receipts, A.render(ledger))
-        report = A.assess(manifest, ledger, roots, revision, selected)
+            def cancel(signum, _frame):
+                raise A.X.Cancelled(signum)
+            handlers = {signum: signal.signal(signum, cancel) for signum in [signal.SIGINT, signal.SIGTERM]}
+            try:
+                for key in sorted(selected):
+                    check = checks[key]
+                    append(A.execute(requirements[check.requirement_id], check, roots, revision, args.run_uri,
+                        artifact_root=artifact_root, on_started=append))
+            except A.X.Cancelled as exc:
+                if exc.receipt is not None:
+                    append(exc.receipt)
+                return 128 + exc.signum
+            finally:
+                for signum, handler in handlers.items():
+                    signal.signal(signum, handler)
+        report = A.assess(manifest, ledger, roots, revision, selected, artifact_root=artifact_root)
     output = A.render(report)
     if args.output:
         atomic_write(args.output, output)
