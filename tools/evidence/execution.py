@@ -172,7 +172,7 @@ def execute(requirement, check, roots, revision, run_uri, artifact_root, on_star
     receipt.id = str(uuid.uuid4()); receipt.execution_state = E.EVIDENCE_STATE_FAILED
     record.final_receipt_id = receipt.id
     record.start_record.CopyFrom(start.execution_record)
-    process = None; diagnostic = b''; cancelled = None; executable = None
+    process = None; diagnostic = b''; canceled = None; executable = None
     try:
         with store.new_file(directory, 'stdout.bin') as stdout, store.new_file(directory, 'stderr.bin') as stderr:
             try:
@@ -202,10 +202,10 @@ def execute(requirement, check, roots, revision, run_uri, artifact_root, on_star
                     record.termination = E.EVIDENCE_PROCESS_TERMINATION_TIMED_OUT
                     diagnostic = (type(exc).__name__ + ': ' + str(exc) + '\n').encode()
                 except KeyboardInterrupt as exc:
-                    cancelled = exc if isinstance(exc, Canceled) else Canceled()
+                    canceled = exc if isinstance(exc, Canceled) else Canceled()
                     terminate(process); record.exit_code = process.returncode
                     record.termination = E.EVIDENCE_PROCESS_TERMINATION_CANCELED
-                    diagnostic = ('Caller cancellation signal: ' + str(cancelled.signum) + '\n').encode()
+                    diagnostic = ('Caller cancellation signal: ' + str(canceled.signum) + '\n').encode()
                 finally:
                     # A normally exiting leader must not leave background group members.
                     terminate(process)
@@ -253,9 +253,9 @@ def execute(requirement, check, roots, revision, run_uri, artifact_root, on_star
     record.evidence_state = receipt.execution_state
     record.observation_sha256 = receipt.observation_sha256
     receipt.execution_record.CopyFrom(store.write(directory, 'complete.pb', encoded(record)))
-    if cancelled is not None:
-        cancelled.receipt = receipt
-        raise cancelled
+    if canceled is not None:
+        canceled.receipt = receipt
+        raise canceled
     return receipt
 
 
