@@ -288,7 +288,10 @@ def statementId (s : Statement) : EntityId :=
   EntityId.statement s.rawId
 
 -- AX-012 — Permission semantics are bitfield-based
-axiom canonicalCheck : PermissionBits → PermissionBits → Bool
+/-- The exact bitfield comparison. Carrier validity and runtime enforcement
+    are separate from this mathematical Boolean function. -/
+def canonicalCheck (current required : PermissionBits) : Bool :=
+  decide ((current &&& required) = required)
 
 -- AX-014 — Soft-delete filtering
 axiom isSoftDeleted : Resource → Time → Prop
