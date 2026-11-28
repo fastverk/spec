@@ -24,7 +24,7 @@ package(default_visibility = ["//visibility:public"])
 #      directions: the probe now FAILS, and the tree still passes without it.
 #   2. This audit, for what the option cannot see, plus the axiom ratchet.
 #
-# On the ratchet: this tree declares 92 axioms ON PURPOSE — the universe of
+# On the ratchet: this tree declares 91 axioms ON PURPOSE — the universe of
 # discourse is opaque by design. Banning them (as the same gate does in agora)
 # would make this impossible to turn on. What must not happen is the trusted
 # base growing quietly, so the counts live in axiom_baseline.txt and a change
@@ -108,6 +108,7 @@ lean_test(
         "Spec/Axioms.lean",
         "Spec/AdmissionCheck.lean",
         "Spec/ManifestNameCheck.lean",
+        "Spec/PermissionBitfieldCheck.lean",
         "Spec/Corpus/Schema.lean",
         "Spec/Corpus/Inference.lean",
         "Spec/Emit/TtlEmit.lean",
@@ -216,4 +217,18 @@ lean_test(
         "Spec/ManifestNameCheck.lean",
     ],
     entry = "Spec/ManifestNameCheck.lean",
+)
+
+
+# Exact comparison, with distinct declared-level and raw-carrier populations.
+lean_test(
+    name = "permission_bitfield_test",
+    srcs = [
+        "Spec/Universe.lean",
+        "Spec/Predicates.lean",
+        "Spec/Kernel.lean",
+        "Spec/Axioms.lean",
+        "Spec/PermissionBitfieldCheck.lean",
+    ],
+    entry = "Spec/PermissionBitfieldCheck.lean",
 )

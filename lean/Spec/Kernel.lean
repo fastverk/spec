@@ -134,8 +134,9 @@ structure K3_Mediated : Prop where
   /-- AX-002 — Persistent state is storage-mediated. -/
   storageMediated : ∀ (o : Operation) (t : Time),
     persistsState o t → ∃ (s : StoragePrimitive), persistsVia o s t
-  /-- AX-012 — Permission semantics are bitfield-based (canonicalCheck
-      is a determined function). -/
+  /-- Legacy AX-012 determinism field, retained for source compatibility.
+      The exact comparison is defined by `canonicalCheck` and exposed by
+      `ax_AX_012_bitwise`; this field alone states only reflexivity. -/
   permissionBitfield : ∀ (current required : PermissionBits),
     canonicalCheck current required = canonicalCheck current required
   /-- AX-017 — Cache coherence: mutated inputs invalidate caches. -/

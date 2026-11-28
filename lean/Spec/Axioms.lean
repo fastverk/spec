@@ -162,13 +162,21 @@ theorem ax_AX_002 :
   | some s, _ => exact ⟨s, h⟩
   | none, hpNone => simp [persistsState, h] at hpNone
 
-/-- AX-012 — Permission semantics are bitfield-based. PROVED, not
-    from kernel: the equality is `Eq.refl`; the spec content lives in
-    the existence of `canonicalCheck` as a deterministic function. -/
+/-- Legacy AX-012 determinism shape, retained for source compatibility.
+    Use `ax_AX_012_bitwise` for the actual comparison formula. -/
 theorem ax_AX_012 :
     ∀ (current required : PermissionBits),
       canonicalCheck current required = canonicalCheck current required :=
   fun _ _ => rfl
+
+/-- AX-012's complete comparison formula, proved from the definition. -/
+theorem ax_AX_012_bitwise (current required : PermissionBits) :
+    canonicalCheck current required = decide ((current &&& required) = required) := rfl
+
+/-- Acceptance means every required bit is present, not just any overlap. -/
+theorem canonicalCheck_all_required_bits (current required : PermissionBits) :
+    canonicalCheck current required = true ↔ (current &&& required) = required := by
+  simp [canonicalCheck]
 
 /-- AX-017 — Cache coherence: mutated inputs invalidate caches. -/
 theorem ax_AX_017 :
